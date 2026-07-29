@@ -1,3 +1,5 @@
+/* global Buffer */
+
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const CDP_URL = process.env.CDP_URL ?? 'http://127.0.0.1:9222';
@@ -27,7 +29,8 @@ class CDP {
       const pending = this.pending.get(message.id);
       if (!pending) return;
       this.pending.delete(message.id);
-      message.error ? pending.reject(new Error(message.error.message)) : pending.resolve(message.result);
+      if (message.error) pending.reject(new Error(message.error.message));
+      else pending.resolve(message.result);
     });
   }
   send(method, params = {}, sessionId) {

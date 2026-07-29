@@ -51,6 +51,10 @@ import type { ChatMessage, Player } from '@/types/game';
 import type { TurnMatchState } from '@/types/turnGame';
 import { useTranslation } from '@/src/i18n';
 import { findWinningLineCells } from '@/engine/TurnGameEngine';
+import {
+  TURN_BOARD_GRID_GAP,
+  turnBoardCellSize,
+} from '@/components/game/turnBoardLayout';
 
 const MEMORY_SYMBOLS = [
   '◆', '●', '▲', '✦', '■', '⬟', '✚', '◈', '★', '◇', '⬢',
@@ -233,8 +237,9 @@ function PlayerCard({
 }
 
 function RuneBoard({ match, disabled, onMove }: BoardProps) {
+  const viewport = useWindowDimensions();
   const winnerCells = winningCells(match);
-  const cellWidth = `${Math.max(8, 100 / match.boardColumns - 2)}%` as `${number}%`;
+  const cellSize = turnBoardCellSize(viewport.width, viewport.height, match.boardColumns);
   const markSize = match.boardColumns >= 6 ? 27 : match.boardColumns >= 5 ? 36 : 64;
   return (
     <View style={styles.runeBoard}>
@@ -246,7 +251,7 @@ function RuneBoard({ match, disabled, onMove }: BoardProps) {
           onPress={() => onMove(index)}
           style={({ pressed }) => [
             styles.runeCell,
-            { width: cellWidth },
+            { width: cellSize, height: cellSize },
             value !== null && {
               backgroundColor: `${PLAYER_COLORS[value]}18`,
               borderColor: PLAYER_COLORS[value],
@@ -306,8 +311,9 @@ function ConnectBoard({ match, disabled, onMove }: BoardProps) {
 }
 
 function MemoryBoard({ match, disabled, onMove }: BoardProps) {
+  const viewport = useWindowDimensions();
   const winnerCells = winningCells(match);
-  const cardWidth = `${Math.max(8, 100 / match.boardColumns - 2)}%` as `${number}%`;
+  const cellSize = turnBoardCellSize(viewport.width, viewport.height, match.boardColumns);
   const symbolSize = match.boardColumns >= 6 ? 18 : match.boardColumns >= 5 ? 23 : 30;
   return (
     <View style={styles.memoryBoard}>
@@ -322,7 +328,7 @@ function MemoryBoard({ match, disabled, onMove }: BoardProps) {
             onPress={() => onMove(index)}
             style={({ pressed }) => [
               styles.memoryCard,
-              { width: cardWidth },
+              { width: cellSize, height: cellSize },
               value !== null && styles.memoryCardOpen,
               matched && styles.memoryCardMatched,
               owner !== null && owner !== undefined && {
@@ -351,8 +357,9 @@ function MemoryBoard({ match, disabled, onMove }: BoardProps) {
 }
 
 function PipeBoard({ match, disabled, onMove }: BoardProps) {
+  const viewport = useWindowDimensions();
   const winnerCells = winningCells(match);
-  const cellWidth = `${Math.max(8, 100 / match.boardColumns - 2)}%` as `${number}%`;
+  const cellSize = turnBoardCellSize(viewport.width, viewport.height, match.boardColumns);
   const glyphSize = match.boardColumns >= 6 ? 25 : match.boardColumns >= 5 ? 31 : 58;
   return (
     <View style={styles.pipeBoard}>
@@ -368,7 +375,7 @@ function PipeBoard({ match, disabled, onMove }: BoardProps) {
             onPress={() => onMove(index)}
             style={({ pressed }) => [
               styles.pipeCell,
-              { width: cellWidth },
+              { width: cellSize, height: cellSize },
               owner !== null && owner !== undefined && {
                 backgroundColor: `${PLAYER_COLORS[owner]}1F`,
                 borderColor: PLAYER_COLORS[owner],
@@ -861,8 +868,8 @@ const styles = StyleSheet.create({
   boardShellResonance: { aspectRatio: 0.62, maxHeight: 620 },
   boardGlow: { position: 'absolute', width: '70%', height: '70%', left: '15%', top: '15%', borderRadius: 999, backgroundColor: colors.glow },
   waitOverlay: { position: 'absolute', inset: 0, backgroundColor: 'rgba(247,244,238,0.22)' },
-  runeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  runeCell: { width: '31%', flexGrow: 1, aspectRatio: 1, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  runeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
+  runeCell: { borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   filledCell: { backgroundColor: colors.surfaceElevated },
   runeMark: { fontSize: 64, lineHeight: 72, fontWeight: '400' },
   winningCell: { borderWidth: 3, transform: [{ scale: 1.035 }], zIndex: 2, ...shadows.glow },
@@ -872,13 +879,13 @@ const styles = StyleSheet.create({
   columnPressed: { backgroundColor: 'rgba(255,255,255,0.06)' },
   connectSlot: { width: '100%', aspectRatio: 1, maxWidth: 62, alignSelf: 'center', borderRadius: radius.pill, backgroundColor: colors.backgroundDeep, borderWidth: 2, borderColor: colors.borderSubtle },
   winningConnectSlot: { borderWidth: 4, borderColor: '#FFFFFF', transform: [{ scale: 1.08 }], ...shadows.glow },
-  memoryBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  memoryCard: { width: '23%', flexGrow: 1, aspectRatio: 1, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  memoryBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
+  memoryCard: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   memoryCardOpen: { backgroundColor: colors.surfaceElevated, borderColor: colors.cyanMuted },
   memoryCardMatched: { backgroundColor: colors.primaryContainer, borderColor: colors.success },
   memorySymbol: { fontSize: 30, lineHeight: 36, fontWeight: '700' },
-  pipeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  pipeCell: { width: '31%', flexGrow: 1, aspectRatio: 1, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
+  pipeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
+  pipeCell: { borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
   pipeGlyph: { fontSize: 58, lineHeight: 64, fontWeight: '500' },
   pipeTarget: { position: 'absolute', left: 7, top: 5, fontSize: 12, lineHeight: 14, opacity: 0.55 },
   rotateBadge: { position: 'absolute', right: 7, bottom: 7, width: 22, height: 22, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center' },

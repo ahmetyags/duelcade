@@ -96,6 +96,25 @@ test('the player completing the old pipe puzzle wins the round', () => {
   assert.equal(session.state.cellOwners[4], 0);
 });
 
+test('straight pipe tiles only use their two visually distinct orientations', () => {
+  const session = sessionForMode('pipe_circuit', 'hard');
+  session.state.tileKinds?.forEach((kind, index) => {
+    const orientationCount = kind === 'straight' ? 2 : 4;
+    assert.ok((session.solution[index] ?? 0) < orientationCount);
+    assert.ok((session.state.cells[index] ?? 0) < orientationCount);
+  });
+
+  session.state.activePlayerIndex = 0;
+  session.state.cells = [1];
+  session.state.cellOwners = [null];
+  session.state.tileKinds = ['straight'];
+  session.state.targets = [0];
+  session.solution = [0];
+  const result = applyTurnMove(session, 'a', 0, session.state.moveNumber);
+  assert.equal(result.roundEnded, true);
+  assert.equal(session.state.cells[0], 0);
+});
+
 test('resonance dials rotate both ways and award the finishing move', () => {
   const session = createTurnMatchSession('resonance-test', ['a', 'b'], 5);
   session.state.mode = 'resonance_dials';

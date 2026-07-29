@@ -13,7 +13,6 @@ import { ThemedButton } from '@/components/ui/ThemedButton';
 import { DurationSlider } from '@/components/ui/DurationSlider';
 import { PlayerProfileEditor } from '@/components/ui/PlayerProfileEditor';
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
-import { Panel } from '@/components/ui/Panel';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -187,8 +186,7 @@ export default function CreateRoomScreen() {
         )}
 
         <View style={styles.submitArea}>
-          <Panel
-            variant="surface"
+          <View
             style={[
               styles.serverStatus,
               serverStatus === 'unavailable' && styles.serverStatusError,
@@ -221,7 +219,7 @@ export default function CreateRoomScreen() {
                 </ThemedText>
               </Pressable>
             )}
-          </Panel>
+          </View>
 
           <ThemedButton
             label={t('create.action')}
@@ -321,7 +319,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderColor: colors.primaryContainer,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
   },
   serverStatusError: {
     borderColor: colors.alarmBackground,

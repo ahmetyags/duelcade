@@ -272,8 +272,17 @@ function newRound(
   const rng = new SeededRandom(roundSeed);
   const config = boardConfig(mode, difficulty);
   const cellCount = config.rows * config.columns;
-  const pipeSolution = Array.from({ length: cellCount }, () => rng.nextInt(0, 3));
-  const pipeInitial = pipeSolution.map((rotation) => (rotation + rng.nextInt(1, 3)) % 4);
+  const pipeKinds = Array.from(
+    { length: cellCount },
+    () => rng.chance(0.48) ? 'straight' as const : 'corner' as const,
+  );
+  const pipeSolution = pipeKinds.map((kind) => (
+    rng.nextInt(0, kind === 'straight' ? 1 : 3)
+  ));
+  const pipeInitial = pipeSolution.map((rotation, index) => {
+    const orientationCount = pipeKinds[index] === 'straight' ? 2 : 4;
+    return (rotation + rng.nextInt(1, orientationCount - 1)) % orientationCount;
+  });
   const resonanceTargets = Array.from({ length: config.rows }, () => rng.nextInt(0, 4));
   const resonanceInitial = resonanceTargets.map((target) => (target + rng.nextInt(1, 4)) % 5);
   const memory = mode === 'memory_pairs' ? memoryDeck(roundSeed, cellCount) : [];
@@ -345,10 +354,7 @@ function newRound(
       difficulty,
       ...(mode === 'pipe_circuit'
         ? {
-            tileKinds: Array.from(
-              { length: cellCount },
-              () => rng.chance(0.48) ? 'straight' as const : 'corner' as const,
-            ),
+            tileKinds: pipeKinds,
             targets: pipeSolution,
           }
         : {}),
@@ -593,7 +599,8 @@ export function applyTurnMove(
     if (state.cells[cell] === session.solution[cell]) {
       return { accepted: false, reason: 'invalid_cell' };
     }
-    state.cells[cell] = ((state.cells[cell] ?? 0) + 1) % 4;
+    const orientationCount = state.tileKinds?.[cell] === 'straight' ? 2 : 4;
+    state.cells[cell] = ((state.cells[cell] ?? 0) + 1) % orientationCount;
     state.cellOwners[cell] = state.cells[cell] === session.solution[cell] ? player : null;
     state.moveNumber += 1;
     if (state.cells.every((value, index) => value === session.solution[index])) {

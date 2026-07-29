@@ -1,3 +1,5 @@
+/* global Buffer */
+
 import { writeFile } from 'node:fs/promises';
 
 const CDP_URL = process.env.CDP_URL ?? 'http://127.0.0.1:9222';

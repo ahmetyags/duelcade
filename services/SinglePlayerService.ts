@@ -33,6 +33,41 @@ let botTimer: ReturnType<typeof setTimeout> | null = null;
 const transitionTimers = new Set<ReturnType<typeof setTimeout>>();
 let botMoveCount = 0;
 
+let botMemoryRoundId: string | null = null;
+let botMemorySequence = 0;
+const botMemory = new Map<number, { value: number; sequence: number }>();
+
+function botMemoryCapacity(difficulty: Difficulty): number {
+  if (difficulty === 'final') return 20;
+  if (difficulty === 'hard') return 14;
+  if (difficulty === 'medium') return 8;
+  return 4;
+}
+
+function observeMemoryCards(activeSession: TurnMatchSession): void {
+  const state = activeSession.state;
+  if (state.mode !== 'memory_pairs') return;
+  if (botMemoryRoundId !== state.roundId) {
+    botMemoryRoundId = state.roundId;
+    botMemory.clear();
+    botMemorySequence = 0;
+  }
+
+  state.cells.forEach((value, index) => {
+    if (value === null || state.matchedCells.includes(index)) return;
+    botMemory.set(index, { value, sequence: botMemorySequence++ });
+  });
+  for (const index of state.matchedCells) botMemory.delete(index);
+
+  const capacity = botMemoryCapacity(state.difficulty);
+  while (botMemory.size > capacity) {
+    const oldest = [...botMemory.entries()]
+      .sort((left, right) => left[1].sequence - right[1].sequence)[0]?.[0];
+    if (oldest === undefined) break;
+    botMemory.delete(oldest);
+  }
+}
+
 function cloneState(state: TurnMatchState): TurnMatchState {
   return {
     ...state,
@@ -68,6 +103,7 @@ function cloneSession(source: TurnMatchSession): TurnMatchSession {
 
 function publish(): void {
   if (!session) return;
+  observeMemoryCards(session);
   useGameStore.getState().setTurnMatch(cloneState(session.state));
 }
 
@@ -169,18 +205,19 @@ function chooseBotMove(activeSession: TurnMatchSession): number {
   const state = activeSession.state;
   const rng = new SeededRandom(`${activeSession.seed}_bot_${botMoveCount++}_${state.moveNumber}`);
   const quality = state.difficulty === 'hard' || state.difficulty === 'final'
-    ? 0.9
-    : state.difficulty === 'medium' ? 0.62 : 0.3;
+    ? 0.86
+    : state.difficulty === 'medium' ? 0.66 : 0.42;
 
   if (state.mode === 'cipher_clash') {
     const target = activeSession.cipherSolutions[1];
     const attempts = (state.cipherHistory ?? [])
       .filter((entry) => entry.playerIndex === 1).length;
-    const mistakes = state.difficulty === 'hard' || state.difficulty === 'final'
-      ? Math.max(0, 2 - attempts)
-      : state.difficulty === 'medium'
-        ? Math.max(0, 4 - attempts)
-        : Math.max(0, 6 - attempts);
+    const solveAfter = state.difficulty === 'final'
+      ? 4
+      : state.difficulty === 'hard' ? 5 : state.difficulty === 'medium' ? 7 : 9;
+    const mistakes = attempts >= solveAfter
+      ? 0
+      : Math.min(target.length, Math.max(1, Math.ceil((solveAfter - attempts) / 2)));
     const guess = [...target];
     const positions = rng.shuffle(Array.from({ length: guess.length }, (_, index) => index));
     for (const position of positions.slice(0, mistakes)) {
@@ -245,6 +282,7 @@ function chooseBotMove(activeSession: TurnMatchSession): number {
   }
 
   if (state.mode === 'memory_pairs') {
+    observeMemoryCards(activeSession);
     const hidden = state.cells
       .map((_, index) => (
         state.matchedCells.includes(index) || state.selectedCells.includes(index) ? -1 : index
@@ -252,15 +290,17 @@ function chooseBotMove(activeSession: TurnMatchSession): number {
       .filter((index) => index >= 0);
     const first = state.selectedCells[0];
     if (first !== undefined && rng.chance(quality)) {
-      const match = hidden.find(
-        (index) => activeSession.memoryDeck[index] === activeSession.memoryDeck[first],
-      );
+      const firstValue = botMemory.get(first)?.value ?? state.cells[first];
+      const match = hidden.find((index) => botMemory.get(index)?.value === firstValue);
       if (match !== undefined) return match;
     }
     if (first === undefined && rng.chance(quality)) {
-      const pairStart = hidden.find((index, offset) => hidden
-        .slice(offset + 1)
-        .some((other) => activeSession.memoryDeck[other] === activeSession.memoryDeck[index]));
+      const pairStart = hidden.find((index, offset) => {
+        const knownValue = botMemory.get(index)?.value;
+        return knownValue !== undefined && hidden
+          .slice(offset + 1)
+          .some((other) => botMemory.get(other)?.value === knownValue);
+      });
       if (pairStart !== undefined) return pairStart;
     }
     return randomItem(hidden, rng);
@@ -292,9 +332,18 @@ function scheduleBotIfNeeded(): void {
     session.state.activePlayerIndex !== 1 ||
     botTimer
   ) return;
-  const delay = session.difficulty === 'hard' || session.difficulty === 'final'
-    ? 420
-    : session.difficulty === 'medium' ? 650 : 900;
+  const delayRng = new SeededRandom(
+    `${session.seed}_bot_delay_${botMoveCount}_${session.state.moveNumber}`,
+  );
+  const baseDelay = session.difficulty === 'hard' || session.difficulty === 'final'
+    ? 760
+    : session.difficulty === 'medium' ? 1_050 : 1_350;
+  const thinkingDelay = session.state.mode === 'cipher_clash'
+    ? 700
+    : session.state.mode === 'memory_pairs' && session.state.selectedCells.length === 0
+      ? 550
+      : 0;
+  const delay = baseDelay + thinkingDelay + delayRng.nextInt(120, 420);
   botTimer = setTimeout(() => {
     botTimer = null;
     if (!session || session.state.status !== 'playing' || session.state.activePlayerIndex !== 1) return;
@@ -420,4 +469,7 @@ export function clearSinglePlayerSession(): void {
   clearRuntimeTimers();
   session = null;
   botMoveCount = 0;
+  botMemoryRoundId = null;
+  botMemorySequence = 0;
+  botMemory.clear();
 }
