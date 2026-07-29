@@ -1,56 +1,149 @@
-# Welcome to your Expo app 👋
+# Duelcade
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+İki oyuncunun aynı oyun masasında sırayla yarıştığı hızlı bulmaca oyunudur.
+Uygulama Expo Router, React Native, TypeScript ve Zustand ile iOS, Android ve
+web için hazırlanmıştır.
 
-## Get started
+## Gereksinimler
 
-1. Install dependencies
+- Node.js 22.13.1 veya daha yeni bir 22.x sürümü
+- npm 10 veya daha yeni
+- Mobil test için Expo Go ya da bir Expo development build
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Projede `.nvmrc` bulunduğu için nvm kullananlar doğru sürüme şu komutla geçebilir:
 
 ```bash
-npm run reset-project
+nvm use
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Kurulum
 
-### Other setup steps
+```bash
+npm install
+cp .env.example .env
+npm run server
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Başka bir terminalde:
 
-## Learn more
+```bash
+npm start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Expo terminali açıldıktan sonra:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Android için `a`
+- iOS Simulator için `i`
+- Web için `w`
 
-## Join the community
+Linux'ta Metro `ENOSPC: System limit for number of file watchers reached`
+hatası verirse işletim sistemi izleyici limitini yükseltin:
 
-Join our community of developers creating universal apps.
+```bash
+sudo sysctl -w fs.inotify.max_user_watches=524288
+sudo sysctl -w fs.inotify.max_user_instances=1024
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Bu ayarın kalıcı olması için dağıtımınızın `/etc/sysctl.d/` yapılandırmasına
+aynı değerleri ekleyin.
+
+Alternatif olarak platform komutları doğrudan çalıştırılabilir:
+
+```bash
+npm run android
+npm run ios
+npm run web
+```
+
+## Doğrulama
+
+```bash
+npm run typecheck
+npm run lint
+npm run doctor
+npm test
+npm run verify
+```
+
+Üç platformun üretim bundle'ını kontrol etmek için:
+
+```bash
+npx expo export --platform all
+```
+
+## Proje yapısı
+
+```text
+src/app/          Expo Router ekranları
+src/components/   Arayüz, oyun ve efekt bileşenleri
+engine/           Bulmaca üretimi ve oyun kuralları
+services/         Ses, haptics ve ağ katmanı
+store/            Zustand uygulama durumları
+theme/            Renk, tipografi ve ölçü token'ları
+types/            Oyun ve ağ tipleri
+assets/           Uygulama ikonları ve görseller
+```
+
+## Ağ modeli
+
+Uygulama `services/ColyseusTransport.ts` üzerinden gerçek Colyseus sunucusuna
+bağlanır. Oda, süre, roller, puzzle çözümleri, hareket ve etkileşim doğrulaması
+`server/DuelcadeRoom.ts` içinde sunucu otoritesindedir.
+
+Yerel simulator veya web için `.env`:
+
+```dotenv
+EXPO_PUBLIC_GAME_SERVER_URL=http://localhost:2567
+```
+
+Fiziksel telefonlarda `localhost` telefonun kendisini ifade eder. Geliştirme
+bilgisayarının yerel ağ IP adresini kullanın:
+
+```dotenv
+EXPO_PUBLIC_GAME_SERVER_URL=http://192.168.1.50:2567
+```
+
+Üretimde HTTPS/WSS destekli bir sunucu adresi zorunludur.
+
+Ayrıntılı ürünleştirme sırası için
+[`PRODUCTION_ROADMAP.md`](./PRODUCTION_ROADMAP.md) dosyasını izleyin.
+
+## Sunucu dağıtımı
+
+Sunucu doğrudan çalıştırılabilir:
+
+```bash
+npm run server
+```
+
+Docker ile:
+
+```bash
+docker compose up --build
+```
+
+Sağlık kontrolü `GET /health` adresindedir. Colyseus odaları 6 karakterli
+davet kodu kullanır ve geçici bağlantı kesilmelerinde 60 saniye yeniden
+bağlanma hakkı verir.
+
+## Mağaza derlemeleri
+
+`eas.json` development, preview ve production profillerini içerir. Android
+package ve iOS bundle identifier değeri `com.duelcade.game` olarak
+tanımlanmıştır. İlk mağaza derlemesinden önce bu kimliğin geliştirici
+hesaplarında kullanılabilir olduğunu doğrulayın.
+
+```bash
+npx eas-cli build --profile production --platform android
+npx eas-cli build --profile production --platform ios
+```
+
+## Kullanılan temel sürümler
+
+- Expo SDK 57
+- React Native 0.86
+- React 19.2
+- TypeScript 6
+
+Expo SDK 57 sürüm referansı:
+https://docs.expo.dev/versions/v57.0.0/
