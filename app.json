@@ -52,8 +52,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "973539cc-f79c-4534-8f1e-4ad675f5e211"
+        "projectId": "d7f253b0-33c1-478d-9249-533e8a92e979"
       }
-    }
+    },
+    "owner": "ahmetyagz"
   }
 }
