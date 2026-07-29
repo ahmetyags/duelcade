@@ -4,8 +4,7 @@ import type { ConnectionState, ServerEventListener } from '@/types/network';
 import type { ClientEvent, ServerMessage } from '@/types/network';
 import { PROTOCOL_VERSION } from '@/types/network';
 import type { NetworkTransport } from '@/services/NetworkService';
-
-const DEFAULT_SERVER_URL = 'http://localhost:2567';
+import { GAME_SERVER_URL } from '@/services/GameServerAvailability';
 
 /**
  * Production transport backed by a real Colyseus room.
@@ -22,7 +21,7 @@ export class ColyseusTransport implements NetworkTransport {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private consentedDisconnect = false;
 
-  constructor(endpoint = process.env.EXPO_PUBLIC_GAME_SERVER_URL ?? DEFAULT_SERVER_URL) {
+  constructor(endpoint = GAME_SERVER_URL) {
     this.client = new Client(endpoint);
   }
 

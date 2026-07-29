@@ -31,6 +31,11 @@ const en = {
   'home.adventurerDescription': 'Explore, choose & unlock',
   'home.turnLabel': 'ONE BOARD · TWO PLAYERS',
   'home.turnDescription': 'Take turns in quick tabletop games',
+  'home.serverChecking': 'Checking the online game server…',
+  'home.serverWaking': 'Preparing the game server… This can take up to a minute.',
+  'home.serverReady': 'Online play is ready',
+  'home.serverUnavailable': 'The game server could not be started yet.',
+  'home.serverRetry': 'Try again',
 
   'create.title': 'Create a Match',
   'create.yourName': 'YOUR NAME',
@@ -429,6 +434,11 @@ const tr: Record<TranslationKey, string> = {
   'home.adventurerDescription': 'Keşfet, seç ve kilidi aç',
   'home.turnLabel': 'TEK MASA · İKİ OYUNCU',
   'home.turnDescription': 'Kısa masa oyunlarını sırayla oynayın',
+  'home.serverChecking': 'Çevrimiçi oyun sunucusu kontrol ediliyor…',
+  'home.serverWaking': 'Oyun sunucusu hazırlanıyor… Bu işlem bir dakika sürebilir.',
+  'home.serverReady': 'Çevrimiçi oyun hazır',
+  'home.serverUnavailable': 'Oyun sunucusu henüz başlatılamadı.',
+  'home.serverRetry': 'Tekrar dene',
 
   'create.title': 'Maç Oluştur',
   'create.yourName': 'ADIN',
