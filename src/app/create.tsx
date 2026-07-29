@@ -4,8 +4,8 @@
  * host enters lobby with share button.
  */
 
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { ActivityIndicator, View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ui/ThemedText';
@@ -13,6 +13,7 @@ import { ThemedButton } from '@/components/ui/ThemedButton';
 import { DurationSlider } from '@/components/ui/DurationSlider';
 import { PlayerProfileEditor } from '@/components/ui/PlayerProfileEditor';
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
+import { Panel } from '@/components/ui/Panel';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -20,7 +21,11 @@ import { useRoomStore } from '@/store/roomStore';
 import { createRoom } from '@/services/NetworkBridge';
 import { getErrorMessage } from '@/services/ErrorMessages';
 import { triggerHaptic } from '@/services/HapticsService';
-import { ChevronLeft, Clock3, Gauge } from 'lucide-react-native';
+import {
+  warmUpGameServer,
+  type GameServerStatus,
+} from '@/services/GameServerAvailability';
+import { ChevronLeft, Clock3, Gauge, RefreshCw, WifiOff } from 'lucide-react-native';
 import { useTranslation } from '@/src/i18n';
 import type { Difficulty } from '@/types/game';
 
@@ -40,8 +45,37 @@ export default function CreateRoomScreen() {
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [durationMinutes, setDurationMinutes] = useState(5);
   const [name, setName] = useState(displayName || user?.displayName || '');
+  const [serverStatus, setServerStatus] = useState<GameServerStatus>('checking');
+  const warmupController = useRef<AbortController | null>(null);
+
+  const runServerWarmup = useCallback((controller: AbortController) => {
+    void warmUpGameServer({
+      signal: controller.signal,
+      onProgress: (status) => {
+        if (!controller.signal.aborted) setServerStatus(status);
+      },
+    }).then((status) => {
+      if (!controller.signal.aborted) setServerStatus(status);
+    });
+  }, []);
+
+  const retryServerWarmup = useCallback(() => {
+    warmupController.current?.abort();
+    const controller = new AbortController();
+    warmupController.current = controller;
+    setServerStatus('checking');
+    runServerWarmup(controller);
+  }, [runServerWarmup]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    warmupController.current = controller;
+    runServerWarmup(controller);
+    return () => controller.abort();
+  }, [runServerWarmup]);
 
   const handleCreate = useCallback(async () => {
+    if (serverStatus !== 'ready') return;
     triggerHaptic('medium');
     const finalName = name.trim() || displayName || user?.displayName
       || t('common.playerFallback', { number: Math.floor(Math.random() * 999) });
@@ -60,7 +94,16 @@ export default function CreateRoomScreen() {
     });
 
     createRoom(finalName, avatarId, 'no_preference', difficulty, durationMinutes);
-  }, [avatarId, displayName, user?.displayName, difficulty, durationMinutes, name, setDisplayName, setLoading, setError, router, t]);
+  }, [avatarId, displayName, user?.displayName, difficulty, durationMinutes, name, serverStatus, setDisplayName, setLoading, setError, router, t]);
+
+  const serverStatusLabel =
+    serverStatus === 'checking'
+      ? t('home.serverChecking')
+      : serverStatus === 'waking'
+        ? t('home.serverWaking')
+        : serverStatus === 'ready'
+          ? t('home.serverReady')
+          : t('home.serverUnavailable');
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -143,15 +186,53 @@ export default function CreateRoomScreen() {
           </ThemedText>
         )}
 
-        {/* Create button */}
-        <ThemedButton
-          label={t('create.action')}
-          variant="primary"
-          size="lg"
-          fullWidth
-          loading={isLoading}
-          onPress={handleCreate}
-        />
+        <View style={styles.submitArea}>
+          <Panel
+            variant="surface"
+            style={[
+              styles.serverStatus,
+              serverStatus === 'unavailable' && styles.serverStatusError,
+            ]}
+          >
+            {serverStatus === 'checking' || serverStatus === 'waking' ? (
+              <ActivityIndicator size="small" color={colors.primaryDark} />
+            ) : serverStatus === 'ready' ? (
+              <View style={styles.serverReadyDot} />
+            ) : (
+              <WifiOff size={17} color={colors.error} strokeWidth={2.3} />
+            )}
+            <ThemedText
+              variant="caption"
+              color={serverStatus === 'unavailable' ? 'error' : 'secondary'}
+              style={styles.serverStatusText}
+            >
+              {serverStatusLabel}
+            </ThemedText>
+            {serverStatus === 'unavailable' && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('home.serverRetry')}
+                onPress={retryServerWarmup}
+                style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
+              >
+                <RefreshCw size={15} color={colors.primaryDark} strokeWidth={2.4} />
+                <ThemedText variant="caption" style={styles.retryText}>
+                  {t('home.serverRetry')}
+                </ThemedText>
+              </Pressable>
+            )}
+          </Panel>
+
+          <ThemedButton
+            label={t('create.action')}
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={isLoading}
+            disabled={serverStatus !== 'ready'}
+            onPress={handleCreate}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -185,6 +266,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceDark,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pressed: {
+    transform: [{ scale: 0.96 }],
+    opacity: 0.8,
   },
   content: {
     flexGrow: 1,
@@ -225,5 +310,43 @@ const styles = StyleSheet.create({
   },
   optionDescription: {
     textAlign: 'center',
+  },
+  submitArea: {
+    gap: spacing.sm,
+  },
+  serverStatus: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderColor: colors.primaryContainer,
+  },
+  serverStatusError: {
+    borderColor: colors.alarmBackground,
+    backgroundColor: colors.alarmBackground,
+  },
+  serverStatusText: {
+    flex: 1,
+  },
+  serverReadyDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.success,
+  },
+  retryButton: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primaryContainer,
+  },
+  retryText: {
+    color: colors.primaryDark,
+    fontFamily: 'Quicksand-SemiBold',
   },
 });

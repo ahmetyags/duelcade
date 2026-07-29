@@ -1,18 +1,16 @@
 /** Duelcade home screen — shared tabletop match entry point. */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   LogIn,
   Gamepad2,
   Plus,
-  RefreshCw,
   Settings,
   Sparkles,
   UserRound,
-  WifiOff,
 } from 'lucide-react-native';
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
 import { Panel } from '@/components/ui/Panel';
@@ -24,10 +22,6 @@ import { initNetwork, resumeRoom } from '@/services/NetworkBridge';
 import { getErrorMessage } from '@/services/ErrorMessages';
 import { networkService } from '@/services/NetworkService';
 import { triggerHaptic } from '@/services/HapticsService';
-import {
-  warmUpGameServer,
-  type GameServerStatus,
-} from '@/services/GameServerAvailability';
 import { useAuthStore } from '@/store/authStore';
 import { useGameStore } from '@/store/gameStore';
 import { useRoomStore } from '@/store/roomStore';
@@ -49,36 +43,11 @@ export default function HomeScreen() {
   const activeRoom = useRoomStore((s) => s.room);
   const error = useRoomStore((s) => s.error);
   const isLoading = useRoomStore((s) => s.isLoading);
-  const [serverStatus, setServerStatus] = useState<GameServerStatus>('checking');
-  const warmupController = useRef<AbortController | null>(null);
-
-  const runServerWarmup = useCallback((controller: AbortController) => {
-    void warmUpGameServer({
-      signal: controller.signal,
-      onProgress: (status) => {
-        if (!controller.signal.aborted) setServerStatus(status);
-      },
-    }).then((status) => {
-      if (!controller.signal.aborted) setServerStatus(status);
-    });
-  }, []);
-
-  const startServerWarmup = useCallback(() => {
-    warmupController.current?.abort();
-    const controller = new AbortController();
-    warmupController.current = controller;
-    setServerStatus('checking');
-    runServerWarmup(controller);
-  }, [runServerWarmup]);
 
   useEffect(() => {
     initNetwork();
     if (!useRoomStore.getState().room) setPhase('home');
-    const controller = new AbortController();
-    warmupController.current = controller;
-    runServerWarmup(controller);
-    return () => controller.abort();
-  }, [setPhase, runServerWarmup]);
+  }, [setPhase]);
 
   const ensureAuth = async (): Promise<void> => {
     if (!isAuthenticated) {
@@ -89,7 +58,6 @@ export default function HomeScreen() {
   };
 
   const handleCreate = async () => {
-    if (serverStatus !== 'ready') return;
     triggerHaptic('light');
     await ensureAuth();
     router.push('/create');
@@ -102,7 +70,6 @@ export default function HomeScreen() {
   };
 
   const handleJoin = async () => {
-    if (serverStatus !== 'ready') return;
     triggerHaptic('light');
     await ensureAuth();
     router.push('/join');
@@ -119,7 +86,7 @@ export default function HomeScreen() {
   };
 
   const handleContinue = async () => {
-    if (!lastRoomCode || serverStatus !== 'ready') return;
+    if (!lastRoomCode) return;
     triggerHaptic('medium');
     await ensureAuth();
 
@@ -167,16 +134,6 @@ export default function HomeScreen() {
     const room = useRoomStore.getState().room;
     if (room) openRoom(room.status);
   };
-
-  const onlineActionsDisabled = serverStatus !== 'ready';
-  const serverStatusLabel =
-    serverStatus === 'checking'
-      ? t('home.serverChecking')
-      : serverStatus === 'waking'
-        ? t('home.serverWaking')
-        : serverStatus === 'ready'
-          ? t('home.serverReady')
-          : t('home.serverUnavailable');
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -228,12 +185,7 @@ export default function HomeScreen() {
               </ThemedText>
               <ThemedText variant="caption" color="muted">{t('home.ready')}</ThemedText>
             </View>
-            <View
-              style={[
-                styles.onlineDot,
-                serverStatus !== 'ready' && styles.onlineDotPending,
-              ]}
-            />
+            <View style={styles.onlineDot} />
           </Panel>
         )}
 
@@ -246,41 +198,6 @@ export default function HomeScreen() {
             icon={<UserRound size={21} color={colors.textOnPrimary} strokeWidth={2.3} />}
             onPress={handleSolo}
           />
-          <Panel
-            variant="surface"
-            style={[
-              styles.serverStatus,
-              serverStatus === 'unavailable' && styles.serverStatusError,
-            ]}
-          >
-            {serverStatus === 'checking' || serverStatus === 'waking' ? (
-              <ActivityIndicator size="small" color={colors.primaryDark} />
-            ) : serverStatus === 'ready' ? (
-              <View style={styles.serverReadyDot} />
-            ) : (
-              <WifiOff size={17} color={colors.error} strokeWidth={2.3} />
-            )}
-            <ThemedText
-              variant="caption"
-              color={serverStatus === 'unavailable' ? 'error' : 'secondary'}
-              style={styles.serverStatusText}
-            >
-              {serverStatusLabel}
-            </ThemedText>
-            {serverStatus === 'unavailable' && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('home.serverRetry')}
-                onPress={startServerWarmup}
-                style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
-              >
-                <RefreshCw size={15} color={colors.primaryDark} strokeWidth={2.4} />
-                <ThemedText variant="caption" style={styles.retryText}>
-                  {t('home.serverRetry')}
-                </ThemedText>
-              </Pressable>
-            )}
-          </Panel>
           <ThemedButton
             label={t('home.create')}
             variant="secondary"
@@ -288,7 +205,6 @@ export default function HomeScreen() {
             fullWidth
             style={styles.createButton}
             icon={<Plus size={21} color={colors.textPrimary} strokeWidth={2.3} />}
-            disabled={onlineActionsDisabled}
             onPress={handleCreate}
           />
           <ThemedButton
@@ -297,7 +213,6 @@ export default function HomeScreen() {
             size="lg"
             fullWidth
             icon={<LogIn size={21} color={colors.textPrimary} strokeWidth={2.3} />}
-            disabled={onlineActionsDisabled}
             onPress={handleJoin}
           />
           {lastRoomCode && (
@@ -307,7 +222,6 @@ export default function HomeScreen() {
               size="md"
               fullWidth
               loading={isLoading}
-              disabled={onlineActionsDisabled}
               onPress={handleContinue}
             />
           )}
@@ -438,46 +352,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.surface,
   },
-  onlineDotPending: {
-    backgroundColor: colors.warning,
-  },
   actions: {
     gap: spacing.sm,
-  },
-  serverStatus: {
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderColor: colors.primaryContainer,
-  },
-  serverStatusError: {
-    borderColor: colors.alarmBackground,
-    backgroundColor: colors.alarmBackground,
-  },
-  serverStatusText: {
-    flex: 1,
-  },
-  serverReadyDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.success,
-  },
-  retryButton: {
-    minHeight: 30,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.sm,
-    backgroundColor: colors.primaryContainer,
-  },
-  retryText: {
-    color: colors.primaryDark,
-    fontFamily: 'Quicksand-SemiBold',
   },
   createButton: {
     backgroundColor: 'rgb(217, 154, 74)',
