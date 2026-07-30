@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, radius } from '@/theme/tokens';
+import { colors } from '@/theme/tokens';
 import { useSettingsStore } from '@/store/settingsStore';
 
 interface MagicBackdropProps {
@@ -14,7 +14,6 @@ export const MagicBackdrop = React.memo<MagicBackdropProps>(function MagicBackdr
     <View style={[StyleSheet.absoluteFill, styles.root, style]}>
       {!highContrast && (
         <>
-          <View style={styles.topLight} />
           <View style={styles.horizontalSeam} />
           <View style={styles.lowerSeam} />
         </>
@@ -28,16 +27,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     pointerEvents: 'none',
     backgroundColor: colors.backgroundDeep,
-  },
-  topLight: {
-    position: 'absolute',
-    top: -70,
-    left: '18%',
-    right: '18%',
-    height: 90,
-    borderRadius: radius.xl,
-    backgroundColor: colors.amber,
-    opacity: 0.12,
   },
   horizontalSeam: {
     position: 'absolute',

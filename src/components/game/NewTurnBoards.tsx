@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import {
   Check,
   Delete,
@@ -33,12 +33,19 @@ interface BoardProps {
 }
 
 export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
+  const viewport = useWindowDimensions();
   const length = match.cipherCodeLength ?? 4;
   const symbolCount = match.cipherSymbolCount ?? 6;
   const [draft, setDraft] = useState<number[]>([]);
+  const compact = viewport.height < 900 || viewport.width < 430;
+  const draftGap = compact ? 6 : spacing.sm;
+  const draftSize = Math.min(
+    44,
+    Math.max(32, Math.floor((viewport.width - 96 - draftGap * (length - 1)) / length)),
+  );
 
   return (
-    <View style={styles.cipherBoard}>
+    <View style={[styles.cipherBoard, compact && styles.cipherBoardCompact]}>
       <View style={styles.cipherHistory}>
         {(match.cipherHistory ?? []).slice(-4).map((entry, index) => (
           <View key={`${entry.playerIndex}_${index}`} style={styles.historyRow}>
@@ -69,7 +76,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
         )}
       </View>
 
-      <View style={styles.draftRow}>
+      <View style={[styles.draftRow, { gap: draftGap }]}>
         {Array.from({ length }, (_, index) => {
           const symbol = draft[index];
           return (
@@ -77,6 +84,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
               key={index}
               style={[
                 styles.draftSlot,
+                { width: draftSize, height: draftSize },
                 symbol !== undefined && {
                   backgroundColor: CIPHER_COLORS[symbol],
                   borderColor: CIPHER_COLORS[symbol],
@@ -91,7 +99,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
         })}
       </View>
 
-      <View style={styles.symbolRow}>
+      <View style={[styles.symbolRow, compact && styles.symbolRowCompact]}>
         {Array.from({ length: symbolCount }, (_, symbol) => (
           <Pressable
             key={symbol}
@@ -101,6 +109,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
             style={({ pressed }) => [
               styles.symbolButton,
               { backgroundColor: CIPHER_COLORS[symbol] },
+              compact && styles.symbolButtonCompact,
               pressed && styles.pressed,
             ]}
           >
@@ -392,6 +401,7 @@ export function PolarityWarBoard({ match, disabled, onMove }: BoardProps) {
 
 const styles = StyleSheet.create({
   cipherBoard: { flex: 1, justifyContent: 'center', gap: spacing.md },
+  cipherBoardCompact: { gap: spacing.sm },
   cipherHistory: {
     minHeight: 120,
     padding: spacing.sm,
@@ -432,6 +442,7 @@ const styles = StyleSheet.create({
   },
   draftNumber: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   symbolRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: spacing.sm },
+  symbolRowCompact: { gap: 6 },
   symbolButton: {
     width: 42,
     height: 42,
@@ -440,6 +451,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...shadows.sm,
   },
+  symbolButtonCompact: { width: 40, height: 40 },
   symbolNumber: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   cipherActions: { flexDirection: 'row', gap: spacing.sm },
   cipherAction: {

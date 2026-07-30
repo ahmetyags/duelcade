@@ -658,6 +658,7 @@ export default function GameScreen() {
           styles.boardShell,
           compact && styles.boardShellCompact,
           match.mode === 'gateway_race' && styles.boardShellGateway,
+          match.mode === 'cipher_clash' && styles.boardShellCipher,
           match.mode === 'resonance_dials' && styles.boardShellResonance,
         ]}>
           <View style={styles.boardGlow} />
@@ -865,6 +866,7 @@ const styles = StyleSheet.create({
   boardShell: { width: '100%', maxWidth: 560, minHeight: 300, maxHeight: 560, aspectRatio: 1, alignSelf: 'center', position: 'relative', padding: spacing.md, borderRadius: 28, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden', ...shadows.lg },
   boardShellCompact: { maxWidth: 430 },
   boardShellGateway: { aspectRatio: 0.86, maxHeight: 620 },
+  boardShellCipher: { aspectRatio: 0.8, maxHeight: 620 },
   boardShellResonance: { aspectRatio: 0.62, maxHeight: 620 },
   boardGlow: { position: 'absolute', width: '70%', height: '70%', left: '15%', top: '15%', borderRadius: 999, backgroundColor: colors.glow },
   waitOverlay: { position: 'absolute', inset: 0, backgroundColor: 'rgba(247,244,238,0.22)' },
@@ -900,7 +902,7 @@ const styles = StyleSheet.create({
   roundVictoryIcon: { width: 48, height: 48, flexShrink: 0, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   roundVictoryCopy: { flex: 1, minWidth: 0, gap: 2 },
   roundPointBadge: { minWidth: 52, height: 52, flexShrink: 0, paddingHorizontal: spacing.sm, borderRadius: radius.lg, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  roundScore: { flexDirection: 'row', justifyContent: 'center', gap: spacing.lg },
+  roundScore: { marginTop: 10, flexDirection: 'row', justifyContent: 'center', gap: spacing.lg },
   dock: { flexDirection: 'row', alignSelf: 'center', gap: spacing.sm, padding: spacing.xs, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surfaceDark },
   dockButton: { minWidth: 82, height: 52, paddingHorizontal: spacing.md, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', gap: 2 },
   dockButtonActive: { backgroundColor: colors.surfaceElevated },
