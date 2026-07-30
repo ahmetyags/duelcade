@@ -401,7 +401,7 @@ export function PolarityWarBoard({ match, disabled, onMove }: BoardProps) {
 
 const styles = StyleSheet.create({
   cipherBoard: { flex: 1, justifyContent: 'center', gap: spacing.md },
-  cipherBoardCompact: { gap: spacing.sm },
+  cipherBoardCompact: { gap: 15 },
   cipherHistory: {
     minHeight: 120,
     padding: spacing.sm,
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   },
   legalCell: { backgroundColor: colors.primaryContainer, borderColor: colors.primary },
   headCell: { borderWidth: 3 },
-  gatewayWrap: { flex: 1, gap: spacing.sm },
+  gatewayWrap: { flex: 1, gap: 15 },
   gatewayTools: { flexDirection: 'row', gap: spacing.sm },
   gatewayTool: {
     flex: 1,

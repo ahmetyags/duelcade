@@ -725,28 +725,40 @@ export default function GameScreen() {
         {!singlePlayer && panel === 'chat' && (
           <View style={styles.chatPanel}>
             <View style={styles.chatHistory}>
-              {chatMessages.slice(-2).map((item) => (
-                <ThemedText key={item.id} variant="caption">
-                  <ThemedText variant="caption" color="accent">{item.displayName}: </ThemedText>
-                  {item.text}
-                </ThemedText>
-              ))}
+              {chatMessages.slice(-2).map((item) => {
+                const playerIndex = match.playerIds.indexOf(item.playerId);
+                const messageColor = playerIndex === 0
+                  ? PLAYER_COLORS[0]
+                  : playerIndex === 1
+                    ? PLAYER_COLORS[1]
+                    : colors.textSecondary;
+                return (
+                  <ThemedText key={item.id} variant="caption">
+                    <ThemedText variant="caption" style={{ color: messageColor }}>
+                      {item.displayName}:{' '}
+                    </ThemedText>
+                    {item.text}
+                  </ThemedText>
+                );
+              })}
               {chatMessages.length === 0 && (
                 <ThemedText variant="caption" color="muted">Henüz mesaj yok.</ThemedText>
               )}
             </View>
-            <TextInput
-              value={message}
-              onChangeText={setMessage}
-              onSubmitEditing={handleSend}
-              placeholder="Kısa bir mesaj yaz…"
-              placeholderTextColor={colors.textMuted}
-              maxLength={120}
-              style={styles.input}
-            />
-            <Pressable onPress={handleSend} style={styles.sendButton}>
-              <Send size={18} color={colors.textOnPrimary} />
-            </Pressable>
+            <View style={styles.chatComposer}>
+              <TextInput
+                value={message}
+                onChangeText={setMessage}
+                onSubmitEditing={handleSend}
+                placeholder="Kısa bir mesaj yaz…"
+                placeholderTextColor={colors.textMuted}
+                maxLength={120}
+                style={styles.input}
+              />
+              <Pressable onPress={handleSend} style={styles.sendButton}>
+                <Send size={18} color={colors.textOnPrimary} />
+              </Pressable>
+            </View>
           </View>
         )}
 
@@ -847,16 +859,16 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.backgroundDeep },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.backgroundDeep },
-  page: { flexGrow: 1, width: '100%', maxWidth: 680, alignSelf: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  pageCompact: { paddingVertical: spacing.sm, gap: spacing.sm },
+  page: { flexGrow: 1, width: '100%', maxWidth: 680, alignSelf: 'center', justifyContent: 'center', padding: spacing.xl, gap: 15 },
+  pageCompact: { paddingVertical: spacing.sm, gap: 15 },
   topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   iconButton: { width: 42, height: 42, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  players: { flexDirection: 'row', gap: spacing.sm },
+  players: { flexDirection: 'row', gap: 15 },
   playerCard: { flex: 1, minWidth: 0, minHeight: 68, padding: spacing.sm, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radius.lg, backgroundColor: colors.surfaceDark, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   playerCopy: { flex: 1, minWidth: 0 },
   playerName: { fontSize: 12, letterSpacing: 0.2 },
   playerTimer: { flexShrink: 0, fontSize: 16, letterSpacing: 0.6 },
-  turnRow: { minHeight: 34, paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  turnRow: { minHeight: 34, paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 15 },
   helpBubble: { width: 30, height: 30, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   gameDescription: { flex: 1, textAlign: 'center', color: colors.textSecondary },
   reactionToast: { position: 'absolute', zIndex: 20, top: 168, left: spacing.xl, right: spacing.xl, maxWidth: 400, alignSelf: 'center', minHeight: 54, paddingHorizontal: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, ...shadows.md },
@@ -891,7 +903,7 @@ const styles = StyleSheet.create({
   pipeGlyph: { fontSize: 58, lineHeight: 64, fontWeight: '500' },
   pipeTarget: { position: 'absolute', left: 7, top: 5, fontSize: 12, lineHeight: 14, opacity: 0.55 },
   rotateBadge: { position: 'absolute', right: 7, bottom: 7, width: 22, height: 22, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center' },
-  resonanceBoard: { flex: 1, justifyContent: 'center', gap: spacing.sm },
+  resonanceBoard: { flex: 1, justifyContent: 'center', gap: 15 },
   targetStrip: { flexShrink: 0, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.secondaryContainer, borderWidth: 1, borderColor: colors.amber, alignItems: 'center', gap: spacing.xs },
   dialRow: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surfaceElevated },
   dialLabel: { width: 36, alignItems: 'center' },
@@ -902,15 +914,16 @@ const styles = StyleSheet.create({
   roundVictoryIcon: { width: 48, height: 48, flexShrink: 0, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   roundVictoryCopy: { flex: 1, minWidth: 0, gap: 2 },
   roundPointBadge: { minWidth: 52, height: 52, flexShrink: 0, paddingHorizontal: spacing.sm, borderRadius: radius.lg, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  roundScore: { marginTop: 10, flexDirection: 'row', justifyContent: 'center', gap: spacing.lg },
+  roundScore: { flexDirection: 'row', justifyContent: 'center', gap: 15 },
   dock: { flexDirection: 'row', alignSelf: 'center', gap: spacing.sm, padding: spacing.xs, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surfaceDark },
   dockButton: { minWidth: 82, height: 52, paddingHorizontal: spacing.md, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', gap: 2 },
   dockButtonActive: { backgroundColor: colors.surfaceElevated },
   mainDockButton: { backgroundColor: colors.primary },
-  chatPanel: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surfaceDark },
-  chatHistory: { flex: 1, minWidth: 90 },
-  input: { flex: 2, height: 42, color: colors.textPrimary, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
-  sendButton: { width: 42, height: 42, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  chatPanel: { gap: 10, padding: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surfaceDark },
+  chatHistory: { width: '100%', minWidth: 0 },
+  chatComposer: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10 },
+  input: { flex: 1, minWidth: 0, height: 42, color: colors.textPrimary, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
+  sendButton: { width: 42, height: 42, flexShrink: 0, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   emojiPanel: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: spacing.sm },
   emojiButton: { width: 48, height: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 22 },
