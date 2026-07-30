@@ -246,12 +246,12 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 680,
     alignSelf: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     boxSizing: 'border-box',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingTop: 21,
     paddingBottom: spacing.xl,
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   topBar: {
     flexDirection: 'row',
@@ -286,6 +286,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
+    marginTop: 52,
     paddingVertical: spacing.sm,
   },
   heroMark: {
@@ -353,7 +354,7 @@ const styles = StyleSheet.create({
     borderColor: colors.surface,
   },
   actions: {
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   createButton: {
     backgroundColor: 'rgb(217, 154, 74)',

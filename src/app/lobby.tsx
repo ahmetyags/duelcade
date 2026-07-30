@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 680,
     alignSelf: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     padding: spacing.xl,
     gap: spacing.md,
   },
