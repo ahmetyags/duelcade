@@ -23,10 +23,12 @@ import { setPlayerReady, leaveRoom } from '@/services/NetworkBridge';
 import { triggerHaptic } from '@/services/HapticsService';
 import { Clock3, Copy, Gauge, Share as ShareIcon, LogOut, Check, Users } from 'lucide-react-native';
 import { useTranslation } from '@/src/i18n';
+import { TURN_LOBBY } from '@/src/i18n/turnGames';
 
 export default function LobbyScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const lobbyCopy = TURN_LOBBY[language];
   const room = useRoomStore((s) => s.room);
   const isHost = useRoomStore((s) => s.isHost);
   const roomCode = useRoomStore((s) => s.roomCode);
@@ -177,7 +179,7 @@ export default function LobbyScreen() {
                 isHost={localPlayer.isHost}
                 isReady={localPlayer.isReady}
                 isLocal
-                seatLabel="Oyuncu 1"
+                seatLabel={lobbyCopy.playerOne}
               />
             )}
             {/* Other player or waiting slot */}
@@ -188,7 +190,7 @@ export default function LobbyScreen() {
                 isHost={otherPlayer.isHost}
                 isReady={otherPlayer.isReady}
                 isLocal={false}
-                seatLabel="Oyuncu 2"
+                seatLabel={lobbyCopy.playerTwo}
               />
             ) : (
               <Panel variant="muted" style={styles.waitingSlot}>

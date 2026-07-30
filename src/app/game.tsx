@@ -50,6 +50,7 @@ import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import type { ChatMessage, Player } from '@/types/game';
 import type { TurnMatchState } from '@/types/turnGame';
 import { useTranslation } from '@/src/i18n';
+import { getTurnModeCopy, TURN_UI } from '@/src/i18n/turnGames';
 import { findWinningLineCells } from '@/engine/TurnGameEngine';
 import {
   TURN_BOARD_GRID_GAP,
@@ -61,30 +62,6 @@ const MEMORY_SYMBOLS = [
   '✿', '☀', '☾', '♠', '♥', '♣', '♦', '◎', '◐', '⌁',
 ];
 const PLAYER_COLORS = [colors.cyan, colors.amber] as const;
-const MODE_NAMES = {
-  rune_grid: 'Rün Düellosu',
-  connect_four: 'Dört Hat',
-  memory_pairs: 'Hafıza Eşleri',
-  pipe_circuit: 'Devre Döndürme',
-  resonance_dials: 'Rezonans Kilidi',
-  cipher_clash: 'Şifre Çatışması',
-  circuit_claim: 'Devre Alanı',
-  neon_trail: 'Neon İz',
-  gateway_race: 'Geçit Savaşı',
-  polarity_war: 'Polarite Savaşı',
-} as const;
-const MODE_DESCRIPTIONS = {
-  rune_grid: 'Aynı renkten bir çizgiyi rakibinden önce tamamla.',
-  connect_four: 'Taşlarını düşür ve kesintisiz hattı ilk sen kur.',
-  memory_pairs: 'Aynı sembolleri eşleştir; bulduğun çiftler senin rengin olur.',
-  pipe_circuit: 'Parçaları hedef yönlere çevirip devreyi ilk sen tamamla.',
-  resonance_dials: 'Kanalları hedef frekanslara getirip kilidi çöz.',
-  cipher_clash: 'Kendi gizli rün dizini rakibinden önce çöz.',
-  circuit_claim: 'Hatları tamamla, enerji hücrelerini ele geçir.',
-  neon_trail: 'İz bırak, alanını koru ve rakibini hareketsiz bırak.',
-  gateway_race: 'Kapıya ulaş veya enerji bariyerleriyle rakibini yavaşlat.',
-  polarity_war: 'Rakip küreleri kuşatıp kendi polaritene dönüştür.',
-} as const;
 const REACTIONS = ['👏', '😄', '🤔', '🔥', '😮', 'GG'];
 
 function formatClock(value: number): string {
@@ -113,23 +90,6 @@ function winningCells(match: TurnMatchState): ReadonlySet<number> {
   return new Set(findWinningLineCells(match, winner));
 }
 
-function roundWinReason(match: TurnMatchState): string {
-  if (match.mode === 'rune_grid') return 'Kazandıran çizgiyi tamamladı';
-  if (match.mode === 'connect_four') return 'Kesintisiz hattı ilk kuran oldu';
-  if (match.mode === 'memory_pairs' && match.winnerIndex !== null) {
-    return `${match.roundPoints[match.winnerIndex]} eş bularak öne geçti`;
-  }
-  if (match.mode === 'pipe_circuit') return 'Son devre parçasını doğru yöne çevirdi';
-  if (match.mode === 'resonance_dials') return 'Son frekansı hedefe kilitledi';
-  if (match.mode === 'cipher_clash') return 'Gizli rün dizisinin tamamını çözdü';
-  if (match.mode === 'circuit_claim') {
-    return `${match.roundPoints[match.winnerIndex ?? 0]} enerji hücresi ele geçirdi`;
-  }
-  if (match.mode === 'neon_trail') return 'Rakibinin bütün kaçış yollarını kapattı';
-  if (match.mode === 'gateway_race') return 'Karşı enerji kapısına ilk ulaşan oldu';
-  return `${match.roundPoints[match.winnerIndex ?? 0]} küreyi kendi polaritesine çevirdi`;
-}
-
 function RoundVictoryBanner({
   match,
   players,
@@ -141,6 +101,9 @@ function RoundVictoryBanner({
   localPlayerId: string | null;
   reduceMotion: boolean;
 }) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
+  const modeCopy = getTurnModeCopy(language, match.mode);
   const [opacity] = useState(() => new Animated.Value(reduceMotion ? 1 : 0));
   const [scale] = useState(() => new Animated.Value(reduceMotion ? 1 : 0.84));
   const winner = match.winnerIndex === null ? undefined : players[match.winnerIndex];
@@ -184,17 +147,17 @@ function RoundVictoryBanner({
       <View style={styles.roundVictoryCopy}>
         <ThemedText variant="label" style={{ color: winnerColor }}>
           {winner
-            ? localWon ? 'TURU KAZANDIN!' : `${winner.displayName.toUpperCase()} TURU KAZANDI`
-            : 'TUR BERABERE'}
+            ? localWon ? ui.roundYouWon : ui.roundWinner(winner.displayName)
+            : ui.roundDraw}
         </ThemedText>
         <ThemedText variant="caption" color="secondary">
-          {winner ? roundWinReason(match) : 'İki taraf da puan alamadı'}
+          {winner ? modeCopy.winReason : ui.noRoundPoints}
         </ThemedText>
       </View>
       {winner && (
         <View style={[styles.roundPointBadge, { borderColor: winnerColor }]}>
           <ThemedText variant="label" style={{ color: winnerColor }}>+1</ThemedText>
-          <ThemedText variant="caption" color="muted">PUAN</ThemedText>
+          <ThemedText variant="caption" color="muted">{ui.points}</ThemedText>
         </View>
       )}
     </Animated.View>
@@ -214,8 +177,10 @@ function PlayerCard({
   score: number;
   time: number;
 }) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const color = PLAYER_COLORS[index];
-  const name = player?.displayName ?? `Oyuncu ${index + 1}`;
+  const name = player?.displayName ?? [ui.player, index + 1].join(' ');
   return (
     <View style={[styles.playerCard, active && { borderColor: color, backgroundColor: `${color}16` }]}>
       <PlayerAvatar
@@ -228,7 +193,7 @@ function PlayerCard({
       <View style={styles.playerCopy}>
         <ThemedText numberOfLines={1} variant="label" style={styles.playerName}>{name}</ThemedText>
         <ThemedText variant="caption" color="muted">
-          {active ? 'SIRASI' : 'BEKLİYOR'} · {score} PUAN
+          {active ? ui.turnStatus : ui.waiting} · {score} {ui.points}
         </ThemedText>
       </View>
       <ThemedText variant="mono" style={[styles.playerTimer, { color }]}>{formatClock(time)}</ThemedText>
@@ -237,6 +202,8 @@ function PlayerCard({
 }
 
 function RuneBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const viewport = useWindowDimensions();
   const winnerCells = winningCells(match);
   const cellSize = turnBoardCellSize(viewport.width, viewport.height, match.boardColumns);
@@ -246,7 +213,7 @@ function RuneBoard({ match, disabled, onMove }: BoardProps) {
       {match.cells.map((value, index) => (
         <Pressable
           key={index}
-          accessibilityLabel={`Hücre ${index + 1}`}
+          accessibilityLabel={ui.cell(index + 1)}
           disabled={disabled || value !== null}
           onPress={() => onMove(index)}
           style={({ pressed }) => [
@@ -276,13 +243,15 @@ function RuneBoard({ match, disabled, onMove }: BoardProps) {
 }
 
 function ConnectBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const winnerCells = winningCells(match);
   return (
     <View style={styles.connectBoard}>
       {Array.from({ length: match.boardColumns }, (_, column) => (
         <Pressable
           key={column}
-          accessibilityLabel={`Sütun ${column + 1}`}
+          accessibilityLabel={ui.column(column + 1)}
           disabled={disabled || match.cells[column] !== null}
           onPress={() => onMove(column)}
           style={({ pressed }) => [styles.connectColumn, pressed && styles.columnPressed]}
@@ -311,6 +280,8 @@ function ConnectBoard({ match, disabled, onMove }: BoardProps) {
 }
 
 function MemoryBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const viewport = useWindowDimensions();
   const winnerCells = winningCells(match);
   const cellSize = turnBoardCellSize(viewport.width, viewport.height, match.boardColumns);
@@ -323,7 +294,7 @@ function MemoryBoard({ match, disabled, onMove }: BoardProps) {
         return (
           <Pressable
             key={index}
-            accessibilityLabel={`Kart ${index + 1}`}
+            accessibilityLabel={ui.card(index + 1)}
             disabled={disabled || value !== null || matched}
             onPress={() => onMove(index)}
             style={({ pressed }) => [
@@ -357,6 +328,8 @@ function MemoryBoard({ match, disabled, onMove }: BoardProps) {
 }
 
 function PipeBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const viewport = useWindowDimensions();
   const winnerCells = winningCells(match);
   const cellSize = turnBoardCellSize(viewport.width, viewport.height, match.boardColumns);
@@ -369,8 +342,8 @@ function PipeBoard({ match, disabled, onMove }: BoardProps) {
         return (
           <Pressable
             key={index}
-            accessibilityLabel={`Devre parçası ${index + 1}, yön ${rotation ?? 0}`}
-            accessibilityHint="Saat yönünde döndür"
+            accessibilityLabel={ui.pipePiece(index + 1, rotation ?? 0)}
+            accessibilityHint={ui.rotateHint}
             disabled={disabled || owner !== null}
             onPress={() => onMove(index)}
             style={({ pressed }) => [
@@ -418,6 +391,8 @@ function PipeBoard({ match, disabled, onMove }: BoardProps) {
 }
 
 function ResonanceBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const winnerCells = winningCells(match);
   const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
   const frequency = (dial: number, value: number | null) =>
@@ -425,7 +400,7 @@ function ResonanceBoard({ match, disabled, onMove }: BoardProps) {
   return (
     <View style={styles.resonanceBoard}>
       <View style={styles.targetStrip}>
-        <ThemedText variant="caption" color="muted">HEDEF FREKANSLAR</ThemedText>
+        <ThemedText variant="caption" color="muted">{ui.targetFrequencies}</ThemedText>
         <ThemedText variant="label" color="accent">
           {match.targets?.map((target, index) => frequency(index, target)).join(' · ')} Hz
         </ThemedText>
@@ -448,7 +423,7 @@ function ResonanceBoard({ match, disabled, onMove }: BoardProps) {
             </ThemedText>
           </View>
           <Pressable
-            accessibilityLabel={`${labels[dial]} kanalını azalt`}
+            accessibilityLabel={ui.channelDecrease(labels[dial])}
             disabled={disabled || value === match.targets?.[dial]}
             onPress={() => onMove(dial * 2)}
             style={styles.dialButton}
@@ -465,7 +440,7 @@ function ResonanceBoard({ match, disabled, onMove }: BoardProps) {
             <ThemedText variant="caption" color="muted">Hz</ThemedText>
           </View>
           <Pressable
-            accessibilityLabel={`${labels[dial]} kanalını artır`}
+            accessibilityLabel={ui.channelIncrease(labels[dial])}
             disabled={disabled || value === match.targets?.[dial]}
             onPress={() => onMove(dial * 2 + 1)}
             style={styles.dialButton}
@@ -486,7 +461,8 @@ interface BoardProps {
 
 export default function GameScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const turnUi = TURN_UI[language];
   const { height } = useWindowDimensions();
   const [panel, setPanel] = useState<'chat' | 'emoji' | null>(null);
   const [message, setMessage] = useState('');
@@ -559,11 +535,12 @@ export default function GameScreen() {
   if (!match || !room) {
     return (
       <View style={styles.loading}>
-        <ThemedText color="muted">Ortak masa hazırlanıyor…</ThemedText>
+        <ThemedText color="muted">{turnUi.loading}</ThemedText>
       </View>
     );
   }
 
+  const modeCopy = getTurnModeCopy(language, match.mode);
   const compact = height < 900;
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -576,11 +553,11 @@ export default function GameScreen() {
         <View style={styles.topbar}>
           <View>
             <ThemedText variant="caption" color="accent">
-              {singlePlayer ? 'TEK OYUNCULU · DUELBOT' : `ORTAK MASA · ${room.code}`}
+              {singlePlayer ? turnUi.soloHeader : ` · `}
             </ThemedText>
-            <ThemedText variant="subtitle">{MODE_NAMES[match.mode]}</ThemedText>
+            <ThemedText variant="subtitle">{modeCopy.title}</ThemedText>
           </View>
-          <Pressable accessibilityLabel="Oyundan çık" onPress={handleLeave} style={styles.iconButton}>
+          <Pressable accessibilityLabel={turnUi.leaveGame} onPress={handleLeave} style={styles.iconButton}>
             <LogOut size={20} color={colors.error} />
           </Pressable>
         </View>
@@ -605,7 +582,7 @@ export default function GameScreen() {
         <View style={styles.turnRow}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${MODE_NAMES[match.mode]} nasıl oynanır?`}
+            accessibilityLabel={turnUi.howToFor(modeCopy.title)}
             hitSlop={7}
             onPress={() => {
               setShowHowToPlay(true);
@@ -619,7 +596,7 @@ export default function GameScreen() {
             <HelpCircle size={19} color={colors.primaryDark} />
           </Pressable>
           <ThemedText variant="caption" style={styles.gameDescription}>
-            {MODE_DESCRIPTIONS[match.mode]}
+            {modeCopy.description}
           </ThemedText>
           <ThemedText variant="caption" color="muted">
             TUR {match.roundIndex + 1}/{match.totalRounds}
@@ -706,18 +683,18 @@ export default function GameScreen() {
           <View style={styles.roundScore}>
             <ThemedText style={{ color: colors.cyan }}>
               {match.mode === 'memory_pairs'
-                ? `EŞLER ${match.roundPoints[0]}`
+                ? [turnUi.pairs, match.roundPoints[0]].join(' ')
                 : match.mode === 'cipher_clash'
-                  ? `TAM EŞLEŞME ${match.roundPoints[0]}`
-                  : `ALAN ${match.roundPoints[0]}`}
+                  ? [turnUi.fullMatches, match.roundPoints[0]].join(' ')
+                  : [turnUi.area, match.roundPoints[0]].join(' ')}
             </ThemedText>
             <ThemedText color="muted">—</ThemedText>
             <ThemedText style={{ color: colors.amber }}>
               {match.mode === 'memory_pairs'
-                ? `${match.roundPoints[1]} EŞLER`
+                ? [match.roundPoints[1], turnUi.pairs].join(' ')
                 : match.mode === 'cipher_clash'
-                  ? `${match.roundPoints[1]} TAM EŞLEŞME`
-                  : `${match.roundPoints[1]} ALAN`}
+                  ? [match.roundPoints[1], turnUi.fullMatches].join(' ')
+                  : [match.roundPoints[1], turnUi.area].join(' ')}
             </ThemedText>
           </View>
         )}
@@ -742,7 +719,7 @@ export default function GameScreen() {
                 );
               })}
               {chatMessages.length === 0 && (
-                <ThemedText variant="caption" color="muted">Henüz mesaj yok.</ThemedText>
+                <ThemedText variant="caption" color="muted">{turnUi.chatEmpty}</ThemedText>
               )}
             </View>
             <View style={styles.chatComposer}>
@@ -750,7 +727,7 @@ export default function GameScreen() {
                 value={message}
                 onChangeText={setMessage}
                 onSubmitEditing={handleSend}
-                placeholder="Kısa bir mesaj yaz…"
+                placeholder={turnUi.chatPlaceholder}
                 placeholderTextColor={colors.textMuted}
                 maxLength={120}
                 style={styles.input}
@@ -785,18 +762,18 @@ export default function GameScreen() {
             style={[styles.dockButton, panel === 'chat' && styles.dockButtonActive]}
           >
             <MessageCircle size={22} color={panel === 'chat' ? colors.cyan : colors.textMuted} />
-            <ThemedText variant="caption">Sohbet</ThemedText>
+            <ThemedText variant="caption">{turnUi.chat}</ThemedText>
           </Pressable>
           <View style={[styles.dockButton, styles.mainDockButton]}>
             <Gamepad2 size={24} color={colors.textOnPrimary} />
-            <ThemedText variant="caption" color="onPrimary">Oyun</ThemedText>
+            <ThemedText variant="caption" color="onPrimary">{turnUi.game}</ThemedText>
           </View>
           <Pressable
             onPress={() => setPanel((value) => value === 'emoji' ? null : 'emoji')}
             style={[styles.dockButton, panel === 'emoji' && styles.dockButtonActive]}
           >
             <Smile size={22} color={panel === 'emoji' ? colors.amber : colors.textMuted} />
-            <ThemedText variant="caption">Tepki</ThemedText>
+            <ThemedText variant="caption">{turnUi.reaction}</ThemedText>
           </Pressable>
         </View>}
       </ScrollView>

@@ -14,6 +14,7 @@ import { networkService } from '@/services/NetworkService';
 import { useGameStore } from '@/store/gameStore';
 import { useRoomStore } from '@/store/roomStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { translate } from '@/src/i18n';
 import type { Difficulty, GameResult, Player, RoomConfig } from '@/types/game';
 import type {
   TurnMatchSession,
@@ -383,7 +384,11 @@ export function startSinglePlayer(
   const players: Player[] = [
     {
       id: HUMAN_ID,
-      displayName: displayName.trim().slice(0, 24) || 'Oyuncu',
+      displayName: displayName.trim().slice(0, 24) || translate(
+        useSettingsStore.getState().language,
+        'common.playerFallback',
+        { number: 1 },
+      ),
       avatarId: useSettingsStore.getState().avatarId,
       role: null,
       isHost: true,

@@ -13,6 +13,8 @@ import { encodeCipherGuess } from '@/engine/TurnGameEngine';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import type { TurnMatchState } from '@/types/turnGame';
+import { useTranslation } from '@/src/i18n';
+import { TURN_UI } from '@/src/i18n/turnGames';
 
 const PLAYER_COLORS = [colors.cyan, colors.amber] as const;
 const CIPHER_COLORS = [
@@ -33,6 +35,8 @@ interface BoardProps {
 }
 
 export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const viewport = useWindowDimensions();
   const length = match.cipherCodeLength ?? 4;
   const symbolCount = match.cipherSymbolCount ?? 6;
@@ -59,10 +63,10 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
               ))}
             </View>
             <ThemedText variant="caption" style={styles.feedbackExact}>
-              {entry.exact} TAM
+              {entry.exact} {ui.exact}
             </ThemedText>
             <ThemedText variant="caption" color="muted">
-              {entry.misplaced} YER
+              {entry.misplaced} {ui.near}
             </ThemedText>
           </View>
         ))}
@@ -70,7 +74,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
           <View style={styles.cipherEmpty}>
             <Sparkles size={22} color={colors.amber} />
             <ThemedText variant="caption" color="muted">
-              Gizli diziyi ilk tahmininle taramaya başla.
+              {ui.cipherEmpty}
             </ThemedText>
           </View>
         )}
@@ -103,7 +107,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
         {Array.from({ length: symbolCount }, (_, symbol) => (
           <Pressable
             key={symbol}
-            accessibilityLabel={`Rün ${symbol + 1}`}
+            accessibilityLabel={ui.rune(symbol + 1)}
             disabled={disabled || draft.length >= length}
             onPress={() => setDraft((current) => [...current, symbol])}
             style={({ pressed }) => [
@@ -120,7 +124,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
 
       <View style={styles.cipherActions}>
         <Pressable
-          accessibilityLabel="Son rünü sil"
+          accessibilityLabel={ui.deleteRune}
           disabled={disabled || draft.length === 0}
           onPress={() => setDraft((current) => current.slice(0, -1))}
           style={[styles.cipherAction, (disabled || draft.length === 0) && styles.disabled]}
@@ -128,7 +132,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
           <Delete size={19} color={colors.textSecondary} />
         </Pressable>
         <Pressable
-          accessibilityLabel="Şifre tahminini gönder"
+          accessibilityLabel={ui.submitGuess}
           disabled={disabled || draft.length !== length}
           onPress={() => {
             const encoded = encodeCipherGuess(draft, symbolCount);
@@ -141,7 +145,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
           ]}
         >
           <Check size={19} color={colors.textOnPrimary} />
-          <ThemedText variant="label" color="onPrimary">TAHMİNİ GÖNDER</ThemedText>
+          <ThemedText variant="label" color="onPrimary">{ui.submitGuess}</ThemedText>
         </Pressable>
       </View>
     </View>
@@ -161,6 +165,8 @@ function circuitBoxEdges(rows: number, columns: number, box: number): number[] {
 }
 
 export function CircuitClaimBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const width = `${100 / match.boardColumns}%` as `${number}%`;
   return (
     <View style={styles.circuitBoard}>
@@ -197,7 +203,7 @@ export function CircuitClaimBoard({ match, disabled, onMove }: BoardProps) {
               return (
                 <Pressable
                   key={edgeIndex}
-                  accessibilityLabel={`Devre hattı ${edge + 1}`}
+                  accessibilityLabel={ui.circuitEdge(edge + 1)}
                   hitSlop={5}
                   disabled={disabled || edgeOwner !== null}
                   onPress={() => onMove(edge)}
@@ -230,6 +236,8 @@ function neighbors(index: number, rows: number, columns: number): number[] {
 }
 
 export function NeonTrailBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const width = `${100 / match.boardColumns}%` as `${number}%`;
   const activePosition = match.playerPositions?.[match.activePlayerIndex] ?? -1;
   const legal = new Set(neighbors(activePosition, match.boardRows, match.boardColumns));
@@ -240,7 +248,7 @@ export function NeonTrailBoard({ match, disabled, onMove }: BoardProps) {
         return (
           <Pressable
             key={index}
-            accessibilityLabel={`Neon hücresi ${index + 1}`}
+            accessibilityLabel={ui.neonCell(index + 1)}
             disabled={disabled || owner !== null || !legal.has(index)}
             onPress={() => onMove(index)}
             style={[
@@ -263,6 +271,8 @@ export function NeonTrailBoard({ match, disabled, onMove }: BoardProps) {
 }
 
 export function GatewayRaceBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const [placingBarrier, setPlacingBarrier] = useState(false);
   const width = `${100 / match.boardColumns}%` as `${number}%`;
   const cellCount = match.boardRows * match.boardColumns;
@@ -279,15 +289,15 @@ export function GatewayRaceBoard({ match, disabled, onMove }: BoardProps) {
     <View style={styles.gatewayWrap}>
       <View style={styles.gatewayTools}>
         <Pressable
-          accessibilityLabel="İlerleme modunu seç"
+          accessibilityLabel={ui.chooseMove}
           onPress={() => setPlacingBarrier(false)}
           style={[styles.gatewayTool, !barrierMode && styles.gatewayToolActive]}
         >
           <Footprints size={17} color={!barrierMode ? colors.primaryDark : colors.textMuted} />
-          <ThemedText variant="caption">İLERLE</ThemedText>
+          <ThemedText variant="caption">{ui.move}</ThemedText>
         </Pressable>
         <Pressable
-          accessibilityLabel="Bariyer modunu seç"
+          accessibilityLabel={ui.chooseBarrier}
           disabled={barriersLeft <= 0}
           onPress={() => setPlacingBarrier(true)}
           style={[
@@ -297,7 +307,7 @@ export function GatewayRaceBoard({ match, disabled, onMove }: BoardProps) {
           ]}
         >
           <Shield size={17} color={barrierMode ? colors.amberMuted : colors.textMuted} />
-          <ThemedText variant="caption">BARİYER {barriersLeft}</ThemedText>
+          <ThemedText variant="caption">{ui.barrier} {barriersLeft}</ThemedText>
         </Pressable>
       </View>
       <View style={styles.gridBoard}>
@@ -309,7 +319,7 @@ export function GatewayRaceBoard({ match, disabled, onMove }: BoardProps) {
           return (
             <Pressable
               key={index}
-              accessibilityLabel={`Geçit hücresi ${index + 1}`}
+              accessibilityLabel={ui.gatewayCell(index + 1)}
               disabled={disabled || (barrierMode ? !canBlock : !canStep)}
               onPress={() => onMove(barrierMode ? cellCount + index : index)}
               style={[
@@ -364,6 +374,8 @@ function polarityFlips(match: TurnMatchState, cell: number, player: 0 | 1): numb
 }
 
 export function PolarityWarBoard({ match, disabled, onMove }: BoardProps) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
   const width = `${100 / match.boardColumns}%` as `${number}%`;
   return (
     <View style={styles.polarityBoard}>
@@ -372,7 +384,7 @@ export function PolarityWarBoard({ match, disabled, onMove }: BoardProps) {
         return (
           <Pressable
             key={index}
-            accessibilityLabel={`Polarite hücresi ${index + 1}`}
+            accessibilityLabel={ui.polarityCell(index + 1)}
             disabled={disabled || !legal}
             onPress={() => onMove(index)}
             style={[styles.polarityCell, { width }, legal && styles.legalPolarity]}

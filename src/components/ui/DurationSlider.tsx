@@ -8,6 +8,8 @@ import {
 import { ThemedText } from '@/components/ui/ThemedText';
 import { triggerHaptic } from '@/services/HapticsService';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { useTranslation } from '@/src/i18n';
+import { TURN_DURATION } from '@/src/i18n/turnGames';
 
 interface DurationSliderProps {
   readonly value: number;
@@ -22,6 +24,8 @@ export function DurationSlider({
   min = 2,
   max = 15,
 }: DurationSliderProps) {
+  const { language } = useTranslation();
+  const copy = TURN_DURATION[language];
   const [trackWidth, setTrackWidth] = useState(0);
 
   const clamp = (minutes: number) => Math.max(min, Math.min(max, Math.round(minutes)));
@@ -40,16 +44,16 @@ export function DurationSlider({
     <View style={styles.wrapper}>
       <View style={styles.valueRow}>
         <ThemedText variant="monoLarge" style={styles.value}>{value}</ThemedText>
-        <ThemedText variant="label" color="muted">DAKİKA</ThemedText>
+        <ThemedText variant="label" color="muted">{copy.minutes}</ThemedText>
       </View>
       <View
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel="Oyuncu süresi"
-        accessibilityValue={{ min, max, now: value, text: `${value} dakika` }}
+        accessibilityLabel={copy.playerTime}
+        accessibilityValue={{ min, max, now: value, text: copy.value(value) }}
         accessibilityActions={[
-          { name: 'increment', label: 'Süreyi artır' },
-          { name: 'decrement', label: 'Süreyi azalt' },
+          { name: 'increment', label: copy.increase },
+          { name: 'decrement', label: copy.decrease },
         ]}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
@@ -70,8 +74,8 @@ export function DurationSlider({
         </View>
       </View>
       <View style={styles.rangeRow}>
-        <ThemedText variant="caption" color="muted">{min} dk</ThemedText>
-        <ThemedText variant="caption" color="muted">{max} dk</ThemedText>
+        <ThemedText variant="caption" color="muted">{copy.short(min)}</ThemedText>
+        <ThemedText variant="caption" color="muted">{copy.short(max)}</ThemedText>
       </View>
     </View>
   );

@@ -12,8 +12,13 @@ import { clearSinglePlayerSession } from '@/services/SinglePlayerService';
 import { useGameStore } from '@/store/gameStore';
 import { useRoomStore } from '@/store/roomStore';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { useTranslation } from '@/src/i18n';
+import { TURN_RESULTS, TURN_UI } from '@/src/i18n/turnGames';
 
 export default function ResultsScreen() {
+  const { language } = useTranslation();
+  const copy = TURN_RESULTS[language];
+  const turnUi = TURN_UI[language];
   const router = useRouter();
   const [rematchRequested, setRematchRequested] = useState(false);
   const result = useGameStore((state) => state.result);
@@ -39,7 +44,7 @@ export default function ResultsScreen() {
   if (!result || !room) {
     return (
       <View style={styles.loading}>
-        <ThemedText color="muted">Sonuç hazırlanıyor…</ThemedText>
+        <ThemedText color="muted">{copy.loading}</ThemedText>
       </View>
     );
   }
@@ -53,19 +58,19 @@ export default function ResultsScreen() {
     : null;
   const localForfeited = result.forfeitedPlayerId === localPlayerId;
   const title = localForfeited
-    ? 'Maçtan çıktın'
+    ? copy.leftTitle
     : result.failReason === 'player_left'
-    ? 'Maç yarıda kaldı'
-    : winner ? (localWon ? 'Kazandın!' : `${winner.displayName} kazandı`) : 'Berabere!';
+    ? copy.interruptedTitle
+    : winner ? (localWon ? copy.wonTitle : copy.winnerTitle(winner.displayName)) : copy.drawTitle;
   const summary = forfeitedPlayer
     ? localForfeited
       ? singlePlayer
-        ? 'DuelBot maçı kazandı. Kuralları değiştirip yeniden deneyebilirsin.'
-        : 'Rakibin maçı kazandı. Yeniden oynamak için tekrar eşleşebilirsiniz.'
-      : `${forfeitedPlayer.displayName} maçtan ayrıldı.`
+        ? copy.botWon
+        : copy.opponentWon
+      : copy.playerLeft(forfeitedPlayer.displayName)
     : singlePlayer
-      ? `${result.totalPuzzles} turluk DuelBot maçı tamamlandı`
-      : `${result.totalPuzzles} turluk ortak masa tamamlandı`;
+      ? copy.soloComplete(result.totalPuzzles)
+      : copy.sharedComplete(result.totalPuzzles);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -93,7 +98,7 @@ export default function ResultsScreen() {
                 />
                 <ThemedText variant="body" numberOfLines={1}>{player.displayName}</ThemedText>
                 <ThemedText variant="monoLarge" style={{ color }}>{score}</ThemedText>
-                <ThemedText variant="caption" color="muted">TUR PUANI</ThemedText>
+                <ThemedText variant="caption" color="muted">{turnUi.roundScore}</ThemedText>
               </View>
             );
           })}
@@ -117,12 +122,12 @@ export default function ResultsScreen() {
           >
             <RotateCw size={21} color={colors.textOnPrimary} />
             <ThemedText variant="label" color="onPrimary">
-              {rematchRequested ? 'Rakip bekleniyor…' : 'Tekrar oyna'}
+              {rematchRequested ? copy.waiting : copy.playAgain}
             </ThemedText>
           </Pressable>
           <Pressable onPress={handleHome} style={styles.action}>
             <Home size={21} color={colors.textPrimary} />
-            <ThemedText variant="label">Ana menü</ThemedText>
+            <ThemedText variant="label">{copy.home}</ThemedText>
           </Pressable>
         </View>
       </View>
