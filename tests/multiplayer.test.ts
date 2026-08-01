@@ -139,11 +139,34 @@ test('two clients share one authoritative board and can only play in turn', asyn
     assert.deepEqual(next, turnState(guestMove));
     assert.equal(next.activePlayerIndex, initial.mode === 'memory_pairs' ? 0 : 1);
 
+
     const chatPromise = waitForEvent(guestRoom, 'chat.received');
     hostRoom.send('event', { event: 'chat.send', payload: { text: 'İyi hamle!' } });
     const chat = await chatPromise;
     if (chat.payload.event !== 'chat.received') throw new Error('Unexpected chat event');
     assert.equal(chat.payload.payload.message.text, 'İyi hamle!');
+
+    const skipRequestedPromise = waitForEvent(hostRoom, 'state.patch', (message) => {
+      const state = turnState(message);
+      return state?.roundId === next.roundId && state.skipVotes[0] === true;
+    });
+    hostRoom.send('event', { event: 'round.skip.vote', payload: { vote: true } });
+    const skipRequested = turnState(await skipRequestedPromise);
+    assert.deepEqual(skipRequested?.skipVotes, [true, false]);
+
+    const skippedHostPromise = waitForEvent(hostRoom, 'state.patch', (message) => {
+      const state = turnState(message);
+      return !!state && state.roundId !== next.roundId;
+    });
+    const skippedGuestPromise = waitForEvent(guestRoom, 'state.patch', (message) => {
+      const state = turnState(message);
+      return !!state && state.roundId !== next.roundId;
+    });
+    guestRoom.send('event', { event: 'round.skip.vote', payload: { vote: true } });
+    const [skippedHost, skippedGuest] = await Promise.all([skippedHostPromise, skippedGuestPromise]);
+    assert.deepEqual(turnState(skippedHost), turnState(skippedGuest));
+    assert.deepEqual(turnState(skippedHost)?.scores, [0, 0]);
+    assert.deepEqual(turnState(skippedHost)?.skipVotes, [false, false]);
 
     const hostResultPromise = waitForEvent(hostRoom, 'game.completed');
     const guestResultPromise = waitForEvent(guestRoom, 'game.completed');

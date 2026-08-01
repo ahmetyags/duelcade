@@ -26,6 +26,8 @@ export interface TurnMatchState {
   activePlayerIndex: 0 | 1;
   scores: [number, number];
   roundPoints: [number, number];
+  /** Per-seat approval for skipping only the current round. */
+  skipVotes: [boolean, boolean];
   cells: (number | null)[];
   cellOwners: (0 | 1 | null)[];
   selectedCells: number[];
@@ -56,6 +58,8 @@ export interface CipherGuessFeedback {
   guess: number[];
   exact: number;
   misplaced: number;
+  /** Public indexes whose rune and position are both correct. */
+  exactPositions: number[];
 }
 
 export interface TurnMatchSession {

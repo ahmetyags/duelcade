@@ -21,6 +21,7 @@ import {
   Plus,
   RotateCw,
   Send,
+  SkipForward,
   Smile,
   Trophy,
 } from 'lucide-react-native';
@@ -30,6 +31,7 @@ import { ThemedButton } from '@/components/ui/ThemedButton';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { GameHowToPlayModal } from '@/components/game/GameHowToPlayModal';
+import { PipeDirectionGlyph } from '@/components/game/PipeDirectionGlyph';
 import {
   CipherClashBoard,
   CircuitClaimBoard,
@@ -38,7 +40,13 @@ import {
   PolarityWarBoard,
 } from '@/components/game/NewTurnBoards';
 import { triggerHaptic } from '@/services/HapticsService';
-import { forfeitMatch, playTurn, sendChat } from '@/services/NetworkBridge';
+import {
+  forfeitMatch,
+  playTurn,
+  resumeRoom,
+  sendChat,
+  voteRoundSkip,
+} from '@/services/NetworkBridge';
 import {
   forfeitSinglePlayer,
   playSinglePlayerTurn,
@@ -51,7 +59,7 @@ import type { ChatMessage, Player } from '@/types/game';
 import type { TurnMatchState } from '@/types/turnGame';
 import { useTranslation } from '@/src/i18n';
 import { getTurnModeCopy, TURN_UI } from '@/src/i18n/turnGames';
-import { findWinningLineCells } from '@/engine/TurnGameEngine';
+import { findWinningLineCells, resonanceFrequency } from '@/engine/TurnGameEngine';
 import {
   TURN_BOARD_GRID_GAP,
   turnBoardCellSize,
@@ -357,29 +365,22 @@ function PipeBoard({ match, disabled, onMove }: BoardProps) {
               pressed && styles.pressed,
             ]}
           >
-            <ThemedText
-              style={[
-                styles.pipeGlyph,
-                {
-                  color: index === 0 || index === 8 ? colors.amber : colors.cyanMuted,
-                  transform: [{ rotate: `${(rotation ?? 0) * 90}deg` }],
-                  fontSize: glyphSize,
-                  lineHeight: glyphSize + 6,
-                },
-              ]}
-            >
-              {kind === 'corner' ? '┗' : '━'}
-            </ThemedText>
-            <ThemedText
-              variant="caption"
-              color="muted"
-              style={[
-                styles.pipeTarget,
-                { transform: [{ rotate: `${(match.targets?.[index] ?? 0) * 90}deg` }] },
-              ]}
-            >
-              {kind === 'corner' ? '┗' : '━'}
-            </ThemedText>
+            <PipeDirectionGlyph
+              kind={kind}
+              rotation={rotation ?? 0}
+              size={glyphSize}
+              color={index === 0 || index === match.cells.length - 1
+                ? colors.amber
+                : colors.cyanMuted}
+            />
+            <View style={styles.pipeTarget}>
+              <PipeDirectionGlyph
+                kind={kind}
+                rotation={match.targets?.[index] ?? 0}
+                size={14}
+                color={colors.textMuted}
+              />
+            </View>
             <View style={styles.rotateBadge}>
               <RotateCw size={12} color={colors.textMuted} />
             </View>
@@ -395,15 +396,29 @@ function ResonanceBoard({ match, disabled, onMove }: BoardProps) {
   const ui = TURN_UI[language];
   const winnerCells = winningCells(match);
   const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const frequency = (dial: number, value: number | null) =>
-    120 + dial * 35 + (value ?? 0) * 20;
   return (
     <View style={styles.resonanceBoard}>
       <View style={styles.targetStrip}>
         <ThemedText variant="caption" color="muted">{ui.targetFrequencies}</ThemedText>
-        <ThemedText variant="label" color="accent">
-          {match.targets?.map((target, index) => frequency(index, target)).join(' · ')} Hz
-        </ThemedText>
+        <View style={styles.targetFrequencyGrid}>
+          {match.targets?.map((target, index) => {
+            const channelColor = index % 2 ? colors.amber : colors.cyan;
+            const frequency = resonanceFrequency(index, target);
+            return (
+              <View
+                key={labels[index]}
+                accessibilityLabel={ui.channelTarget(labels[index], frequency)}
+                style={[styles.targetFrequencyChip, { borderColor: channelColor }]}
+              >
+                <View style={[styles.targetChannelBadge, { backgroundColor: `${channelColor}20` }]}>
+                  <ThemedText variant="label" style={{ color: channelColor }}>{labels[index]}</ThemedText>
+                </View>
+                <ThemedText variant="mono" style={styles.targetFrequencyNumber}>{frequency}</ThemedText>
+                <ThemedText variant="caption" color="muted">Hz</ThemedText>
+              </View>
+            );
+          })}
+        </View>
       </View>
       {match.cells.map((value, dial) => (
         <View
@@ -435,7 +450,7 @@ function ResonanceBoard({ match, disabled, onMove }: BoardProps) {
             value === match.targets?.[dial] && styles.frequencyMatched,
           ]}>
             <ThemedText variant="mono" style={{ color: colors.textPrimary, fontSize: 20 }}>
-              {frequency(dial, value)}
+              {resonanceFrequency(dial, value)}
             </ThemedText>
             <ThemedText variant="caption" color="muted">Hz</ThemedText>
           </View>
@@ -467,22 +482,40 @@ export default function GameScreen() {
   const [panel, setPanel] = useState<'chat' | 'emoji' | null>(null);
   const [message, setMessage] = useState('');
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [reactionToast, setReactionToast] = useState<ChatMessage | null>(null);
   const lastReactionId = useRef<string | null>(null);
   const celebratedRoundId = useRef<string | null>(null);
   const pageRef = useRef<ScrollView>(null);
+  const recoveryAttempted = useRef(false);
   const match = useGameStore((state) => state.turnMatch);
   const phase = useGameStore((state) => state.phase);
   const chatMessages = useGameStore((state) => state.chatMessages);
   const room = useRoomStore((state) => state.room);
   const localPlayerId = useRoomStore((state) => state.localPlayerId);
   const reduceMotion = useSettingsStore((state) => state.reduceMotion);
+  const settingsLoaded = useSettingsStore((state) => state.isLoaded);
+  const lastRoomCode = useSettingsStore((state) => state.lastRoomCode);
+  const lastRoomPlayerId = useSettingsStore((state) => state.lastRoomPlayerId);
+  const lastRoomReconnectToken = useSettingsStore((state) => state.lastRoomReconnectToken);
   const singlePlayer = room?.sessionMode === 'single_player';
 
   useEffect(() => {
     if (phase === 'completed' || phase === 'failed') router.replace('/results');
   }, [phase, router]);
+
+  useEffect(() => {
+    if (room || match || !settingsLoaded || recoveryAttempted.current) return;
+    recoveryAttempted.current = true;
+    if (!lastRoomCode || !lastRoomPlayerId || !lastRoomReconnectToken) {
+      router.replace('/');
+      return;
+    }
+    void resumeRoom(lastRoomCode, lastRoomPlayerId, lastRoomReconnectToken).then((restored) => {
+      if (!restored) router.replace('/');
+    });
+  }, [lastRoomCode, lastRoomPlayerId, lastRoomReconnectToken, match, room, router, settingsLoaded]);
 
   useEffect(() => {
     const latest = chatMessages[chatMessages.length - 1];
@@ -512,6 +545,10 @@ export default function GameScreen() {
     [match?.playerIds, room?.players],
   );
   const isMyTurn = !!match && match.playerIds[match.activePlayerIndex] === localPlayerId;
+  const localPlayerIndex = match?.playerIds.indexOf(localPlayerId ?? '') ?? -1;
+  const skipVotes = match?.skipVotes ?? [false, false];
+  const localSkipVoted = localPlayerIndex >= 0 ? skipVotes[localPlayerIndex] : false;
+  const remoteSkipVoted = localPlayerIndex >= 0 ? skipVotes[1 - localPlayerIndex] : false;
   const disabled = !isMyTurn || match?.status !== 'playing';
 
   const handleMove = useCallback((cell: number) => {
@@ -553,13 +590,25 @@ export default function GameScreen() {
         <View style={styles.topbar}>
           <View>
             <ThemedText variant="caption" color="accent">
-              {singlePlayer ? turnUi.soloHeader : ` · `}
+              {singlePlayer ? turnUi.soloHeader : turnUi.sharedHeader}
             </ThemedText>
             <ThemedText variant="subtitle">{modeCopy.title}</ThemedText>
           </View>
-          <Pressable accessibilityLabel={turnUi.leaveGame} onPress={handleLeave} style={styles.iconButton}>
-            <LogOut size={20} color={colors.error} />
-          </Pressable>
+          <View style={styles.topbarActions}>
+            {!singlePlayer && (
+              <Pressable
+                accessibilityLabel={turnUi.skipRound}
+                disabled={match.status !== 'playing' && match.status !== 'resolving'}
+                onPress={() => setShowSkipConfirm(true)}
+                style={[styles.iconButton, localSkipVoted && styles.skipButtonPending]}
+              >
+                <SkipForward size={19} color={localSkipVoted ? colors.amberMuted : colors.primaryDark} />
+              </Pressable>
+            )}
+            <Pressable accessibilityLabel={turnUi.leaveGame} onPress={handleLeave} style={styles.iconButton}>
+              <LogOut size={20} color={colors.error} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.players}>
@@ -670,7 +719,10 @@ export default function GameScreen() {
             <PolarityWarBoard match={match} disabled={disabled} onMove={handleMove} />
           )}
           {!isMyTurn && match.status === 'playing' && (
-            <View style={[styles.waitOverlay, { pointerEvents: 'none' }]} />
+            <View
+              testID="opponent-turn-overlay"
+              style={[styles.waitOverlay, { pointerEvents: 'none' }]}
+            />
           )}
         </View>
 
@@ -784,6 +836,72 @@ export default function GameScreen() {
       />
       <Modal
         transparent
+        visible={showSkipConfirm || localSkipVoted || remoteSkipVoted}
+        animationType="fade"
+        onRequestClose={() => {
+          if (localSkipVoted) voteRoundSkip(false);
+          setShowSkipConfirm(false);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.confirmCard}>
+            <View style={styles.skipConfirmIcon}>
+              <SkipForward size={25} color={colors.amberMuted} />
+            </View>
+            <ThemedText variant="subtitle" style={styles.confirmTitle}>
+              {localSkipVoted
+                ? turnUi.skipWaitingTitle
+                : remoteSkipVoted ? turnUi.skipRemoteTitle : turnUi.skipTitle}
+            </ThemedText>
+            <ThemedText color="muted" style={styles.confirmDescription}>
+              {localSkipVoted
+                ? turnUi.skipWaitingDescription
+                : remoteSkipVoted ? turnUi.skipRemoteDescription : turnUi.skipDescription}
+            </ThemedText>
+            {localSkipVoted ? (
+              <ThemedButton
+                label={turnUi.skipCancel}
+                variant="secondary"
+                size="lg"
+                fullWidth
+                onPress={() => {
+                  voteRoundSkip(false);
+                  setShowSkipConfirm(false);
+                }}
+              />
+            ) : (
+              <View style={styles.confirmActions}>
+                <ThemedButton
+                  label={remoteSkipVoted ? turnUi.skipDecline : t('game.exitCancel')}
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  onPress={() => {
+                    if (remoteSkipVoted) voteRoundSkip(false);
+                    setShowSkipConfirm(false);
+                  }}
+                  style={styles.confirmButton}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={remoteSkipVoted ? turnUi.skipAccept : turnUi.skipApprove}
+                  onPress={() => {
+                    voteRoundSkip(true);
+                    setShowSkipConfirm(false);
+                  }}
+                  style={styles.skipAcceptButton}
+                >
+                  <ThemedText variant="label" color="onPrimary">
+                    {remoteSkipVoted ? turnUi.skipAccept : turnUi.skipApprove}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        transparent
         visible={showExitConfirm}
         animationType="fade"
         onRequestClose={() => setShowExitConfirm(false)}
@@ -839,7 +957,9 @@ const styles = StyleSheet.create({
   page: { flexGrow: 1, width: '100%', maxWidth: 680, alignSelf: 'center', justifyContent: 'center', padding: spacing.xl, gap: 15 },
   pageCompact: { paddingVertical: spacing.sm, gap: 15 },
   topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  topbarActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   iconButton: { width: 42, height: 42, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  skipButtonPending: { borderColor: colors.amber, backgroundColor: colors.secondaryContainer },
   players: { flexDirection: 'row', gap: 15 },
   playerCard: { flex: 1, minWidth: 0, minHeight: 68, padding: spacing.sm, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radius.lg, backgroundColor: colors.surfaceDark, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   playerCopy: { flex: 1, minWidth: 0 },
@@ -852,15 +972,15 @@ const styles = StyleSheet.create({
   reactionAvatar: { width: 32, height: 32, flexShrink: 0, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceElevated },
   reactionName: { flex: 1, color: colors.textPrimary },
   reactionText: { fontSize: 23, lineHeight: 28 },
-  boardShell: { width: '100%', maxWidth: 560, minHeight: 300, maxHeight: 560, aspectRatio: 1, alignSelf: 'center', position: 'relative', padding: spacing.md, borderRadius: 28, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden', ...shadows.lg },
+  boardShell: { width: '100%', maxWidth: 560, minHeight: 300, maxHeight: 560, aspectRatio: 1, alignSelf: 'center', position: 'relative', padding: spacing.md, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, overflow: 'hidden', ...shadows.md },
   boardShellCompact: { maxWidth: 430 },
   boardShellGateway: { aspectRatio: 0.86, maxHeight: 620 },
   boardShellCipher: { aspectRatio: 0.8, maxHeight: 620 },
-  boardShellResonance: { aspectRatio: 0.62, maxHeight: 620 },
+  boardShellResonance: { aspectRatio: 0.6, maxHeight: 620 },
   boardGlow: { position: 'absolute', width: '70%', height: '70%', left: '15%', top: '15%', borderRadius: 999, backgroundColor: colors.glow },
-  waitOverlay: { position: 'absolute', inset: 0, backgroundColor: 'rgba(247,244,238,0.22)' },
+  waitOverlay: { position: 'absolute', inset: 0, zIndex: 8, backgroundColor: 'rgba(247,244,238,0.62)' },
   runeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
-  runeCell: { borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  runeCell: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   filledCell: { backgroundColor: colors.surfaceElevated },
   runeMark: { fontSize: 64, lineHeight: 72, fontWeight: '400' },
   winningCell: { borderWidth: 3, transform: [{ scale: 1.035 }], zIndex: 2, ...shadows.glow },
@@ -868,7 +988,7 @@ const styles = StyleSheet.create({
   connectBoard: { flex: 1, flexDirection: 'row', gap: 5, padding: spacing.sm, borderRadius: radius.xl, backgroundColor: colors.primaryDark, borderWidth: 1, borderColor: colors.cyanMuted },
   connectColumn: { flex: 1, gap: 5, justifyContent: 'space-around' },
   columnPressed: { backgroundColor: 'rgba(255,255,255,0.06)' },
-  connectSlot: { width: '100%', aspectRatio: 1, maxWidth: 62, alignSelf: 'center', borderRadius: radius.pill, backgroundColor: colors.backgroundDeep, borderWidth: 2, borderColor: colors.borderSubtle },
+  connectSlot: { width: '100%', aspectRatio: 1, maxWidth: 62, alignSelf: 'center', borderRadius: radius.pill, backgroundColor: colors.backgroundDeep, borderWidth: 1, borderColor: colors.borderSubtle },
   winningConnectSlot: { borderWidth: 4, borderColor: '#FFFFFF', transform: [{ scale: 1.08 }], ...shadows.glow },
   memoryBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
   memoryCard: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
@@ -876,13 +996,16 @@ const styles = StyleSheet.create({
   memoryCardMatched: { backgroundColor: colors.primaryContainer, borderColor: colors.success },
   memorySymbol: { fontSize: 30, lineHeight: 36, fontWeight: '700' },
   pipeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
-  pipeCell: { borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
-  pipeGlyph: { fontSize: 58, lineHeight: 64, fontWeight: '500' },
-  pipeTarget: { position: 'absolute', left: 7, top: 5, fontSize: 12, lineHeight: 14, opacity: 0.55 },
+  pipeCell: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
+  pipeTarget: { position: 'absolute', left: 6, top: 5, opacity: 0.48 },
   rotateBadge: { position: 'absolute', right: 7, bottom: 7, width: 22, height: 22, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center' },
-  resonanceBoard: { flex: 1, justifyContent: 'center', gap: 15 },
-  targetStrip: { flexShrink: 0, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.secondaryContainer, borderWidth: 1, borderColor: colors.amber, alignItems: 'center', gap: spacing.xs },
-  dialRow: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surfaceElevated },
+  resonanceBoard: { flex: 1, justifyContent: 'center', gap: 10 },
+  targetStrip: { flexShrink: 0, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.secondaryContainer, borderWidth: 1, borderColor: colors.amber, alignItems: 'center', gap: spacing.xs },
+  targetFrequencyGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
+  targetFrequencyChip: { width: '31%', minWidth: 82, minHeight: 32, paddingHorizontal: 5, borderRadius: radius.md, borderWidth: 1, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  targetChannelBadge: { width: 22, height: 22, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  targetFrequencyNumber: { color: colors.textPrimary, fontSize: 13, lineHeight: 16 },
+  dialRow: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surfaceElevated },
   dialLabel: { width: 36, alignItems: 'center' },
   dialButton: { width: 42, height: 42, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   frequencyValue: { flex: 1, height: 48, minWidth: 0, paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
@@ -907,9 +1030,11 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, padding: spacing.xl, backgroundColor: 'rgba(23,35,31,0.32)', alignItems: 'center', justifyContent: 'center' },
   confirmCard: { width: '100%', maxWidth: 440, padding: spacing.xl, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', gap: spacing.md, ...shadows.lg },
   confirmIcon: { width: 52, height: 52, borderRadius: radius.pill, backgroundColor: '#FCEAE7', alignItems: 'center', justifyContent: 'center' },
+  skipConfirmIcon: { width: 52, height: 52, borderRadius: radius.pill, backgroundColor: colors.secondaryContainer, alignItems: 'center', justifyContent: 'center' },
   confirmTitle: { textAlign: 'center' },
   confirmDescription: { textAlign: 'center', maxWidth: 330 },
   confirmActions: { width: '100%', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   confirmButton: { flex: 1 },
+  skipAcceptButton: { flex: 1, minHeight: 52, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
   forfeitButton: { flex: 1, minHeight: 52, borderRadius: radius.lg, backgroundColor: colors.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
 });

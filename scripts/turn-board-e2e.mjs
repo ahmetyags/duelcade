@@ -162,8 +162,22 @@ try {
   })()`);
   if (!/^[A-Z2-9]{6}$/.test(code)) throw new Error(`Invalid code ${code}`);
 
+  // Returning to create while a room is still cached must produce a genuinely new room.
+  await evaluate(cdp, host, 'history.back(); true');
+  await waitText(cdp, host, 'Oluştur ve Kodu Paylaş');
+  await click(cdp, host, 'Oluştur ve Kodu Paylaş');
+  await waitText(cdp, host, 'ODA KODU');
+  const freshCode = await evaluate(cdp, host, `(() => {
+    const lines = (document.body?.innerText ?? '').split(/\\n+/).map((line) => line.trim());
+    const marker = lines.indexOf('ODA KODU');
+    return lines.slice(marker + 1).filter((line) => /^[A-Z2-9]$/.test(line)).slice(0, 6).join('');
+  })()`);
+  if (!/^[A-Z2-9]{6}$/.test(freshCode) || freshCode === code) {
+    throw new Error(`Fresh room reused stale code: ${code} -> ${freshCode}`);
+  }
+
   await click(cdp, guest, 'Arkadaşına Katıl');
-  await fill(cdp, guest, 0, code);
+  await fill(cdp, guest, 0, freshCode);
   await fill(cdp, guest, 1, 'Mert');
   await click(cdp, guest, 'Maça Katıl');
   await Promise.all([waitText(cdp, host, 'OYUNCULAR (2/2)'), waitText(cdp, guest, 'OYUNCULAR (2/2)')]);
@@ -184,6 +198,14 @@ try {
     `(${JSON.stringify(modeNames)}).find((name) => (document.body?.innerText ?? '').includes(name))`,
   );
   await waitText(cdp, guest, activeMode);
+
+  // A real browser refresh must reconnect the same seat and restore the active board.
+  await cdp.send('Page.reload', { ignoreCache: true }, guest.sessionId);
+  await waitText(cdp, guest, activeMode, 20_000);
+  await waitText(cdp, guest, 'ORTAK MASA', 20_000);
+  const restoredPath = await evaluate(cdp, guest, 'location.pathname');
+  if (restoredPath !== '/game') throw new Error(`Refresh did not restore /game: ${restoredPath}`);
+  await screenshot(cdp, guest, 'desktop-restored-after-refresh.png');
 
   const hostLayout = await evaluate(cdp, host, `(() => {
     const cell = document.querySelector(
@@ -234,11 +256,43 @@ try {
   if (controlCount !== expectedHardCounts[activeMode]) {
     throw new Error(`Hard board did not scale: ${activeMode} has ${controlCount}`);
   }
-  if (activeMode === 'Şifre Çatışması') {
-    for (let index = 0; index < 6; index += 1) await click(cdp, host, 'Rün 1');
-    await click(cdp, host, 'Şifre tahminini gönder');
+  if (activeMode === 'Rezonans Kilidi') {
+    const targetMappingCount = await evaluate(
+      cdp,
+      host,
+      `document.querySelectorAll('[aria-label*=" kanalı hedefi: "]').length`,
+    );
+    if (targetMappingCount !== controlCount) {
+      throw new Error(`Resonance targets are not mapped to every channel: ${targetMappingCount}/${controlCount}`);
+    }
+  }
+  await click(cdp, host, 'Bu oyunu pas geç');
+  await waitText(cdp, host, 'Bu oyun pas geçilsin mi?');
+  await click(cdp, host, 'Pas geçme isteği gönder');
+  await waitText(cdp, host, 'Rakip onayı bekleniyor');
+  await waitText(cdp, guest, 'Rakibin pas geçmek istiyor');
+  await screenshot(cdp, guest, 'desktop-skip-request.png');
+  await click(cdp, guest, 'Onayla');
+  await wait(cdp, host, `!(document.body?.innerText ?? '').includes(${JSON.stringify(activeMode)})`, 10_000);
+  await wait(
+    cdp,
+    host,
+    `Boolean(document.querySelector('[data-testid="opponent-turn-overlay"]'))`,
+  );
+  await screenshot(cdp, host, 'mobile-skipped-next-game.png');
+
+  const nextMode = await evaluate(
+    cdp,
+    host,
+    `(${JSON.stringify(modeNames)}).find((name) => (document.body?.innerText ?? '').includes(name))`,
+  );
+  if (!nextMode || nextMode === activeMode) throw new Error(`Round was not skipped: ${activeMode}`);
+
+  if (nextMode === 'Şifre Çatışması') {
+    for (let index = 0; index < 6; index += 1) await click(cdp, guest, 'Rün 1');
+    await click(cdp, guest, 'TAHMİNİ GÖNDER');
   } else {
-    const moved = await evaluate(cdp, host, `(() => {
+    const moved = await evaluate(cdp, guest, `(() => {
       const selectors = {
         'Rün Düellosu': '[aria-label^="Hücre "]',
         'Devre Döndürme': '[aria-label^="Devre parçası "]',
@@ -250,14 +304,14 @@ try {
         'Geçit Savaşı': '[aria-label^="Geçit hücresi "]',
         'Polarite Savaşı': '[aria-label^="Polarite hücresi "]',
       };
-      const nodes = [...document.querySelectorAll(selectors[${JSON.stringify(activeMode)}])];
+      const nodes = [...document.querySelectorAll(selectors[${JSON.stringify(nextMode)}])];
       const node = nodes.find((item) =>
         !item.hasAttribute('disabled') && item.getAttribute('aria-disabled') !== 'true'
       );
       node?.click();
       return Boolean(node);
     })()`);
-    if (!moved) throw new Error(`No playable control for ${activeMode}`);
+    if (!moved) throw new Error(`No playable control for ${nextMode}`);
   }
   await sleep(400);
   await screenshot(cdp, guest, 'desktop-synced-move.png');
@@ -284,7 +338,7 @@ try {
     event.method === 'Runtime.exceptionThrown'
     || (event.method === 'Log.entryAdded' && event.params.entry.level === 'error'));
   if (errors.length) throw new Error(`Browser errors: ${JSON.stringify(errors.slice(0, 3))}`);
-  process.stdout.write(JSON.stringify({ ok: true, code, activeMode, controlCount, hostLayout }, null, 2));
+  process.stdout.write(JSON.stringify({ ok: true, oldCode: code, code: freshCode, activeMode, nextMode, controlCount, hostLayout }, null, 2));
 } finally {
   await Promise.allSettled([
     cdp.send('Target.disposeBrowserContext', { browserContextId: host.contextId }),

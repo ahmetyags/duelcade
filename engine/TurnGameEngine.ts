@@ -42,6 +42,11 @@ export function roundCountForDuration(minutes: number): number {
   return Math.max(3, Math.min(10, normalizeMatchDurationMinutes(minutes)));
 }
 
+/** Convert a resonance dial step into the public frequency shown to both players. */
+export function resonanceFrequency(dial: number, value: number | null): number {
+  return 120 + dial * 35 + (value ?? 0) * 20;
+}
+
 function boardConfig(mode: TurnGameMode, difficulty: Difficulty): BoardConfig {
   const level = DIFFICULTY_INDEX[difficulty];
   if (mode === 'rune_grid') {
@@ -156,11 +161,13 @@ export function decodeCipherGuess(encoded: number, length: number, symbolCount: 
 
 function cipherFeedback(secret: readonly number[], guess: readonly number[]) {
   let exact = 0;
+  const exactPositions: number[] = [];
   const secretCounts = new Map<number, number>();
   const guessCounts = new Map<number, number>();
   for (let index = 0; index < secret.length; index += 1) {
     if (secret[index] === guess[index]) {
       exact += 1;
+      exactPositions.push(index);
     } else {
       secretCounts.set(secret[index], (secretCounts.get(secret[index]) ?? 0) + 1);
       guessCounts.set(guess[index], (guessCounts.get(guess[index]) ?? 0) + 1);
@@ -170,7 +177,7 @@ function cipherFeedback(secret: readonly number[], guess: readonly number[]) {
   for (const [symbol, count] of guessCounts) {
     misplaced += Math.min(count, secretCounts.get(symbol) ?? 0);
   }
-  return { exact, misplaced };
+  return { exact, misplaced, exactPositions };
 }
 
 function circuitEdgeCount(rows: number, columns: number): number {
@@ -276,23 +283,21 @@ function newRound(
     { length: cellCount },
     () => rng.chance(0.48) ? 'straight' as const : 'corner' as const,
   );
-  const pipeSolution = pipeKinds.map((kind) => (
-    rng.nextInt(0, kind === 'straight' ? 1 : 3)
-  ));
+  const pipeSolution = pipeKinds.map(() => rng.nextInt(0, 3));
   const pipeInitial = pipeSolution.map((rotation, index) => {
-    const orientationCount = pipeKinds[index] === 'straight' ? 2 : 4;
-    return (rotation + rng.nextInt(1, orientationCount - 1)) % orientationCount;
+    return (rotation + rng.nextInt(1, 3)) % 4;
   });
   const resonanceTargets = Array.from({ length: config.rows }, () => rng.nextInt(0, 4));
   const resonanceInitial = resonanceTargets.map((target) => (target + rng.nextInt(1, 4)) % 5);
   const memory = mode === 'memory_pairs' ? memoryDeck(roundSeed, cellCount) : [];
   const cipherAllowRepeats = difficulty === 'hard' || difficulty === 'final';
-  const cipherSolutions: [number[], number[]] = mode === 'cipher_clash'
-    ? [
-        cipherCode(rng, config.rows, config.columns, cipherAllowRepeats),
-        cipherCode(rng, config.rows, config.columns, cipherAllowRepeats),
-      ]
-    : [[], []];
+  const sharedCipher = mode === 'cipher_clash'
+    ? cipherCode(rng, config.rows, config.columns, cipherAllowRepeats)
+    : [];
+  const cipherSolutions: [number[], number[]] = [
+    [...sharedCipher],
+    [...sharedCipher],
+  ];
   const circuitEdges = circuitEdgeCount(config.rows, config.columns);
   const movementPositions: [number, number] = mode === 'gateway_race'
     ? [
@@ -338,6 +343,7 @@ function newRound(
       activePlayerIndex: (roundIndex % 2) as 0 | 1,
       scores,
       roundPoints: [0, 0],
+      skipVotes: [false, false],
       cells: initialCells,
       cellOwners: Array(
         mode === 'circuit_claim' ? config.rows * config.columns : initialCells.length,
@@ -599,8 +605,7 @@ export function applyTurnMove(
     if (state.cells[cell] === session.solution[cell]) {
       return { accepted: false, reason: 'invalid_cell' };
     }
-    const orientationCount = state.tileKinds?.[cell] === 'straight' ? 2 : 4;
-    state.cells[cell] = ((state.cells[cell] ?? 0) + 1) % orientationCount;
+    state.cells[cell] = ((state.cells[cell] ?? 0) + 1) % 4;
     state.cellOwners[cell] = state.cells[cell] === session.solution[cell] ? player : null;
     state.moveNumber += 1;
     if (state.cells.every((value, index) => value === session.solution[index])) {
@@ -744,6 +749,17 @@ export function advanceTurnRound(session: TurnMatchSession): boolean {
   session.solution = next.solution;
   session.cipherSolutions = next.cipherSolutions;
   return true;
+}
+
+/** Advance without awarding a point after both players approve a skip. */
+export function skipTurnRound(session: TurnMatchSession): boolean {
+  if (session.state.status !== 'playing' && session.state.status !== 'resolving') {
+    return false;
+  }
+  session.state.status = 'round_complete';
+  session.state.winnerIndex = null;
+  session.state.skipVotes = [true, true];
+  return advanceTurnRound(session);
 }
 
 export function legalTurnMoves(

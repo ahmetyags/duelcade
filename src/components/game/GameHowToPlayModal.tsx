@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react-native';
 
+import { PipeDirectionGlyph } from '@/components/game/PipeDirectionGlyph';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import { useTranslation } from '@/src/i18n';
@@ -130,9 +131,9 @@ function HowToDiagram({ mode, ui }: { mode: TurnGameMode; ui: (typeof TURN_UI)[k
   if (mode === 'pipe_circuit') {
     return (
       <View style={styles.pipeDiagram}>
-        <ThemedText style={styles.pipeGlyph}>┗</ThemedText>
+        <PipeDirectionGlyph kind="corner" rotation={0} size={54} color={colors.primaryDark} />
         <RotateCw size={27} color={colors.primaryDark} />
-        <ThemedText style={[styles.pipeGlyph, { transform: [{ rotate: '90deg' }] }]}>┗</ThemedText>
+        <PipeDirectionGlyph kind="corner" rotation={1} size={54} color={colors.primaryDark} />
         <View style={styles.checkCircle}><Check size={20} color={colors.success} /></View>
       </View>
     );
@@ -402,7 +403,6 @@ const styles = StyleSheet.create({
   previewLeft: { left: -4, top: 4, bottom: 4, width: 8 },
   previewRight: { right: -4, top: 4, bottom: 4, width: 8 },
   pipeDiagram: { minHeight: 130, flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  pipeGlyph: { fontSize: 54, lineHeight: 62, color: colors.primaryDark },
   steps: { gap: spacing.md },
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   stepNumber: {

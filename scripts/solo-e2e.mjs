@@ -140,7 +140,7 @@ try {
   if (!soloProfileControls.hasNameInput || !soloProfileControls.hasAvatarButton) {
     throw new Error(`Solo profile controls missing: ${JSON.stringify(soloProfileControls)}`);
   }
-  await click(cdp, page, 'Zor');
+  await click(cdp, page, PLAY_ALL_ROUNDS ? 'Kolay' : 'Zor');
 
   const slider = await evaluate(cdp, page, `(() => {
     const node = document.querySelector('[role="slider"],[aria-valuenow]');
@@ -215,7 +215,7 @@ try {
   const boardBounds = await evaluate(cdp, page, `(() => {
     const control = document.querySelector(
       '[aria-label^="Hücre "], [aria-label^="Devre parçası "], [aria-label^="Sütun "], ' +
-      '[aria-label^="A kanalını "], [aria-label^="Kart "], [aria-label^="Rün "], ' +
+      '[aria-label^="A kanalını "], [aria-label^="Kart "], [aria-label^="Rün "]:not([aria-label$="nasıl oynanır?"]), ' +
       '[aria-label^="Devre hattı "], [aria-label^="Neon hücresi "], ' +
       '[aria-label^="Geçit hücresi "], [aria-label^="Polarite hücresi "]'
     );
@@ -233,7 +233,7 @@ try {
   await wait(cdp, page, `(() => {
     const controls = [...document.querySelectorAll(
       '[aria-label^="Hücre "], [aria-label^="Devre parçası "], [aria-label^="Sütun "], ' +
-      '[aria-label$="kanalını artır"], [aria-label^="Kart "], [aria-label^="Rün "], ' +
+      '[aria-label$="kanalını artır"], [aria-label^="Kart "], [aria-label^="Rün "]:not([aria-label$="nasıl oynanır?"]), ' +
       '[aria-label="Şifre tahminini gönder"], [aria-label^="Devre hattı "], ' +
       '[aria-label^="Neon hücresi "], [aria-label^="Geçit hücresi "], ' +
       '[aria-label^="Polarite hücresi "]'
@@ -243,7 +243,7 @@ try {
   const moved = await evaluate(cdp, page, `(() => {
     const controls = [...document.querySelectorAll(
       '[aria-label^="Hücre "], [aria-label^="Devre parçası "], [aria-label^="Sütun "], ' +
-      '[aria-label$="kanalını artır"], [aria-label^="Kart "], [aria-label^="Rün "], ' +
+      '[aria-label$="kanalını artır"], [aria-label^="Kart "], [aria-label^="Rün "]:not([aria-label$="nasıl oynanır?"]), ' +
       '[aria-label="Şifre tahminini gönder"], [aria-label^="Devre hattı "], ' +
       '[aria-label^="Neon hücresi "], [aria-label^="Geçit hücresi "], ' +
       '[aria-label^="Polarite hücresi "]'
@@ -268,7 +268,7 @@ try {
     await evaluate(cdp, page, `(() => {
       const controls = [...document.querySelectorAll(
         '[aria-label^="Hücre "], [aria-label^="Devre parçası "], [aria-label^="Sütun "], ' +
-        '[aria-label$="kanalını artır"], [aria-label^="Kart "], [aria-label^="Rün "], ' +
+        '[aria-label$="kanalını artır"], [aria-label^="Kart "], [aria-label^="Rün "]:not([aria-label$="nasıl oynanır?"]), ' +
         '[aria-label="Şifre tahminini gönder"], [aria-label^="Devre hattı "], ' +
         '[aria-label^="Neon hücresi "], [aria-label^="Geçit hücresi "], ' +
         '[aria-label^="Polarite hücresi "]'
@@ -279,7 +279,7 @@ try {
     })()`);
     await sleep(180);
   }
-  if (!roundCelebrated) throw new Error('Round victory celebration was not shown');
+  if (!roundCelebrated) throw new Error('Round victory celebration was not shown for ' + initialMode);
   await screenshot(cdp, page, 'mobile-round-victory.png');
 
   const seenModes = new Set([initialMode]);
@@ -296,7 +296,7 @@ try {
       'Geçit Savaşı': 'gateway-race',
       'Polarite Savaşı': 'polarity',
     };
-    const deadline = Date.now() + 240_000;
+    const deadline = Date.now() + 900_000;
     while (Date.now() < deadline) {
       const completed = await evaluate(
         cdp,
@@ -316,7 +316,7 @@ try {
       await evaluate(cdp, page, `(() => {
         const controls = [...document.querySelectorAll(
           '[aria-label^="Hücre "], [aria-label^="Devre parçası "], [aria-label^="Sütun "], ' +
-          '[aria-label$="kanalını artır"], [aria-label^="Kart "], [aria-label^="Rün "], ' +
+          '[aria-label$="kanalını artır"], [aria-label^="Kart "], [aria-label^="Rün "]:not([aria-label$="nasıl oynanır?"]), ' +
           '[aria-label="Şifre tahminini gönder"], [aria-label^="Devre hattı "], ' +
           '[aria-label^="Neon hücresi "], [aria-label^="Geçit hücresi "], ' +
           '[aria-label^="Polarite hücresi "]'

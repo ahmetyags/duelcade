@@ -175,6 +175,17 @@ async function connect(roomCode: string): Promise<void> {
   await networkService.connect(roomCode, temporaryPlayerId);
 }
 
+async function resetForFreshRoom(): Promise<void> {
+  networkService.disconnect();
+  useSettingsStore.getState().clearLastRoomSession();
+  useRoomStore.getState().clearRoom();
+  useGameStore.getState().resetGame();
+  // Let the previous Colyseus leave frame flush before opening another room.
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 function connectionErrorKey(error: unknown): string {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   if (message.includes('locked') || message.includes('full') || message.includes('4211')) {
@@ -196,6 +207,7 @@ export async function createRoom(
   difficulty: Difficulty,
   matchDurationMinutes: number,
 ): Promise<void> {
+  await resetForFreshRoom();
   const roomStore = useRoomStore.getState();
   roomStore.setLoading(true);
   roomStore.setError(null);
@@ -218,6 +230,7 @@ export async function joinRoom(
   avatarId: PlayerAvatarId,
   rolePreference: RolePreference,
 ): Promise<void> {
+  await resetForFreshRoom();
   const normalizedCode = roomCode.trim().toUpperCase();
   const roomStore = useRoomStore.getState();
   roomStore.setLoading(true);
@@ -348,6 +361,10 @@ export function playTurn(cell: number): void {
     event: 'turn.move',
     payload: { cell, expectedMove: match.moveNumber },
   });
+}
+
+export function voteRoundSkip(vote: boolean): void {
+  networkService.send({ event: 'round.skip.vote', payload: { vote } });
 }
 
 export function forfeitMatch(): void {

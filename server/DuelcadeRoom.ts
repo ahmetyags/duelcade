@@ -16,6 +16,7 @@ import {
   normalizeMatchDurationMinutes,
   resolveMemoryTurn,
   roundCountForDuration,
+  skipTurnRound,
   tickTurnClock,
 } from '../engine/TurnGameEngine';
 import type {
@@ -172,6 +173,10 @@ const ClientEventSchema = z.discriminatedUnion('event', [
   z.object({
     event: z.literal('match.forfeit'),
     payload: z.object({ reason: z.literal('player_confirmed_exit') }),
+  }),
+  z.object({
+    event: z.literal('round.skip.vote'),
+    payload: z.object({ vote: z.boolean() }),
   }),
 ]);
 
@@ -509,6 +514,9 @@ export class DuelcadeRoom extends Room {
       case 'match.forfeit':
         this.forfeitMatch(client);
         break;
+      case 'round.skip.vote':
+        this.voteRoundSkip(client, message.payload.vote);
+        break;
       case 'rematch.vote':
         this.voteRematch(client, message.payload.vote);
         break;
@@ -732,6 +740,9 @@ export class DuelcadeRoom extends Room {
       this.sendError(client, 'INVALID_TURN', key, true);
       return;
     }
+    if (session.state.skipVotes.some(Boolean)) {
+      session.state.skipVotes = [false, false];
+    }
     this.broadcastTurnMatch();
     if (result.needsResolve) {
       this.clock.setTimeout(() => {
@@ -767,6 +778,35 @@ export class DuelcadeRoom extends Room {
     this.game.forfeitedPlayerId = player.id;
     this.broadcastTurnMatch();
     this.completeGame();
+  }
+
+  private voteRoundSkip(client: EscapeClient, vote: boolean): void {
+    const player = this.findPlayer(client);
+    const session = this.game.turnSession;
+    if (!player || !session || this.game.status !== 'playing') return;
+    if (session.state.status !== 'playing' && session.state.status !== 'resolving') return;
+    const playerIndex = session.state.playerIds.indexOf(player.id);
+    if (playerIndex < 0) return;
+
+    if (!vote) {
+      session.state.skipVotes = [false, false];
+      this.broadcastTurnMatch();
+      return;
+    }
+
+    session.state.skipVotes[playerIndex as 0 | 1] = true;
+    if (!session.state.skipVotes.every(Boolean)) {
+      this.broadcastTurnMatch();
+      return;
+    }
+
+    if (skipTurnRound(session)) {
+      this.game.lastTurnTickAt = Date.now();
+      this.broadcastTurnMatch();
+    } else {
+      this.broadcastTurnMatch();
+      this.completeGame();
+    }
   }
 
   private broadcastTurnMatch(): void {

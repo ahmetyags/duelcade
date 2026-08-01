@@ -11,7 +11,7 @@ import {
 
 import { encodeCipherGuess } from '@/engine/TurnGameEngine';
 import { ThemedText } from '@/components/ui/ThemedText';
-import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 import type { TurnMatchState } from '@/types/turnGame';
 import { useTranslation } from '@/src/i18n';
 import { TURN_UI } from '@/src/i18n/turnGames';
@@ -55,12 +55,21 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
           <View key={`${entry.playerIndex}_${index}`} style={styles.historyRow}>
             <View style={[styles.historyPlayer, { backgroundColor: PLAYER_COLORS[entry.playerIndex] }]} />
             <View style={styles.historyGuess}>
-              {entry.guess.map((symbol, symbolIndex) => (
-                <View
-                  key={symbolIndex}
-                  style={[styles.historyDot, { backgroundColor: CIPHER_COLORS[symbol] }]}
-                />
-              ))}
+              {entry.guess.map((symbol, symbolIndex) => {
+                const exact = entry.exactPositions?.includes(symbolIndex);
+                return (
+                  <View
+                    key={symbolIndex}
+                    style={[
+                      styles.historyRune,
+                      { backgroundColor: CIPHER_COLORS[symbol] },
+                      exact && styles.historyRuneExact,
+                    ]}
+                  >
+                    <ThemedText style={styles.historyRuneNumber}>{symbol + 1}</ThemedText>
+                  </View>
+                );
+              })}
             </View>
             <ThemedText variant="caption" style={styles.feedbackExact}>
               {entry.exact} {ui.exact}
@@ -419,6 +428,8 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: radius.xl,
     backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     gap: spacing.xs,
   },
   historyRow: {
@@ -428,11 +439,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
   },
   historyPlayer: { width: 7, height: 18, borderRadius: radius.pill },
   historyGuess: { flex: 1, flexDirection: 'row', gap: 4 },
-  historyDot: { width: 15, height: 15, borderRadius: radius.pill },
+  historyRune: { width: 22, height: 22, borderRadius: radius.pill, borderWidth: 1, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  historyRuneExact: { borderWidth: 2, borderColor: colors.textPrimary, transform: [{ scale: 1.08 }] },
+  historyRuneNumber: { color: '#FFFFFF', fontSize: 11, lineHeight: 13, fontWeight: '700' },
   feedbackExact: { color: colors.primaryDark, fontWeight: '700' },
   cipherEmpty: {
     flex: 1,
@@ -459,9 +474,10 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
   },
   symbolButtonCompact: { width: 40, height: 40 },
   symbolNumber: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
@@ -573,8 +589,7 @@ const styles = StyleSheet.create({
     width: '72%',
     height: '72%',
     borderRadius: radius.pill,
-    borderWidth: 2,
-    ...shadows.sm,
+    borderWidth: 1,
   },
   winnerOrb: { borderWidth: 4, borderColor: '#FFFFFF', transform: [{ scale: 1.08 }] },
   legalDot: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: colors.primary },

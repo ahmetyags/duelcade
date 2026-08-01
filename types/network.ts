@@ -9,7 +9,7 @@ import type { ClientPuzzleState, PuzzleAction, PuzzleFeedback } from './puzzle';
 import type { TurnMatchState } from './turnGame';
 
 /** Protocol version for compatibility checking. */
-export const PROTOCOL_VERSION = '1.8.0' as const;
+export const PROTOCOL_VERSION = '1.9.0' as const;
 
 /** Common fields in every network message. */
 export interface NetworkMessageBase {
@@ -36,6 +36,7 @@ export type ClientEvent =
   | { event: 'rematch.vote'; payload: RematchVotePayload }
   | { event: 'request.hint'; payload: RequestHintPayload }
   | { event: 'match.forfeit'; payload: MatchForfeitPayload }
+  | { event: 'round.skip.vote'; payload: RoundSkipVotePayload }
   | { event: 'turn.move'; payload: TurnMovePayload };
 
 /** Server → Client events. */
@@ -141,6 +142,10 @@ export interface TurnMovePayload {
 
 export interface MatchForfeitPayload {
   readonly reason: 'player_confirmed_exit';
+}
+
+export interface RoundSkipVotePayload {
+  readonly vote: boolean;
 }
 
 // ─── Server payload definitions ────────────────────────────────────

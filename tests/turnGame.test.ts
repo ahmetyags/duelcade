@@ -10,7 +10,9 @@ import {
   legalTurnMoves,
   normalizeMatchDurationMinutes,
   resolveMemoryTurn,
+  resonanceFrequency,
   roundCountForDuration,
+  skipTurnRound,
 } from '../engine/TurnGameEngine';
 import type { Difficulty } from '../types/game';
 import type { TurnGameMode, TurnMatchSession } from '../types/turnGame';
@@ -96,16 +98,16 @@ test('the player completing the old pipe puzzle wins the round', () => {
   assert.equal(session.state.cellOwners[4], 0);
 });
 
-test('straight pipe tiles only use their two visually distinct orientations', () => {
+test('all arrow pipe tiles use four visually distinct directions', () => {
   const session = sessionForMode('pipe_circuit', 'hard');
-  session.state.tileKinds?.forEach((kind, index) => {
-    const orientationCount = kind === 'straight' ? 2 : 4;
-    assert.ok((session.solution[index] ?? 0) < orientationCount);
-    assert.ok((session.state.cells[index] ?? 0) < orientationCount);
+  session.state.tileKinds?.forEach((_, index) => {
+    assert.ok((session.solution[index] ?? 0) < 4);
+    assert.ok((session.state.cells[index] ?? 0) < 4);
+    assert.notEqual(session.solution[index], session.state.cells[index]);
   });
 
   session.state.activePlayerIndex = 0;
-  session.state.cells = [1];
+  session.state.cells = [3];
   session.state.cellOwners = [null];
   session.state.tileKinds = ['straight'];
   session.state.targets = [0];
@@ -127,6 +129,36 @@ test('resonance dials rotate both ways and award the finishing move', () => {
   assert.equal(session.state.cells[0], 2);
   assert.equal(session.state.winnerIndex, 0);
   assert.equal(session.state.cellOwners[0], 0);
+});
+
+test('every resonance target is reachable, labelled and locks exactly once', () => {
+  for (const difficulty of ['easy', 'medium', 'hard', 'final'] as const) {
+    const session = sessionForMode('resonance_dials', difficulty);
+    assert.equal(session.state.targets?.length, session.state.cells.length);
+    session.state.cells.forEach((value, dial) => {
+      assert.notEqual(value, session.solution[dial]);
+      assert.ok(resonanceFrequency(dial, value) >= 120);
+    });
+
+    session.state.cells.forEach((_, dial) => {
+      let attempts = 0;
+      while (session.state.cells[dial] !== session.solution[dial]) {
+        const player = session.state.playerIds[session.state.activePlayerIndex];
+        const result = applyTurnMove(
+          session,
+          player,
+          dial * 2 + 1,
+          session.state.moveNumber,
+        );
+        assert.equal(result.accepted, true);
+        attempts += 1;
+        assert.ok(attempts <= 4);
+      }
+      assert.notEqual(session.state.cellOwners[dial], null);
+    });
+
+    assert.equal(session.state.status, 'round_complete');
+  }
 });
 
 test('a memory pair keeps the color of the player who found it', () => {
@@ -162,6 +194,8 @@ test('cipher clash keeps secrets server-side and awards an exact code', () => {
   const session = sessionForMode('cipher_clash', 'hard');
   const player = session.state.activePlayerIndex;
   const secret = session.cipherSolutions[player];
+  assert.deepEqual(session.cipherSolutions[0], session.cipherSolutions[1]);
+  assert.notStrictEqual(session.cipherSolutions[0], session.cipherSolutions[1]);
   assert.equal('cipherSolutions' in session.state, false);
   const result = applyTurnMove(
     session,
@@ -176,7 +210,18 @@ test('cipher clash keeps secrets server-side and awards an exact code', () => {
     guess: secret,
     exact: secret.length,
     misplaced: 0,
+    exactPositions: Array.from({ length: secret.length }, (_, index) => index),
   });
+});
+
+test('a mutually skipped round advances without awarding a score', () => {
+  const session = createTurnMatchSession('skip-round', ['a', 'b'], 3);
+  const firstRound = session.state.roundId;
+  session.state.skipVotes = [true, true];
+  assert.equal(skipTurnRound(session), true);
+  assert.notEqual(session.state.roundId, firstRound);
+  assert.deepEqual(session.state.scores, [0, 0]);
+  assert.deepEqual(session.state.skipVotes, [false, false]);
 });
 
 test('circuit claim captures completed cells and grants the scoring player another move', () => {
