@@ -35,7 +35,7 @@ const DIFFICULTY_INDEX: Record<Difficulty, number> = {
 
 export function normalizeMatchDurationMinutes(value: number): number {
   if (!Number.isFinite(value)) return 5;
-  return Math.max(2, Math.min(15, Math.round(value)));
+  return Math.max(2, Math.min(25, Math.round(value)));
 }
 
 export function roundCountForDuration(minutes: number): number {

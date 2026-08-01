@@ -50,6 +50,7 @@ import {
 import {
   forfeitSinglePlayer,
   playSinglePlayerTurn,
+  skipSinglePlayerRound,
 } from '@/services/SinglePlayerService';
 import { useGameStore } from '@/store/gameStore';
 import { useRoomStore } from '@/store/roomStore';
@@ -595,16 +596,14 @@ export default function GameScreen() {
             <ThemedText variant="subtitle">{modeCopy.title}</ThemedText>
           </View>
           <View style={styles.topbarActions}>
-            {!singlePlayer && (
-              <Pressable
-                accessibilityLabel={turnUi.skipRound}
-                disabled={match.status !== 'playing' && match.status !== 'resolving'}
-                onPress={() => setShowSkipConfirm(true)}
-                style={[styles.iconButton, localSkipVoted && styles.skipButtonPending]}
-              >
-                <SkipForward size={19} color={localSkipVoted ? colors.amberMuted : colors.primaryDark} />
-              </Pressable>
-            )}
+            <Pressable
+              accessibilityLabel={turnUi.skipRound}
+              disabled={match.status !== 'playing' && match.status !== 'resolving'}
+              onPress={() => setShowSkipConfirm(true)}
+              style={[styles.iconButton, localSkipVoted && styles.skipButtonPending]}
+            >
+              <SkipForward size={19} color={localSkipVoted ? colors.amberMuted : colors.primaryDark} />
+            </Pressable>
             <Pressable accessibilityLabel={turnUi.leaveGame} onPress={handleLeave} style={styles.iconButton}>
               <LogOut size={20} color={colors.error} />
             </Pressable>
@@ -839,7 +838,7 @@ export default function GameScreen() {
         visible={showSkipConfirm || localSkipVoted || remoteSkipVoted}
         animationType="fade"
         onRequestClose={() => {
-          if (localSkipVoted) voteRoundSkip(false);
+          if (!singlePlayer && localSkipVoted) voteRoundSkip(false);
           setShowSkipConfirm(false);
         }}
       >
@@ -854,7 +853,9 @@ export default function GameScreen() {
                 : remoteSkipVoted ? turnUi.skipRemoteTitle : turnUi.skipTitle}
             </ThemedText>
             <ThemedText color="muted" style={styles.confirmDescription}>
-              {localSkipVoted
+              {singlePlayer
+                ? turnUi.skipSoloDescription
+                : localSkipVoted
                 ? turnUi.skipWaitingDescription
                 : remoteSkipVoted ? turnUi.skipRemoteDescription : turnUi.skipDescription}
             </ThemedText>
@@ -884,15 +885,32 @@ export default function GameScreen() {
                 />
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={remoteSkipVoted ? turnUi.skipAccept : turnUi.skipApprove}
+                  accessibilityLabel={
+                    singlePlayer
+                      ? turnUi.skipSoloApprove
+                      : remoteSkipVoted ? turnUi.skipAccept : turnUi.skipApprove
+                  }
                   onPress={() => {
-                    voteRoundSkip(true);
                     setShowSkipConfirm(false);
+                    if (singlePlayer) {
+                      skipSinglePlayerRound();
+                    } else {
+                      voteRoundSkip(true);
+                    }
                   }}
                   style={styles.skipAcceptButton}
                 >
-                  <ThemedText variant="label" color="onPrimary">
-                    {remoteSkipVoted ? turnUi.skipAccept : turnUi.skipApprove}
+                  <ThemedText
+                    variant="label"
+                    color="onPrimary"
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                    numberOfLines={1}
+                    style={styles.skipAcceptLabel}
+                  >
+                    {singlePlayer
+                      ? turnUi.skipSoloApprove
+                      : remoteSkipVoted ? turnUi.skipAccept : turnUi.skipApprove}
                   </ThemedText>
                 </Pressable>
               </View>
@@ -1035,6 +1053,7 @@ const styles = StyleSheet.create({
   confirmDescription: { textAlign: 'center', maxWidth: 330 },
   confirmActions: { width: '100%', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   confirmButton: { flex: 1 },
-  skipAcceptButton: { flex: 1, minHeight: 52, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
+  skipAcceptButton: { flex: 1.2, minHeight: 52, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
+  skipAcceptLabel: { flexShrink: 1, fontSize: 12, lineHeight: 15, textAlign: 'center' },
   forfeitButton: { flex: 1, minHeight: 52, borderRadius: radius.lg, backgroundColor: colors.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
 });

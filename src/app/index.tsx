@@ -159,7 +159,7 @@ export default function HomeScreen() {
 
         <View style={styles.hero}>
           <View style={styles.heroMark}>
-            <PowerCoreMark size={86} />
+            <PowerCoreMark size={104} />
           </View>
           <View style={styles.titleRow}>
             <ThemedText variant="title" style={styles.title}>Duel</ThemedText>
@@ -290,8 +290,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   heroMark: {
-    width: 90,
-    height: 90,
+    width: 108,
+    height: 108,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,

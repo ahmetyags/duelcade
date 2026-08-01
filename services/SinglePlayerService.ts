@@ -8,6 +8,7 @@ import {
   normalizeMatchDurationMinutes,
   resolveMemoryTurn,
   roundCountForDuration,
+  skipTurnRound,
   tickTurnClock,
 } from '@/engine/TurnGameEngine';
 import { networkService } from '@/services/NetworkService';
@@ -455,6 +456,27 @@ export function playSinglePlayerTurn(cell: number): void {
   if (!session || session.state.activePlayerIndex !== 0) return;
   const result = applyTurnMove(session, HUMAN_ID, cell, session.state.moveNumber);
   afterMove(result);
+}
+
+export function skipSinglePlayerRound(): void {
+  if (
+    !session
+    || (session.state.status !== 'playing' && session.state.status !== 'resolving')
+  ) return;
+
+  if (botTimer) clearTimeout(botTimer);
+  botTimer = null;
+  for (const timer of transitionTimers) clearTimeout(timer);
+  transitionTimers.clear();
+
+  const advanced = skipTurnRound(session);
+  lastTickAt = Date.now();
+  publish();
+  if (advanced) {
+    scheduleBotIfNeeded();
+  } else {
+    finishMatch();
+  }
 }
 
 export function forfeitSinglePlayer(): void {

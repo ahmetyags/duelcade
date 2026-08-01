@@ -32,10 +32,11 @@ function sessionForMode(
 test('free duration slider values are normalized and scale the round count', () => {
   assert.equal(normalizeMatchDurationMinutes(1), 2);
   assert.equal(normalizeMatchDurationMinutes(7.6), 8);
-  assert.equal(normalizeMatchDurationMinutes(20), 15);
+  assert.equal(normalizeMatchDurationMinutes(20), 20);
+  assert.equal(normalizeMatchDurationMinutes(30), 25);
   assert.equal(roundCountForDuration(2), 3);
   assert.equal(roundCountForDuration(7), 7);
-  assert.equal(roundCountForDuration(15), 10);
+  assert.equal(roundCountForDuration(25), 10);
 });
 
 test('rune grid rejects duplicate/out-of-turn moves and detects a win', () => {
