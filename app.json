@@ -36,6 +36,15 @@
       ],
       "expo-font",
       "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
       "expo-secure-store",
       "expo-system-ui",
       "expo-asset",
