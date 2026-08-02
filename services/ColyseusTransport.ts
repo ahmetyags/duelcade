@@ -2,7 +2,7 @@ import { Client, type Room } from '@colyseus/sdk';
 
 import type { ConnectionState, ServerEventListener } from '@/types/network';
 import type { ClientEvent, ServerMessage } from '@/types/network';
-import { PROTOCOL_VERSION } from '@/types/network';
+import { PROTOCOL_VERSION, SERVER_CLOSE_CODE } from '@/types/network';
 import type { NetworkTransport } from '@/services/NetworkService';
 import { GAME_SERVER_URL } from '@/services/GameServerAvailability';
 
@@ -95,9 +95,13 @@ export class ColyseusTransport implements NetworkTransport {
     });
     room.onDrop(() => this.emitConnection('reconnecting'));
     room.onReconnect(() => this.emitConnection('connected'));
-    room.onLeave(() => {
+    room.onLeave((code) => {
       this.stopPing();
-      if (!this.consentedDisconnect) this.emitConnection('disconnected');
+      if (this.consentedDisconnect) return;
+      const terminalServerClose = Object.values(SERVER_CLOSE_CODE).includes(
+        code as (typeof SERVER_CLOSE_CODE)[keyof typeof SERVER_CLOSE_CODE],
+      );
+      this.emitConnection(terminalServerClose ? 'error' : 'disconnected');
     });
     room.onError((_code, message) => {
       console.warn('[ColyseusTransport]', message ?? 'Connection error');

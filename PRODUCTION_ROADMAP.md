@@ -1,66 +1,111 @@
-# Duelcade — Üretim Yol Haritası
+# Duelcade — Google Play Üretim Yol Haritası
 
-Bu dosya, prototipten gelir üretebilecek mağaza sürümüne geçişte teknik sırayı
-korumak için kullanılır. Yeni özellikler aşağıdaki kapılar tamamlanmadan
-production sürümüne alınmamalıdır.
+Duelcade'in ürün vaadi:
 
-## Tamamlanan temel
+> Tek başına veya bir arkadaşla, 2–5 dakikalık hızlı zekâ düelloları.
 
-- Expo SDK 57 uyumlu Android, iOS ve web istemcisi
-- Ayrı Colyseus oyun sunucusu ve 6 karakterli özel odalar
-- Sunucu otoriteli rol, puzzle, timer, hareket ve etkileşim doğrulaması
-- 60 saniyelik bağlantı kurtarma ve timer dondurma
-- Rol bazlı özel puzzle payload'ları; çözüm istemciye gönderilmiyor
-- Explorer haritası, yakınlık etkileşimleri ve dört slot envanter
-- Operator kamera, güç ve kapı kontrolleri
-- 5 puzzle modülü; zorluğa göre 3/4/5 puzzle
-- Deep link daveti ve çalışan pano kopyalama
-- Unit/multiplayer entegrasyon testleri, Docker ve EAS profilleri
+Bu yol haritası yeni oyun modu sayısını artırmaktan önce ilk oturumu, tekrar
+oynama isteğini, güvenilir multiplayer'ı ve ölçülebilir kaliteyi tamamlamayı
+önceliklendirir.
 
-## P0 — Kapalı alfa öncesi
+## Mevcut temel
 
-- Sunucuyu HTTPS/WSS destekli staging ortamına dağıt
-- İki farklı fiziksel cihazla Android/iOS çapraz test matrisi oluştur
-- Oda kapatma, host ayrılması, uçak modu ve 60 saniye reconnect testlerini yap
-- PostgreSQL ile kullanıcı, maç sonucu ve kişisel rekor kalıcılığı ekle
-- Misafir kimliğini güvenli cihaz kimliğiyle kalıcılaştır; hesap yükseltme akışı ekle
-- Sentry benzeri crash/error izleme ve anonim performans telemetrisi ekle
-- Gerçek ses efektleri, ambiyans ve müzik varlıklarını lisans kayıtlarıyla ekle
+- Expo SDK 57, React Native 0.86 ve Android/iOS/web istemcisi
+- Aynı kuralları kullanan solo DuelBot ve iki oyunculu Colyseus maçları
+- 10 deterministik sıra tabanlı oyun modu
+- Sunucu otoriteli hamle, sıra, süre, skor ve maç sonucu
+- Özel oda kodu, reconnect, rematch, chat ve reaksiyonlar
+- Türkçe/İngilizce arayüz ve temel erişilebilirlik seçenekleri
+- Docker sunucu dağıtımı ve EAS development/preview/production profilleri
+- TypeScript, lint ve unit/multiplayer entegrasyon testleri
 
-## P1 — Oynanış ve içerik
+## Aşama 0 — Güvenilir oyun temeli
 
-- Toplam 10 puzzle modülüne ulaş: zamanlama, kamera, basınç plakası, ses ve anahtar-kilit
-- Geçiş görevini ve oyuncu seçimine dayalı ayrı final puzzle'ını ekle
-- En az iki tam bölüm; her bölüm için farklı oda düzeni ve görsel tema
-- Operator eylemlerini puzzle sonucuna mekanik olarak bağla
-- Envanter inceleme ekranı, eşya kullanma hedefi ve erişilebilir açıklamalar
-- Eğitim bölümü ve ilk maç yönlendirmesi
-- Türkçe/İngilizce yerelleştirme altyapısı
+- [x] Kayıt olmayan socket bağlantılarını zaman aşımıyla odadan çıkar
+- [x] Aynı oyuncu kimliğiyle ikinci kez oda koltuğu alınmasını engelle
+- [x] Terminal sunucu kapatmalarında otomatik reconnect başlatma
+- [x] Başarısız connect/reconnect sonrasında istemciyi `error` durumuna geçir
+- [x] Otoriter oyun sunucusunu bağımsız `duelcade-backend` projesine ayır
+- [ ] Reconnect token'ını native cihazlarda SecureStore'a taşı
+- [ ] Production Android derlemesinde cleartext trafiği kapat
+- [ ] Oda kodu rezervasyonunu Redis üzerinde atomik hale getir
+- [ ] Join işlemini kısa ömürlü, sunucu imzalı ticket modeline taşı
+- [ ] Uçak modu, host ayrılması ve 60 saniye reconnect senaryolarını iki gerçek
+  Android cihazda doğrula
 
-## P1 — Kalite kapıları
+## Aşama 1 — İlk oturum ve ana oyun döngüsü
 
-- Kritik oyun motoru için yüksek unit test kapsamı
-- Gerçek cihaz E2E testleri ve zayıf ağ simülasyonu
-- Düşük/orta segment Android cihaz performans profili
-- VoiceOver/TalkBack, büyük metin, renk körlüğü ve sol el kullanılabilirlik testi
-- En az 20–30 dış testçiyle kapalı beta; puzzle tamamlama ve terk oranlarını ölç
+- [ ] Ana ekran mesajlarını tek ürün kimliğinde birleştir; eski
+  Operator/Explorer/kaçış anlatısını ana akıştan kaldır
+- [ ] Oyuncuyu ilk hamlesine yönlendiren etkileşimli solo öğretici oluştur
+- [ ] İlk kez açılışta 30 saniye içinde oynanabilir maça ulaş
+- [ ] En güçlü dört modu başlangıç havuzu olarak belirle ve cilala
+- [ ] Maç sonu kutlaması, rövanş ve yeni maç geçişlerini kesintisiz hale getir
+- [ ] Bot zorluğunu oyuncunun ilk maç deneyimine göre dengele
+- [ ] TalkBack, büyük metin, renk körlüğü ve azaltılmış hareket kontrollerini
+  gerçek cihazda doğrula
 
-## P2 — Mağaza ve gelir
+## Aşama 2 — Oyuncu kimliği ve kalıcı ilerleme
 
-- `app.json` içindeki geçici Rork bundle/package kimliklerini kalıcı kimliklerle değiştir
-- Apple/Google geliştirici hesapları, imzalama ve EAS credentials kurulumu
-- Gizlilik politikası, kullanım koşulları, destek ve hesap/veri silme sayfaları
-- Mağaza ekran görüntüleri, açıklamalar, yaş derecelendirmesi ve veri beyanları
-- Önce tek seferlik premium veya kozmetik modelini A/B test et
-- Reklam kullanılacaksa co-op akışını kesmeyen yalnızca isteğe bağlı ödüllü formatı değerlendir
-- Satın alma doğrulamasını istemcide değil güvenilir backend üzerinde yap
+- [ ] Mobil ve bağımsız backend arasında sürümlenmiş `protocol` ve
+  `game-engine` paket sınırlarını oluştur
+- [ ] PostgreSQL üzerinde oyuncu, maç, mod ustalığı ve envanter modellerini kur
+- [ ] Sunucu üretimli misafir hesap ve daha sonra hesap yükseltme akışı ekle
+- [ ] XP, oyuncu seviyesi ve her mod için ustalık ilerlemesi ekle
+- [ ] Yalnızca kozmetik avatar, çerçeve ve masa teması envanteri ekle
+- [ ] Oyuncu verisini dışa aktarma ve silme akışını backend üzerinden sağla
 
-## Yayın kararı
+## Aşama 3 — Geri dönüş ve sosyal sistemler
 
-Production adayı ancak şu koşullarda çıkar:
+- [ ] Günlük ortak seed mücadelesi
+- [ ] Baskıcı olmayan günlük/haftalık görevler ve telafi edilebilir seri
+- [ ] Google Play Games başarımları
+- [ ] Günlük, haftalık ve tüm zamanlar liderlik tabloları
+- [ ] Hızlı eşleşme ve benzer beceri seviyesinde rakip bulma
+- [ ] Rakip bulunamazsa aynı kurallarla DuelBot'a geçiş
+- [ ] Hazır mesajlar, oyuncu susturma, engelleme ve raporlama
 
-1. İki gerçek cihaz 30 dakikalık oturumu veri ayrışması olmadan tamamlar.
-2. Reconnect, host ayrılması ve sürüm uyuşmazlığı anlaşılır hata verir.
-3. Kritik crash ve veri kaybı hatası yoktur.
-4. Store kimlikleri, yasal sayfalar ve destek kanalı hazırdır.
-5. Sunucu izleme, yedekleme ve geri alma planı doğrulanmıştır.
+## Aşama 4 — Ölçüm ve canlı operasyon
+
+- [ ] Gizlilik dostu analitik olay sözleşmesi oluştur
+- [ ] Öğretici başlama/tamamlama ve ilk hamle süresini ölç
+- [ ] Maç başlama/tamamlama/terk, mod, süre ve sonuç olaylarını ölç
+- [ ] Rövanş, günlük geri dönüş ve eşleşme terk oranlarını ölç
+- [ ] Crash, ANR, JS/native hata ve sunucu hata izleme ekle
+- [ ] Remote config ile mod havuzu ve etkinlik takvimi yönet
+- [ ] En az 30 dış testçiyle iki haftalık kapalı test yap
+- [ ] Veriye göre öğretici, bot ve maç sürelerini düzelt
+
+## Aşama 5 — Google Play yayını
+
+- [ ] Kalıcı package ID, sürümleme ve imzalama kimliklerini doğrula
+- [ ] Android App Bundle üret ve kapalı test kanalına yükle
+- [ ] Telefon ve tablet mağaza ekran görüntüleri ile tanıtım görseli hazırla
+- [ ] Kısa/uzun açıklama, kategori, etiket ve içerik derecelendirmesini tamamla
+- [ ] Gizlilik politikası, kullanım koşulları, destek ve veri silme sayfalarını yayınla
+- [ ] Data Safety beyanını kullanılan SDK ve backend verileriyle eşleştir
+- [ ] Düşük/orta segment Android cihaz performans ve pil profilini çıkar
+- [ ] Play pre-launch report, Android vitals ve kapalı test geri bildirimlerini temizle
+- [ ] Önce sınırlı ülke/yüzde ile kademeli production rollout yap
+
+## Gelir ilkeleri
+
+- Rekabet gücü satılmaz; ücretli içerik kozmetik veya içerik paketi olur.
+- Oynanışın başında ya da maç sırasında beklenmedik tam ekran reklam gösterilmez.
+- Ödüllü reklam varsa yalnızca oyuncunun açıkça seçtiği, rekabet avantajı
+  vermeyen bir ödül sunar.
+- Satın alma makbuzu ve envanter teslimi güvenilir backend üzerinde doğrulanır.
+
+## Yayın kapıları
+
+Production adayı ancak aşağıdaki koşullar birlikte sağlandığında çıkar:
+
+1. Yeni oyuncular yardım almadan öğreticiyi ve ilk maçı tamamlayabilir.
+2. Solo ve iki oyunculu maçlar düşük/orta segment gerçek Android cihazlarda
+   stabil ve duyarlıdır.
+3. Kimlik, reconnect ve maç sonucu sunucu otoritesindedir; koltuk işgali ve
+   kimlik çakışması testleri geçer.
+4. Kritik crash, ANR, veri kaybı veya sonuç ayrışması yoktur.
+5. Analytics, hata izleme, destek, gizlilik ve veri silme süreçleri çalışır.
+6. Kapalı test verileri kabul edilebilir ilk maç tamamlama ve rövanş davranışı
+   gösterir; ciddi kullanıcı geri bildirimi açık kalmaz.

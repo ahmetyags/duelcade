@@ -9,7 +9,10 @@ export function createGameServer() {
       duelcade: defineRoom(DuelcadeRoom),
     },
     express: (app) => {
-      app.get('/health', (_request, response) => {
+      app.get('/health', (
+        _request: unknown,
+        response: { json: (body: Record<string, unknown>) => void },
+      ) => {
         response.json({
           ok: true,
           service: 'duelcade-server',

@@ -35,13 +35,14 @@ import type {
   ServerEvent,
   ServerMessage,
 } from '../types/network';
-import { PROTOCOL_VERSION } from '../types/network';
+import { PROTOCOL_VERSION, SERVER_CLOSE_CODE } from '../types/network';
 import type { PuzzleState } from '../types/puzzle';
 import type { TurnMatchSession } from '../types/turnGame';
 import { PLAYER_AVATAR_IDS, type PlayerAvatarId } from '../types/profile';
 
 const DEFAULT_MATCH_DURATION_MINUTES = 5;
 const RECONNECT_GRACE_SECONDS = 60;
+export const ROOM_REGISTRATION_TIMEOUT_MS = 5_000;
 const ROOM_ID_CHANNEL = '$duelcade_room_ids';
 
 const JoinOptionsSchema = z.object({
@@ -293,12 +294,14 @@ export class DuelcadeRoom extends Room {
   maxClients = 2;
   maxMessagesPerSecond = 30;
   private game: EscapeState = this.createInitialState('easy', DEFAULT_MATCH_DURATION_MINUTES);
+  private createdAt = Date.now();
   private pausedAt: number | null = null;
   private pingCooldowns = new Map<string, number>();
 
   async onCreate(options: unknown): Promise<void> {
     JoinOptionsSchema.parse(options);
     this.roomId = await this.generateRoomId();
+    this.createdAt = Date.now();
     this.game = this.createInitialState('easy', DEFAULT_MATCH_DURATION_MINUTES);
 
     this.onMessage('event', (client: EscapeClient, raw: unknown) => {
@@ -324,9 +327,23 @@ export class DuelcadeRoom extends Room {
   onJoin(client: EscapeClient, options: unknown): void {
     const parsed = JoinOptionsSchema.parse(options);
     client.userData = { playerId: parsed.playerId, registered: false };
+    this.clock.setTimeout(async () => {
+      if (!client.userData?.registered) {
+        if (this.game.status === 'waiting') await this.unlock();
+        client.leave(
+          SERVER_CLOSE_CODE.REGISTRATION_TIMEOUT,
+          'Player registration timed out',
+        );
+      }
+    }, ROOM_REGISTRATION_TIMEOUT_MS);
   }
 
-  async onDrop(client: EscapeClient): Promise<void> {
+  async onDrop(client: EscapeClient, code?: number): Promise<void> {
+    const terminalServerClose = Object.values(SERVER_CLOSE_CODE).includes(
+      code as (typeof SERVER_CLOSE_CODE)[keyof typeof SERVER_CLOSE_CODE],
+    );
+    if (!client.userData?.registered || terminalServerClose) return;
+
     const player = this.findPlayer(client);
     if (player) {
       player.connected = false;
@@ -395,7 +412,11 @@ export class DuelcadeRoom extends Room {
     }
   }
 
-  onLeave(client: EscapeClient): void {
+  async onLeave(client: EscapeClient): Promise<void> {
+    if (!client.userData?.registered) {
+      if (this.game.status === 'waiting') await this.unlock();
+      return;
+    }
     const player = this.findPlayer(client);
     if (!player) return;
     this.game.players = this.game.players.filter((item) => item.id !== player.id);
@@ -416,8 +437,10 @@ export class DuelcadeRoom extends Room {
         },
       });
       for (const remainingClient of this.clients as unknown as EscapeClient[]) {
-        remainingClient.leave(4001);
+        remainingClient.leave(SERVER_CLOSE_CODE.HOST_LEFT, 'Host left the room');
       }
+    } else if (this.game.status === 'waiting') {
+      await this.unlock();
     }
   }
 
@@ -535,8 +558,17 @@ export class DuelcadeRoom extends Room {
       matchDurationMinutes: number;
     },
   ): void {
-    if (this.game.players.length > 0 || client.userData.registered) {
-      this.sendError(client, 'INVALID_ACTION', 'error.room_already_created', false);
+    const clientData = client.userData;
+    if (!clientData) {
+      this.sendError(client, 'INVALID_ACTION', 'error.invalid_message', false);
+      return;
+    }
+    if (this.game.players.length > 0 || clientData.registered) {
+      this.rejectRegistration(
+        client,
+        'INVALID_ACTION',
+        'error.room_already_created',
+      );
       return;
     }
     this.game.difficulty = payload.difficulty;
@@ -545,13 +577,13 @@ export class DuelcadeRoom extends Room {
     this.game.durationMs = this.game.matchDurationMinutes * 60 * 1000;
     this.game.remainingTimeMs = this.game.durationMs;
     const player = this.createPlayer(
-      client.userData.playerId,
+      clientData.playerId,
       payload.displayName,
       payload.avatarId,
       payload.rolePreference,
       true,
     );
-    client.userData.registered = true;
+    clientData.registered = true;
     this.game.players.push(player);
     this.game.positions.set(player.id, { x: 50, y: 132, sequence: 0 });
     this.sendRoomSnapshot(client, false);
@@ -566,26 +598,43 @@ export class DuelcadeRoom extends Room {
       rolePreference: RolePreference;
     },
   ): void {
+    const clientData = client.userData;
+    if (!clientData) {
+      this.sendError(client, 'INVALID_ACTION', 'error.invalid_message', false);
+      return;
+    }
+    if (clientData.registered) {
+      this.sendError(client, 'INVALID_ACTION', 'error.invalid_message', false);
+      return;
+    }
     if (payload.roomCode !== this.roomId) {
-      this.sendError(client, 'ROOM_NOT_FOUND', 'error.room_not_found', false);
+      this.rejectRegistration(client, 'ROOM_NOT_FOUND', 'error.room_not_found');
       return;
     }
     if (this.game.status !== 'waiting') {
-      this.sendError(client, 'ROOM_IN_PROGRESS', 'error.room_in_progress', false);
+      this.rejectRegistration(client, 'ROOM_IN_PROGRESS', 'error.room_in_progress');
       return;
     }
     if (this.game.players.length >= 2) {
-      this.sendError(client, 'ROOM_FULL', 'error.room_full', false);
+      this.rejectRegistration(client, 'ROOM_FULL', 'error.room_full');
+      return;
+    }
+    if (this.game.players.some((player) => player.id === clientData.playerId)) {
+      this.rejectRegistration(
+        client,
+        'PLAYER_ID_CONFLICT',
+        'error.player_id_conflict',
+      );
       return;
     }
     const player = this.createPlayer(
-      client.userData.playerId,
+      clientData.playerId,
       payload.displayName,
       payload.avatarId,
       payload.rolePreference,
       false,
     );
-    client.userData.registered = true;
+    clientData.registered = true;
     this.game.players.push(player);
     this.game.positions.set(player.id, { x: 50, y: 132, sequence: 0 });
     this.broadcastEvent({ event: 'player.joined', payload: { player } });
@@ -638,7 +687,9 @@ export class DuelcadeRoom extends Room {
     this.game.status = 'loading';
 
     for (const client of this.clients as unknown as EscapeClient[]) {
-      const role = roles[client.userData.playerId];
+      const playerId = client.userData?.playerId;
+      if (!playerId) continue;
+      const role = roles[playerId];
       this.sendEvent(client, { event: 'role.assigned', payload: { role, roles } });
     }
 
@@ -1175,6 +1226,7 @@ export class DuelcadeRoom extends Room {
   }
 
   private findPlayer(client: EscapeClient): Player | undefined {
+    if (!client.userData?.registered) return undefined;
     return this.game.players.find((player) => player.id === client.userData?.playerId);
   }
 
@@ -1251,7 +1303,7 @@ export class DuelcadeRoom extends Room {
       status: this.game.status,
       players: this.game.players.map((player) => ({ ...player })),
       seed: this.game.seed,
-      createdAt: this.listing?.createdAt?.getTime?.() ?? Date.now(),
+      createdAt: this.createdAt,
       startedAt: this.game.startedAt,
       finishedAt: this.game.finishedAt,
       maxPlayers: 2,
@@ -1330,6 +1382,23 @@ export class DuelcadeRoom extends Room {
       event: 'error',
       payload: { errorCode, userMessageKey, retryable, details: null },
     });
+  }
+
+  private rejectRegistration(
+    client: EscapeClient,
+    errorCode: string,
+    userMessageKey: string,
+  ): void {
+    this.sendError(client, errorCode, userMessageKey, false);
+    this.clock.setTimeout(async () => {
+      if (!client.userData?.registered) {
+        if (this.game.status === 'waiting') await this.unlock();
+        client.leave(
+          SERVER_CLOSE_CODE.REGISTRATION_REJECTED,
+          userMessageKey,
+        );
+      }
+    }, 50);
   }
 
   private broadcastEvent(event: ServerEvent): void {

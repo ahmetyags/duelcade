@@ -21,10 +21,12 @@ nvm use
 ```bash
 npm install
 cp .env.example .env
-npm run server
+cd ../duelcade-backend
+npm install
+npm run dev
 ```
 
-Başka bir terminalde:
+Başka bir terminalde mobil proje dizininden:
 
 ```bash
 npm start
@@ -88,7 +90,9 @@ assets/           Uygulama ikonları ve görseller
 
 Uygulama `services/ColyseusTransport.ts` üzerinden gerçek Colyseus sunucusuna
 bağlanır. Oda, süre, roller, puzzle çözümleri, hareket ve etkileşim doğrulaması
-`server/DuelcadeRoom.ts` içinde sunucu otoritesindedir.
+ayrı [`duelcade-backend`](../duelcade-backend/README.md) projesinde sunucu
+otoritesindedir. Bu depodaki `server/` kopyası, istemci geçişi tamamlanana kadar
+test uyumluluğu için geçici olarak korunmaktadır.
 
 Yerel simulator veya web için `.env`:
 
@@ -108,23 +112,26 @@ EXPO_PUBLIC_GAME_SERVER_URL=http://192.168.1.50:2567
 Ayrıntılı ürünleştirme sırası için
 [`PRODUCTION_ROADMAP.md`](./PRODUCTION_ROADMAP.md) dosyasını izleyin.
 
-## Sunucu dağıtımı
+## Backend geliştirme ve dağıtım
 
-Sunucu doğrudan çalıştırılabilir:
+Bağımsız backend, bu projeyle aynı üst dizindedir:
 
 ```bash
-npm run server
+cd ../duelcade-backend
+npm run dev
 ```
 
 Docker ile:
 
 ```bash
+cd ../duelcade-backend
 docker compose up --build
 ```
 
 Sağlık kontrolü `GET /health` adresindedir. Colyseus odaları 6 karakterli
 davet kodu kullanır ve geçici bağlantı kesilmelerinde 60 saniye yeniden
-bağlanma hakkı verir.
+bağlanma hakkı verir. Ayrıştırmanın kalan adımları backend projesindeki
+[`MIGRATION.md`](../duelcade-backend/MIGRATION.md) dosyasında tutulur.
 
 ## Mağaza derlemeleri
 

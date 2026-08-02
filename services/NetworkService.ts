@@ -87,8 +87,13 @@ export class NetworkService {
       throw new Error('No transport configured');
     }
     this.setState('connecting');
-    await this.transport.connect(roomCode, playerId);
-    this.setState('connected');
+    try {
+      await this.transport.connect(roomCode, playerId);
+      this.setState('connected');
+    } catch (error) {
+      this.setState('error');
+      throw error;
+    }
   }
 
   /** Resume a previously connected room using its private reconnection token. */
@@ -103,8 +108,13 @@ export class NetworkService {
       throw new Error('No transport configured');
     }
     this.setState('connecting');
-    await this.transport.reconnect(reconnectionToken);
-    this.setState('connected');
+    try {
+      await this.transport.reconnect(reconnectionToken);
+      this.setState('connected');
+    } catch (error) {
+      this.setState('error');
+      throw error;
+    }
   }
 
   /** Disconnect from the current room. */
