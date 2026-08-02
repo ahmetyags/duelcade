@@ -11,6 +11,16 @@ import type { TurnMatchState } from './turnGame';
 /** Protocol version for compatibility checking. */
 export const PROTOCOL_VERSION = '1.9.0' as const;
 
+/**
+ * Application-owned WebSocket close codes.
+ * Keep these outside Colyseus' reserved 4000-4010 range.
+ */
+export const SERVER_CLOSE_CODE = {
+  HOST_LEFT: 4100,
+  REGISTRATION_REJECTED: 4101,
+  REGISTRATION_TIMEOUT: 4102,
+} as const;
+
 /** Common fields in every network message. */
 export interface NetworkMessageBase {
   readonly protocolVersion: typeof PROTOCOL_VERSION;
