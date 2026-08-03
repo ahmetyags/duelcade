@@ -32,6 +32,25 @@ export interface MatchHistoryItem {
 
 export type CosmeticType = 'avatar' | 'frame' | 'table_theme';
 export type QuestKey = 'play_duel' | 'win_duel' | 'win_rounds';
+export type FeedbackCategory =
+  | 'bug'
+  | 'gameplay'
+  | 'balance'
+  | 'tutorial'
+  | 'performance'
+  | 'other';
+export type FeedbackScreen =
+  | 'home'
+  | 'solo'
+  | 'create'
+  | 'join'
+  | 'lobby'
+  | 'game'
+  | 'results'
+  | 'history'
+  | 'progression'
+  | 'settings'
+  | 'other';
 export type CoreMode =
   | 'rune_grid'
   | 'memory_pairs'
@@ -72,6 +91,18 @@ export interface PlayerProgression {
     rewardXp: number;
     claimed: boolean;
   }[];
+}
+
+export interface FeedbackSubmission {
+  id: string;
+  category: FeedbackCategory;
+  rating: number;
+  message: string;
+  screen: FeedbackScreen;
+  platform: 'android' | 'ios' | 'web';
+  appVersion: string;
+  buildVersion: string;
+  locale: 'tr' | 'en';
 }
 
 const API_URL = `${getGameServerHttpUrl()}/v1`;
@@ -188,5 +219,16 @@ export function equipCosmetic(
     method: 'PATCH',
     headers: { Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ type, itemId }),
+  });
+}
+
+export function submitFeedback(
+  accessToken: string,
+  submission: FeedbackSubmission,
+): Promise<{ id: string; accepted: boolean }> {
+  return request('/feedback', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(submission),
   });
 }

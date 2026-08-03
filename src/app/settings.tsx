@@ -14,7 +14,7 @@ import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useSettingsStore, type AppLanguage } from '@/store/settingsStore';
 import { triggerHaptic } from '@/services/HapticsService';
-import { BarChart3, Bell, Bug, Check, ChevronLeft, Eye, Globe2, Hand, ShieldCheck, TriangleAlert, Type, Vibrate, Volume2, Zap } from 'lucide-react-native';
+import { BarChart3, Bell, Bug, Check, ChevronLeft, Eye, Globe2, Hand, MessageSquareText, ShieldCheck, TriangleAlert, Type, Vibrate, Volume2, Zap } from 'lucide-react-native';
 import { useTranslation } from '@/src/i18n';
 import { audioService } from '@/services/AudioService';
 import { clearAnalyticsQueue, flushAnalyticsEvents } from '@/services/AnalyticsService';
@@ -195,6 +195,34 @@ export default function SettingsScreen() {
           <ThemedText variant="caption" color="muted">
             {t('settings.privacyNote')}
           </ThemedText>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText variant="label" color="muted" style={styles.sectionLabel}>
+            {t('settings.closedTest')}
+          </ThemedText>
+          <Panel variant="surface" style={styles.diagnosticsCard}>
+            <ThemedText variant="caption" color="muted">
+              {t('settings.feedbackDescription')}
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('settings.feedbackAction')}
+              onPress={() => {
+                triggerHaptic('light');
+                router.push({
+                  pathname: '/feedback',
+                  params: { source: 'settings' },
+                });
+              }}
+              style={styles.diagnosticsButton}
+            >
+              <MessageSquareText size={18} color={colors.primary} />
+              <ThemedText variant="label" color="operator">
+                {t('settings.feedbackAction')}
+              </ThemedText>
+            </Pressable>
+          </Panel>
         </View>
 
         {sentryTestMode && s.crashReportingEnabled && (

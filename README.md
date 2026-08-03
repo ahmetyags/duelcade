@@ -24,6 +24,12 @@ mesaj, reklam/cihaz kimliği ve ham IP analitik tablosunda tutulmaz. Çökme
 raporlaması da varsayılan olarak kapalıdır ve yalnızca
 `EXPO_PUBLIC_SENTRY_DSN` tanımlıysa çalışır.
 
+Kapalı test katılımcıları Ayarlar veya maç sonucu ekranından yapılandırılmış
+geri bildirim gönderebilir. Bu kayıt kategori, 1–5 deneyim puanı, en fazla
+1000 karakterlik açıklama, ekran, platform ve uygulama sürümünü içerir.
+Oda kodu, reklam/cihaz kimliği ve ham IP kaydedilmez; oyunculardan ad,
+e-posta veya başka kişisel bilgi yazmamaları açıkça istenir.
+
 ## Gereksinimler
 
 - Node.js 22.13.1 veya daha yeni bir 22.x sürümü
@@ -152,6 +158,8 @@ içindeki gizli ortam değişkeni olarak tutulur.
 
 Ayrıntılı ürünleştirme sırası için
 [`PRODUCTION_ROADMAP.md`](./PRODUCTION_ROADMAP.md) dosyasını izleyin.
+Kapalı test daveti, senaryoları, ölçüm planı ve çıkış kapıları
+[`CLOSED_TESTING.md`](./CLOSED_TESTING.md) dosyasındadır.
 
 ## Backend geliştirme ve dağıtım
 

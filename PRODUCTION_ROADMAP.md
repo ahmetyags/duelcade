@@ -26,7 +26,7 @@ oynama isteğini, güvenilir multiplayer'ı ve ölçülebilir kaliteyi tamamlama
 - [x] Terminal sunucu kapatmalarında otomatik reconnect başlatma
 - [x] Başarısız connect/reconnect sonrasında istemciyi `error` durumuna geçir
 - [x] Otoriter oyun sunucusunu bağımsız `duelcade-backend` projesine ayır
-- [ ] Reconnect token'ını native cihazlarda SecureStore'a taşı
+- [x] Reconnect token'ını native cihazlarda SecureStore'a taşı
 - [x] Production Android derlemesinde cleartext trafiği kapat
 - [ ] Oda kodu rezervasyonunu Redis üzerinde atomik hale getir
 - [ ] Join işlemini kısa ömürlü, sunucu imzalı ticket modeline taşı
@@ -72,11 +72,12 @@ oynama isteğini, güvenilir multiplayer'ı ve ölçülebilir kaliteyi tamamlama
 
 ## Aşama 4 — Ölçüm ve canlı operasyon
 
-- [ ] Gizlilik dostu analitik olay sözleşmesi oluştur
-- [ ] Öğretici başlama/tamamlama ve ilk hamle süresini ölç
-- [ ] Maç başlama/tamamlama/terk, mod, süre ve sonuç olaylarını ölç
-- [ ] Rövanş, günlük geri dönüş ve eşleşme terk oranlarını ölç
-- [ ] Crash, ANR, JS/native hata ve sunucu hata izleme ekle
+- [x] Gizlilik dostu analitik olay sözleşmesi oluştur
+- [x] Öğretici başlama/tamamlama ve ilk hamle süresini ölç
+- [x] Maç başlama/tamamlama/terk, mod, süre ve sonuç olaylarını ölç
+- [x] Rövanş isteğini ölç; günlük geri dönüş ve eşleşme terk oranını tamamla
+- [x] İsteğe bağlı JS/native crash reporting ve sunucu hata izleme temelini ekle
+- [x] Kimliği doğrulanmış, sürüm bağlamlı kapalı test geri bildirim kutusu ekle
 - [ ] Remote config ile mod havuzu ve etkinlik takvimi yönet
 - [ ] En az 30 dış testçiyle iki haftalık kapalı test yap
 - [ ] Veriye göre öğretici, bot ve maç sürelerini düzelt

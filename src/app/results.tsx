@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Home, RotateCw, Trophy } from 'lucide-react-native';
+import { Home, MessageSquareText, RotateCw, Trophy } from 'lucide-react-native';
 
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
 import { ThemedText } from '@/components/ui/ThemedText';
@@ -28,7 +28,7 @@ import {
 } from '@/services/AnalyticsService';
 
 export default function ResultsScreen() {
-  const { language } = useTranslation();
+  const { language, t } = useTranslation();
   const copy = TURN_RESULTS[language];
   const turnUi = TURN_UI[language];
   const router = useRouter();
@@ -204,6 +204,18 @@ export default function ResultsScreen() {
                   ? copy.acceptRematch
                   : copy.playAgain}
             </ThemedText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('feedback.resultAction')}
+            onPress={() => router.push({
+              pathname: '/feedback',
+              params: { source: 'results' },
+            })}
+            style={styles.action}
+          >
+            <MessageSquareText size={21} color={colors.primaryDark} />
+            <ThemedText variant="label">{t('feedback.resultAction')}</ThemedText>
           </Pressable>
           <Pressable onPress={handleHome} style={styles.action}>
             <Home size={21} color={colors.textPrimary} />

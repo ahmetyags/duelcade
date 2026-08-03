@@ -56,6 +56,7 @@ function RootLayoutNav() {
       <Stack.Screen name="history" />
       <Stack.Screen name="progression" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="feedback" />
     </Stack>
   );
 }
