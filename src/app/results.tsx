@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,8 @@ import { useRoomStore } from '@/store/roomStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import { useTranslation } from '@/src/i18n';
+import { progressionQueryKey } from '@/services/ProgressionQuery';
+import { useAuthStore } from '@/store/authStore';
 import { TURN_RESULTS, TURN_UI } from '@/src/i18n/turnGames';
 
 export default function ResultsScreen() {
@@ -24,6 +27,8 @@ export default function ResultsScreen() {
   const copy = TURN_RESULTS[language];
   const turnUi = TURN_UI[language];
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
   const result = useGameStore((state) => state.result);
   const room = useRoomStore((state) => state.room);
   const localPlayerId = useRoomStore((state) => state.localPlayerId);
@@ -38,6 +43,19 @@ export default function ResultsScreen() {
       useSettingsStore.getState().completeFirstDuel();
     }
   }, [firstDuel, localPlayerId, result]);
+
+  useEffect(() => {
+    if (!result || singlePlayer || !user?.serverBacked) return;
+    const timer = setTimeout(() => {
+      void queryClient.invalidateQueries({
+        queryKey: progressionQueryKey(user.id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ['match-history', user.id],
+      });
+    }, 750);
+    return () => clearTimeout(timer);
+  }, [queryClient, result, singlePlayer, user]);
 
   useEffect(() => {
     if (!singlePlayer && room?.status === 'waiting') router.replace('/lobby');

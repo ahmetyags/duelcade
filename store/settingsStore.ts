@@ -7,8 +7,12 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  isPlayerFrameId,
   isPlayerAvatarId,
+  isTableThemeId,
   type PlayerAvatarId,
+  type PlayerFrameId,
+  type TableThemeId,
 } from '@/types/profile';
 
 export const SETTINGS_KEY = 'duelcade_settings';
@@ -36,6 +40,8 @@ interface AccessibilitySettings {
 interface ProfileSettings {
   displayName: string;
   avatarId: PlayerAvatarId;
+  frameId: PlayerFrameId;
+  tableThemeId: TableThemeId;
   lastRoomCode: string | null;
   lastRoomPlayerId: string | null;
   lastRoomReconnectToken: string | null;
@@ -61,6 +67,8 @@ interface SettingsStoreState extends AudioSettings, AccessibilitySettings, Profi
   // Profile actions
   setDisplayName: (name: string) => void;
   setAvatarId: (avatarId: PlayerAvatarId) => void;
+  setFrameId: (frameId: PlayerFrameId) => void;
+  setTableThemeId: (tableThemeId: TableThemeId) => void;
   setLastRoomCode: (code: string | null) => void;
   setLastRoomSession: (session: {
     roomCode: string;
@@ -88,6 +96,8 @@ const defaultSettings: AudioSettings & AccessibilitySettings & ProfileSettings =
   visualAlertsInsteadOfSound: false,
   displayName: '',
   avatarId: 'sparkles',
+  frameId: 'default',
+  tableThemeId: 'classic',
   lastRoomCode: null,
   lastRoomPlayerId: null,
   lastRoomReconnectToken: null,
@@ -123,6 +133,10 @@ export function normalizeSavedSettings(
     ),
     displayName: typeof saved.displayName === 'string' ? saved.displayName.slice(0, 24) : '',
     avatarId: isPlayerAvatarId(saved.avatarId) ? saved.avatarId : defaultSettings.avatarId,
+    frameId: isPlayerFrameId(saved.frameId) ? saved.frameId : defaultSettings.frameId,
+    tableThemeId: isTableThemeId(saved.tableThemeId)
+      ? saved.tableThemeId
+      : defaultSettings.tableThemeId,
     lastRoomCode: typeof saved.lastRoomCode === 'string' ? saved.lastRoomCode.slice(0, 6) : null,
     lastRoomPlayerId: typeof saved.lastRoomPlayerId === 'string'
       ? saved.lastRoomPlayerId.slice(0, 96)
@@ -154,6 +168,8 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
 
   setDisplayName: (name) => { set({ displayName: name }); get().saveSettings(); },
   setAvatarId: (avatarId) => { set({ avatarId }); get().saveSettings(); },
+  setFrameId: (frameId) => { set({ frameId }); get().saveSettings(); },
+  setTableThemeId: (tableThemeId) => { set({ tableThemeId }); get().saveSettings(); },
   setLastRoomCode: (code) => { set({ lastRoomCode: code }); get().saveSettings(); },
   setLastRoomSession: ({ roomCode, playerId, reconnectionToken }) => {
     set({
@@ -217,6 +233,8 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
         visualAlertsInsteadOfSound: state.visualAlertsInsteadOfSound,
         displayName: state.displayName,
         avatarId: state.avatarId,
+        frameId: state.frameId,
+        tableThemeId: state.tableThemeId,
         lastRoomCode: state.lastRoomCode,
         lastRoomPlayerId: state.lastRoomPlayerId,
         lastRoomReconnectToken: state.lastRoomReconnectToken,
@@ -233,6 +251,8 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
     const profile = {
       displayName: get().displayName,
       avatarId: get().avatarId,
+      frameId: get().frameId,
+      tableThemeId: get().tableThemeId,
       lastRoomCode: get().lastRoomCode,
       lastRoomPlayerId: get().lastRoomPlayerId,
       lastRoomReconnectToken: get().lastRoomReconnectToken,

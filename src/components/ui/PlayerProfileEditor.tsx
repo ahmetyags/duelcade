@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Pencil } from 'lucide-react-native';
 
-import { SeededRandom } from '@/engine/SeededRandom';
+import { equipCosmetic } from '@/services/AuthApi';
+import {
+  progressionQueryKey,
+  useProgressionQuery,
+} from '@/services/ProgressionQuery';
 import { triggerHaptic } from '@/services/HapticsService';
+import { useAuthStore } from '@/store/authStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import {
   PLAYER_AVATAR_IDS,
+  isPlayerAvatarId,
   type PlayerAvatarId,
 } from '@/types/profile';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
@@ -36,13 +44,46 @@ export function PlayerProfileEditor({
   pickerTitle,
 }: PlayerProfileEditorProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [avatarOptions] = useState<PlayerAvatarId[]>(() => {
-    const shuffled = new SeededRandom(`avatar_choices_${Date.now()}`)
-      .shuffle([...PLAYER_AVATAR_IDS]);
-    const options = shuffled.slice(0, 6);
-    return options.includes(avatarId)
-      ? options
-      : [avatarId, ...options.filter((id) => id !== avatarId).slice(0, 5)];
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const getValidAccessToken = useAuthStore((state) => state.getValidAccessToken);
+  const frameId = useSettingsStore((state) => state.frameId);
+  const progression = useProgressionQuery();
+  const serverAvatar = progression.data?.progression.equipped.avatar;
+  const avatarOptions = useMemo(() => {
+    if (!progression.data) return [...PLAYER_AVATAR_IDS];
+    const owned = new Set(
+      progression.data.progression.inventory
+        .filter((item) => item.type === 'avatar')
+        .map((item) => item.itemId),
+    );
+    return PLAYER_AVATAR_IDS.filter((id) => owned.has(id));
+  }, [progression.data]);
+
+  useEffect(() => {
+    if (isPlayerAvatarId(serverAvatar) && avatarId !== serverAvatar) {
+      onAvatarChange(serverAvatar);
+    }
+  }, [avatarId, onAvatarChange, serverAvatar]);
+
+  const selectAvatar = useMutation({
+    mutationFn: async (nextAvatarId: PlayerAvatarId) => {
+      if (!user?.serverBacked) return null;
+      const token = await getValidAccessToken();
+      if (!token) throw new Error('AUTH_UNAVAILABLE');
+      return equipCosmetic(token, 'avatar', nextAvatarId);
+    },
+    onSuccess: (response, nextAvatarId) => {
+      if (response) {
+        queryClient.setQueryData(
+          progressionQueryKey(user?.id),
+          response,
+        );
+      }
+      onAvatarChange(nextAvatarId);
+      setPickerOpen(false);
+      triggerHaptic('light');
+    },
   });
 
   return (
@@ -63,7 +104,7 @@ export function PlayerProfileEditor({
             }}
             style={({ pressed }) => [styles.avatarEdit, pressed && styles.pressed]}
           >
-            <PlayerAvatar avatarId={avatarId} size={54} />
+            <PlayerAvatar avatarId={avatarId} frameId={frameId} size={54} />
             <View style={styles.pencilBadge}>
               <Pencil size={11} color={colors.primaryDark} strokeWidth={2.5} />
             </View>
@@ -93,12 +134,11 @@ export function PlayerProfileEditor({
                     <Pressable
                       key={option}
                       accessibilityRole="radio"
+                      disabled={selectAvatar.isPending}
                       accessibilityLabel={`${avatarLabel}: ${option}`}
                       accessibilityState={{ checked: selected }}
                       onPress={() => {
-                        onAvatarChange(option);
-                        setPickerOpen(false);
-                        triggerHaptic('light');
+                        selectAvatar.mutate(option);
                       }}
                       style={({ pressed }) => [
                         styles.avatarOption,
@@ -108,6 +148,7 @@ export function PlayerProfileEditor({
                     >
                       <PlayerAvatar
                         avatarId={option}
+                        frameId={frameId}
                         size={42}
                         color={selected ? colors.primaryDark : colors.textSecondary}
                         backgroundColor={selected ? colors.primaryContainer : colors.surface}

@@ -51,18 +51,19 @@ oynama isteğini, güvenilir multiplayer'ı ve ölçülebilir kaliteyi tamamlama
 
 - [ ] Mobil ve bağımsız backend arasında sürümlenmiş `protocol` ve
   `game-engine` paket sınırlarını oluştur
-- [ ] PostgreSQL üzerinde oyuncu, maç, mod ustalığı ve envanter modellerini kur
+- [x] PostgreSQL üzerinde oyuncu, maç, mod ustalığı ve envanter modellerini kur
 - [x] Sunucu üretimli misafir hesap, token yenileme ve eski yerel misafirleri
   otomatik yükseltme akışı ekle
 - [x] Çevrimiçi maç sonucunu PostgreSQL'e kaydet ve oyuncuya maç geçmişi sun
-- [ ] XP, oyuncu seviyesi ve her mod için ustalık ilerlemesi ekle
-- [ ] Yalnızca kozmetik avatar, çerçeve ve masa teması envanteri ekle
+- [x] XP, oyuncu seviyesi ve her mod için ustalık ilerlemesi ekle
+- [x] Yalnızca kozmetik avatar, çerçeve ve masa teması envanteri ekle
 - [ ] Oyuncu verisini dışa aktarma ve silme akışını backend üzerinden sağla
 
 ## Aşama 3 — Geri dönüş ve sosyal sistemler
 
 - [ ] Günlük ortak seed mücadelesi
-- [ ] Baskıcı olmayan günlük/haftalık görevler ve telafi edilebilir seri
+- [x] Baskıcı olmayan, isteğe bağlı günlük görevleri ekle
+- [ ] Haftalık görevler ve telafi edilebilir seri ekle
 - [ ] Google Play Games başarımları
 - [ ] Günlük, haftalık ve tüm zamanlar liderlik tabloları
 - [ ] Hızlı eşleşme ve benzer beceri seviyesinde rakip bulma

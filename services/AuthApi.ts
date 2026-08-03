@@ -27,6 +27,51 @@ export interface MatchHistoryItem {
   score: number;
   opponentDisplayName: string;
   opponentScore: number;
+  xpEarned: number;
+}
+
+export type CosmeticType = 'avatar' | 'frame' | 'table_theme';
+export type QuestKey = 'play_duel' | 'win_duel' | 'win_rounds';
+export type CoreMode =
+  | 'rune_grid'
+  | 'memory_pairs'
+  | 'circuit_claim'
+  | 'neon_trail';
+
+export interface PlayerProgression {
+  totalXp: number;
+  level: number;
+  currentLevelXp: number;
+  nextLevelXp: number;
+  equipped: {
+    avatar: string;
+    frame: string;
+    tableTheme: string;
+  };
+  mastery: {
+    mode: CoreMode;
+    xp: number;
+    matchesPlayed: number;
+  }[];
+  inventory: {
+    type: CosmeticType;
+    itemId: string;
+    unlockedAt: number;
+    source: string;
+  }[];
+  catalog: {
+    type: CosmeticType;
+    itemId: string;
+    unlockLevel: number;
+  }[];
+  dailyQuests: {
+    key: QuestKey;
+    date: string;
+    progress: number;
+    target: number;
+    rewardXp: number;
+    claimed: boolean;
+  }[];
 }
 
 const API_URL = `${getGameServerHttpUrl()}/v1`;
@@ -112,5 +157,36 @@ export function fetchMatchHistory(
   return request(`/matches?limit=${Math.min(50, Math.max(1, limit))}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function fetchProgression(
+  accessToken: string,
+): Promise<{ progression: PlayerProgression }> {
+  return request('/progression', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function claimDailyQuest(
+  accessToken: string,
+  questKey: QuestKey,
+): Promise<{ progression: PlayerProgression }> {
+  return request(`/quests/${questKey}/claim`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function equipCosmetic(
+  accessToken: string,
+  type: CosmeticType,
+  itemId: string,
+): Promise<{ progression: PlayerProgression }> {
+  return request('/me/cosmetics', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ type, itemId }),
   });
 }

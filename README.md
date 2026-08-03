@@ -13,6 +13,11 @@ tokenı Expo SecureStore içinde, kısa ömürlü erişim tokenı yalnızca bell
 tutulur. Çevrimiçi maç sonuçları PostgreSQL'e yazılır ve ana ekrandaki Maç
 Geçmişi bölümünden görüntülenir.
 
+Çevrimiçi maçlar sunucu tarafından tek seferlik XP ile ödüllendirilir. Seviye,
+dört çekirdek mod ustalığı, isteğe bağlı günlük görevler ve rekabet avantajı
+vermeyen avatar/çerçeve/masa teması koleksiyonu Seviye ve Ödüller ekranında
+sunulur.
+
 ## Gereksinimler
 
 - Node.js 22.13.1 veya daha yeni bir 22.x sürümü

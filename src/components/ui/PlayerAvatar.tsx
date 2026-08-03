@@ -18,7 +18,7 @@ import {
 } from 'lucide-react-native';
 
 import { colors } from '@/theme/tokens';
-import type { PlayerAvatarId } from '@/types/profile';
+import type { PlayerAvatarId, PlayerFrameId } from '@/types/profile';
 
 const ICONS: Record<PlayerAvatarId, LucideIcon> = {
   bolt: Zap,
@@ -41,6 +41,7 @@ interface PlayerAvatarProps {
   readonly color?: string;
   readonly backgroundColor?: string;
   readonly borderColor?: string;
+  readonly frameId?: PlayerFrameId;
 }
 
 export function PlayerAvatar({
@@ -49,8 +50,16 @@ export function PlayerAvatar({
   color = colors.primaryDark,
   backgroundColor = colors.primaryContainer,
   borderColor = colors.primary,
+  frameId = 'default',
 }: PlayerAvatarProps) {
   const Icon = avatarId ? ICONS[avatarId] : UserRound;
+  const frameStyle = frameId === 'neon'
+    ? { borderColor: colors.primary, borderWidth: 3 }
+    : frameId === 'ember'
+      ? { borderColor: colors.amber, borderWidth: 3 }
+      : frameId === 'royal'
+        ? { borderColor: colors.secondary, borderWidth: 4 }
+        : { borderColor, borderWidth: 1.5 };
   return (
     <View
       style={[
@@ -60,7 +69,7 @@ export function PlayerAvatar({
           height: size,
           borderRadius: size / 2,
           backgroundColor,
-          borderColor,
+          ...frameStyle,
         },
       ]}
     >

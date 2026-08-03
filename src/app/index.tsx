@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  Award,
   LogIn,
   Gamepad2,
   History,
@@ -23,6 +24,7 @@ import { initNetwork, resumeRoom } from '@/services/NetworkBridge';
 import { getErrorMessage } from '@/services/ErrorMessages';
 import { networkService } from '@/services/NetworkService';
 import { startSinglePlayer } from '@/services/SinglePlayerService';
+import { useProgressionQuery } from '@/services/ProgressionQuery';
 import { triggerHaptic } from '@/services/HapticsService';
 import { useAuthStore } from '@/store/authStore';
 import { useGameStore } from '@/store/gameStore';
@@ -30,6 +32,11 @@ import { useRoomStore } from '@/store/roomStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import { useTranslation } from '@/src/i18n';
+import {
+  isPlayerAvatarId,
+  isPlayerFrameId,
+  isTableThemeId,
+} from '@/types/profile';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -38,6 +45,11 @@ export default function HomeScreen() {
   const displayName = useSettingsStore((s) => s.displayName);
   const setDisplayName = useSettingsStore((s) => s.setDisplayName);
   const avatarId = useSettingsStore((s) => s.avatarId);
+  const frameId = useSettingsStore((s) => s.frameId);
+  const tableThemeId = useSettingsStore((s) => s.tableThemeId);
+  const setAvatarId = useSettingsStore((s) => s.setAvatarId);
+  const setFrameId = useSettingsStore((s) => s.setFrameId);
+  const setTableThemeId = useSettingsStore((s) => s.setTableThemeId);
   const lastRoomCode = useSettingsStore((s) => s.lastRoomCode);
   const lastRoomPlayerId = useSettingsStore((s) => s.lastRoomPlayerId);
   const lastRoomReconnectToken = useSettingsStore((s) => s.lastRoomReconnectToken);
@@ -46,6 +58,32 @@ export default function HomeScreen() {
   const activeRoom = useRoomStore((s) => s.room);
   const error = useRoomStore((s) => s.error);
   const isLoading = useRoomStore((s) => s.isLoading);
+  const progression = useProgressionQuery();
+
+  useEffect(() => {
+    const equipped = progression.data?.progression.equipped;
+    if (!equipped) return;
+    if (isPlayerAvatarId(equipped.avatar) && equipped.avatar !== avatarId) {
+      setAvatarId(equipped.avatar);
+    }
+    if (isPlayerFrameId(equipped.frame) && equipped.frame !== frameId) {
+      setFrameId(equipped.frame);
+    }
+    if (
+      isTableThemeId(equipped.tableTheme)
+      && equipped.tableTheme !== tableThemeId
+    ) {
+      setTableThemeId(equipped.tableTheme);
+    }
+  }, [
+    avatarId,
+    frameId,
+    progression.data,
+    setAvatarId,
+    setFrameId,
+    setTableThemeId,
+    tableThemeId,
+  ]);
 
   useEffect(() => {
     initNetwork();
@@ -190,14 +228,23 @@ export default function HomeScreen() {
 
         {isAuthenticated && user && (
           <Panel variant="surface" style={styles.playerCard}>
-            <PlayerAvatar avatarId={avatarId} size={42} />
+            <PlayerAvatar avatarId={avatarId} frameId={frameId} size={42} />
             <View style={styles.playerCopy}>
               <ThemedText variant="body" style={styles.playerName}>
                 {displayName || user.displayName}
               </ThemedText>
               <ThemedText variant="caption" color="muted">{t('home.ready')}</ThemedText>
             </View>
-            <View style={styles.onlineDot} />
+            {progression.data ? (
+              <View style={styles.levelChip}>
+                <Award size={14} color={colors.amber} />
+                <ThemedText variant="label" style={styles.levelChipText}>
+                  {progression.data.progression.level}
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.onlineDot} />
+            )}
           </Panel>
         )}
 
@@ -245,6 +292,16 @@ export default function HomeScreen() {
               fullWidth
               loading={isLoading}
               onPress={handleContinue}
+            />
+          )}
+          {user?.serverBacked && (
+            <ThemedButton
+              label={t('home.progression')}
+              variant="ghost"
+              size="md"
+              fullWidth
+              icon={<Award size={19} color={colors.amber} strokeWidth={2.2} />}
+              onPress={() => router.push('/progression')}
             />
           )}
           {user?.serverBacked && (
@@ -385,6 +442,20 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.surface,
   },
+  levelChip: {
+    minWidth: 44,
+    height: 32,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.secondaryContainer,
+    borderWidth: 1,
+    borderColor: colors.amber,
+  },
+  levelChipText: { color: colors.amberMuted },
   actions: {
     gap: spacing.md,
   },

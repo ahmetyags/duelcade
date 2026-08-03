@@ -125,6 +125,9 @@ export default function MatchHistoryScreen() {
                     {modeTitles.join(' · ')}
                   </ThemedText>
                 )}
+                <ThemedText variant="label" color="operator">
+                  {t('history.xpEarned', { xp: match.xpEarned })}
+                </ThemedText>
               </View>
             );
           })
