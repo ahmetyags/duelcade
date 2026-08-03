@@ -118,6 +118,14 @@ EXPO_PUBLIC_GAME_SERVER_URL=http://192.168.1.50:2567
 
 Üretimde HTTPS/WSS destekli bir sunucu adresi zorunludur.
 
+Production web dağıtımında `.env.production` içindeki sunucu adresinin eski
+Metro önbelleğinden etkilenmemesi için export komutu önbelleği temizler:
+
+```bash
+npm run export:web:production
+npx eas-cli deploy --prod --export-dir dist
+```
+
 Ayrıntılı ürünleştirme sırası için
 [`PRODUCTION_ROADMAP.md`](./PRODUCTION_ROADMAP.md) dosyasını izleyin.
 

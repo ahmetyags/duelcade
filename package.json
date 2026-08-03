@@ -8,6 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "export:web:production": "expo export --platform web --clear --output-dir dist",
     "server": "tsx --tsconfig server/tsconfig.json server/index.ts",
     "server:typecheck": "tsc --project server/tsconfig.json",
     "typecheck": "tsc --noEmit",
