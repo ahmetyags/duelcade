@@ -42,7 +42,7 @@ export default function CreateRoomScreen() {
   const setLoading = useRoomStore((s) => s.setLoading);
 
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [durationMinutes, setDurationMinutes] = useState(5);
+  const [durationMinutes, setDurationMinutes] = useState(3);
   const [name, setName] = useState(displayName || user?.displayName || '');
   const [serverStatus, setServerStatus] = useState<GameServerStatus>('checking');
   const warmupController = useRef<AbortController | null>(null);

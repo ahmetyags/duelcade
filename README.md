@@ -1,8 +1,12 @@
 # Duelcade
 
-İki oyuncunun aynı oyun masasında sırayla yarıştığı hızlı bulmaca oyunudur.
+Tek başına veya bir arkadaşla oynanan 2–5 dakikalık hızlı zekâ düellolarıdır.
 Uygulama Expo Router, React Native, TypeScript ve Zustand ile iOS, Android ve
 web için hazırlanmıştır.
+
+Başlangıç sürümünün dört çekirdek modu Rün Düellosu, Hafıza Eşleri, Devre
+Alanı ve Neon İz'dir. Diğer tamamlanmış modlar ileride sezonluk içerik ve
+canlı etkinlik havuzu olarak korunur.
 
 ## Gereksinimler
 

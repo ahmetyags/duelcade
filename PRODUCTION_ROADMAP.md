@@ -35,11 +35,13 @@ oynama isteğini, güvenilir multiplayer'ı ve ölçülebilir kaliteyi tamamlama
 
 ## Aşama 1 — İlk oturum ve ana oyun döngüsü
 
-- [ ] Ana ekran mesajlarını tek ürün kimliğinde birleştir; eski
+- [x] Ana ekran mesajlarını tek ürün kimliğinde birleştir; eski
   Operator/Explorer/kaçış anlatısını ana akıştan kaldır
 - [ ] Oyuncuyu ilk hamlesine yönlendiren etkileşimli solo öğretici oluştur
 - [ ] İlk kez açılışta 30 saniye içinde oynanabilir maça ulaş
-- [ ] En güçlü dört modu başlangıç havuzu olarak belirle ve cilala
+- [x] Başlangıç havuzunu Rün Düellosu, Hafıza Eşleri, Devre Alanı ve Neon İz
+  olarak sabitle
+- [ ] Dört çekirdek modu animasyon, öğretici, ses ve denge açısından cilala
 - [ ] Maç sonu kutlaması, rövanş ve yeni maç geçişlerini kesintisiz hale getir
 - [ ] Bot zorluğunu oyuncunun ilk maç deneyimine göre dengele
 - [ ] TalkBack, büyük metin, renk körlüğü ve azaltılmış hareket kontrollerini

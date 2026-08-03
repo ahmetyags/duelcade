@@ -27,7 +27,7 @@ export default function SoloSetupScreen() {
   const setAvatarId = useSettingsStore((state) => state.setAvatarId);
   const [name, setName] = useState(displayName || user?.displayName || '');
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [durationMinutes, setDurationMinutes] = useState(5);
+  const [durationMinutes, setDurationMinutes] = useState(3);
 
   const handleStart = useCallback(() => {
     triggerHaptic('medium');
