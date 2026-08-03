@@ -40,6 +40,7 @@ import {
   type PlayerAvatarId,
   type PlayerFrameId,
 } from '@/types/profile';
+import { trackAnalyticsEvent } from '@/services/AnalyticsService';
 
 const ITEM_LABELS = {
   en: {
@@ -111,8 +112,15 @@ export default function ProgressionScreen() {
       if (!token) throw new Error('AUTH_UNAVAILABLE');
       return claimDailyQuest(token, questKey);
     },
-    onSuccess: (response) => updateProgression(response.progression),
+    onSuccess: (response, questKey) => {
+      updateProgression(response.progression);
+      trackAnalyticsEvent('quest_claimed', { questKey });
+    },
   });
+
+  React.useEffect(() => {
+    trackAnalyticsEvent('progression_viewed');
+  }, []);
 
   const equip = useMutation({
     mutationFn: async (item: { type: CosmeticType; itemId: string }) => {

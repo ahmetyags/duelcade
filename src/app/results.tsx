@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -21,6 +21,11 @@ import { useTranslation } from '@/src/i18n';
 import { progressionQueryKey } from '@/services/ProgressionQuery';
 import { useAuthStore } from '@/store/authStore';
 import { TURN_RESULTS, TURN_UI } from '@/src/i18n/turnGames';
+import {
+  durationBucket,
+  trackAnalyticsEvent,
+  type AnalyticsProperties,
+} from '@/services/AnalyticsService';
 
 export default function ResultsScreen() {
   const { language } = useTranslation();
@@ -37,12 +42,44 @@ export default function ResultsScreen() {
   const firstDuel = room?.code === FIRST_DUEL_ROOM_CODE;
   const localRequestedRematch = !!localPlayerId && rematchVotes.includes(localPlayerId);
   const opponentRequestedRematch = rematchVotes.some((playerId) => playerId !== localPlayerId);
+  const resultTracked = useRef(false);
 
   useEffect(() => {
     if (result && firstDuel && result.forfeitedPlayerId !== localPlayerId) {
       useSettingsStore.getState().completeFirstDuel();
     }
   }, [firstDuel, localPlayerId, result]);
+
+  useEffect(() => {
+    if (!result || !room || resultTracked.current) return;
+    resultTracked.current = true;
+    const localForfeited = result.forfeitedPlayerId === localPlayerId;
+    const playMode: AnalyticsProperties['playMode'] = firstDuel
+      ? 'tutorial'
+      : singlePlayer
+        ? 'solo'
+        : 'online';
+    const properties = {
+      playMode,
+      difficulty: room.difficulty === 'final' ? 'hard' as const : room.difficulty,
+      result: localForfeited
+        ? 'abandoned' as const
+        : result.winnerPlayerId === null
+          ? 'draw' as const
+          : result.winnerPlayerId === localPlayerId
+            ? 'win' as const
+            : 'loss' as const,
+      durationBucket: durationBucket(result.completionTimeMs),
+      roundCount: result.totalPuzzles,
+    };
+    trackAnalyticsEvent(
+      localForfeited ? 'match_abandoned' : 'match_completed',
+      properties,
+    );
+    if (firstDuel && !localForfeited) {
+      trackAnalyticsEvent('tutorial_completed', properties);
+    }
+  }, [firstDuel, localPlayerId, result, room, singlePlayer]);
 
   useEffect(() => {
     if (!result || singlePlayer || !user?.serverBacked) return;
@@ -146,6 +183,11 @@ export default function ResultsScreen() {
                 router.replace('/solo');
                 return;
               }
+              trackAnalyticsEvent('rematch_requested', {
+                playMode: singlePlayer ? 'solo' : 'online',
+                difficulty: room.difficulty === 'final' ? 'hard' : room.difficulty,
+                roundCount: result.totalPuzzles,
+              });
               voteRematch(true);
             }}
             style={[

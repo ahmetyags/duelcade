@@ -18,6 +18,12 @@ dört çekirdek mod ustalığı, isteğe bağlı günlük görevler ve rekabet a
 vermeyen avatar/çerçeve/masa teması koleksiyonu Seviye ve Ödüller ekranında
 sunulur.
 
+Gizlilik öncelikli ürün analitiği Ayarlar ekranından açık rıza ile etkinleşir.
+İzinli olaylar yalnızca kendi backend'imize gönderilir; oda kodu, oyuncu adı,
+mesaj, reklam/cihaz kimliği ve ham IP analitik tablosunda tutulmaz. Çökme
+raporlaması da varsayılan olarak kapalıdır ve yalnızca
+`EXPO_PUBLIC_SENTRY_DSN` tanımlıysa çalışır.
+
 ## Gereksinimler
 
 - Node.js 22.13.1 veya daha yeni bir 22.x sürümü
@@ -130,6 +136,19 @@ Metro önbelleğinden etkilenmemesi için export komutu önbelleği temizler:
 npm run export:web:production
 npx eas-cli deploy --prod --export-dir dist
 ```
+
+Sentry projesi hazırlandıktan sonra runtime DSN'i ve source map yükleme
+değişkenlerini EAS ortamına ekleyin:
+
+```dotenv
+EXPO_PUBLIC_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
+SENTRY_ORG=organization-slug
+SENTRY_PROJECT=project-slug
+SENTRY_AUTH_TOKEN=secret-build-token
+```
+
+`SENTRY_AUTH_TOKEN` uygulama içine veya git'e yazılmaz; yalnızca EAS Build
+içindeki gizli ortam değişkeni olarak tutulur.
 
 Ayrıntılı ürünleştirme sırası için
 [`PRODUCTION_ROADMAP.md`](./PRODUCTION_ROADMAP.md) dosyasını izleyin.

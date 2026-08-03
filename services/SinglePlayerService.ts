@@ -15,6 +15,7 @@ import { networkService } from '@/services/NetworkService';
 import { useGameStore } from '@/store/gameStore';
 import { useRoomStore } from '@/store/roomStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { trackAnalyticsEvent } from '@/services/AnalyticsService';
 import { translate } from '@/src/i18n';
 import type { Difficulty, GameResult, Player, RoomConfig } from '@/types/game';
 import type {
@@ -452,6 +453,11 @@ export function startSinglePlayer(
     durationMs,
   });
   publish();
+  trackAnalyticsEvent('match_started', {
+    playMode: tutorial ? 'tutorial' : 'solo',
+    difficulty: difficulty === 'final' ? 'hard' : difficulty,
+    roundCount: totalRounds,
+  });
   startClock();
   scheduleBotIfNeeded();
 }

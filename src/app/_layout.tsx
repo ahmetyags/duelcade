@@ -7,15 +7,21 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import * as Sentry from '@sentry/react-native';
 import { colors } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { audioService } from '@/services/AudioService';
+import {
+  flushAnalyticsEvents,
+  trackAnalyticsEvent,
+} from '@/services/AnalyticsService';
+import { initializeCrashReporting } from '@/services/CrashReportingService';
 import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
@@ -54,7 +60,8 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
+  const analyticsSessionTracked = useRef(false);
   const [fontsLoaded, fontError] = useFonts({
     Quicksand: require('../../assets/fonts/Quicksand-Regular.ttf'),
     'Quicksand-Medium': require('../../assets/fonts/Quicksand-Medium.ttf'),
@@ -65,12 +72,31 @@ export default function RootLayout() {
   const loadSession = useAuthStore((s) => s.loadSession);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const settingsLoaded = useSettingsStore((s) => s.isLoaded);
+  const usageAnalyticsEnabled = useSettingsStore((s) => s.usageAnalyticsEnabled);
+  const authLoading = useAuthStore((s) => s.isLoading);
 
   useEffect(() => {
     loadSession();
     loadSettings();
     audioService.init();
   }, [loadSession, loadSettings]);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    initializeCrashReporting();
+  }, [settingsLoaded]);
+
+  useEffect(() => {
+    if (
+      !settingsLoaded
+      || authLoading
+      || !usageAnalyticsEnabled
+      || analyticsSessionTracked.current
+    ) return;
+    analyticsSessionTracked.current = true;
+    trackAnalyticsEvent('app_session_started');
+    void flushAnalyticsEvents();
+  }, [authLoading, settingsLoaded, usageAnalyticsEnabled]);
 
   const onLayout = useCallback(() => {
     if ((fontsLoaded || fontError) && settingsLoaded) {
@@ -96,3 +122,5 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

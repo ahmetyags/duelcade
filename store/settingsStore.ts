@@ -49,7 +49,12 @@ interface ProfileSettings {
   hasCompletedFirstDuel: boolean;
 }
 
-interface SettingsStoreState extends AudioSettings, AccessibilitySettings, ProfileSettings {
+interface PrivacySettings {
+  usageAnalyticsEnabled: boolean;
+  crashReportingEnabled: boolean;
+}
+
+interface SettingsStoreState extends AudioSettings, AccessibilitySettings, ProfileSettings, PrivacySettings {
   isLoaded: boolean;
 
   // Audio actions
@@ -63,6 +68,8 @@ interface SettingsStoreState extends AudioSettings, AccessibilitySettings, Profi
   toggleLargeText: () => void;
   toggleLeftHanded: () => void;
   toggleVisualAlerts: () => void;
+  toggleUsageAnalytics: () => void;
+  toggleCrashReporting: () => void;
 
   // Profile actions
   setDisplayName: (name: string) => void;
@@ -85,7 +92,7 @@ interface SettingsStoreState extends AudioSettings, AccessibilitySettings, Profi
   resetSettings: () => Promise<void>;
 }
 
-const defaultSettings: AudioSettings & AccessibilitySettings & ProfileSettings = {
+const defaultSettings: AudioSettings & AccessibilitySettings & ProfileSettings & PrivacySettings = {
   buttonVolume: 0.6,
   colorblindMode: false,
   vibrationEnabled: true,
@@ -103,6 +110,8 @@ const defaultSettings: AudioSettings & AccessibilitySettings & ProfileSettings =
   lastRoomReconnectToken: null,
   language: 'tr',
   hasCompletedFirstDuel: false,
+  usageAnalyticsEnabled: false,
+  crashReportingEnabled: false,
 };
 
 function clampVolume(value: number): number {
@@ -116,7 +125,7 @@ function savedBoolean(value: unknown, fallback: boolean): boolean {
 
 export function normalizeSavedSettings(
   saved: Record<string, unknown>,
-): AudioSettings & AccessibilitySettings & ProfileSettings {
+): AudioSettings & AccessibilitySettings & ProfileSettings & PrivacySettings {
   return {
     buttonVolume: clampVolume(Number(
       saved.buttonVolume ?? saved.sfxVolume ?? defaultSettings.buttonVolume,
@@ -149,6 +158,14 @@ export function normalizeSavedSettings(
       saved.hasCompletedFirstDuel,
       defaultSettings.hasCompletedFirstDuel,
     ),
+    usageAnalyticsEnabled: savedBoolean(
+      saved.usageAnalyticsEnabled,
+      defaultSettings.usageAnalyticsEnabled,
+    ),
+    crashReportingEnabled: savedBoolean(
+      saved.crashReportingEnabled,
+      defaultSettings.crashReportingEnabled,
+    ),
   };
 }
 
@@ -165,6 +182,8 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
   toggleLargeText: () => { set((s) => ({ largeText: !s.largeText })); get().saveSettings(); },
   toggleLeftHanded: () => { set((s) => ({ leftHandedMode: !s.leftHandedMode })); get().saveSettings(); },
   toggleVisualAlerts: () => { set((s) => ({ visualAlertsInsteadOfSound: !s.visualAlertsInsteadOfSound })); get().saveSettings(); },
+  toggleUsageAnalytics: () => { set((s) => ({ usageAnalyticsEnabled: !s.usageAnalyticsEnabled })); get().saveSettings(); },
+  toggleCrashReporting: () => { set((s) => ({ crashReportingEnabled: !s.crashReportingEnabled })); get().saveSettings(); },
 
   setDisplayName: (name) => { set({ displayName: name }); get().saveSettings(); },
   setAvatarId: (avatarId) => { set({ avatarId }); get().saveSettings(); },
@@ -240,6 +259,8 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
         lastRoomReconnectToken: state.lastRoomReconnectToken,
         language: state.language,
         hasCompletedFirstDuel: state.hasCompletedFirstDuel,
+        usageAnalyticsEnabled: state.usageAnalyticsEnabled,
+        crashReportingEnabled: state.crashReportingEnabled,
       };
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(toSave));
     } catch {

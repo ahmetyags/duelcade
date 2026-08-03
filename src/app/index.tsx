@@ -37,6 +37,7 @@ import {
   isPlayerFrameId,
   isTableThemeId,
 } from '@/types/profile';
+import { trackAnalyticsEvent } from '@/services/AnalyticsService';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -115,6 +116,11 @@ export default function HomeScreen() {
     await ensureAuth();
     const name = useSettingsStore.getState().displayName
       || t('common.playerFallback', { number: 1 });
+    trackAnalyticsEvent('tutorial_started', {
+      playMode: 'tutorial',
+      difficulty: 'easy',
+      roundCount: 1,
+    });
     startSinglePlayer(name, 'easy', 2, { tutorial: true });
     router.replace('/game');
   };

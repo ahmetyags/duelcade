@@ -57,6 +57,7 @@ import {
 import { useGameStore } from '@/store/gameStore';
 import { useRoomStore } from '@/store/roomStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { trackAnalyticsEvent } from '@/services/AnalyticsService';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import type { ChatMessage, Player } from '@/types/game';
 import type { TurnMatchState } from '@/types/turnGame';
@@ -492,6 +493,7 @@ export default function GameScreen() {
   const celebratedRoundId = useRef<string | null>(null);
   const pageRef = useRef<ScrollView>(null);
   const recoveryAttempted = useRef(false);
+  const firstMoveTracked = useRef(false);
   const match = useGameStore((state) => state.turnMatch);
   const phase = useGameStore((state) => state.phase);
   const chatMessages = useGameStore((state) => state.chatMessages);
@@ -557,13 +559,26 @@ export default function GameScreen() {
 
   const handleMove = useCallback((cell: number) => {
     if (disabled) return;
+    if (!firstMoveTracked.current && match) {
+      firstMoveTracked.current = true;
+      trackAnalyticsEvent('first_move', {
+        playMode: firstDuel ? 'tutorial' : singlePlayer ? 'solo' : 'online',
+        difficulty: room?.difficulty === 'final' ? 'hard' : room?.difficulty,
+        mode: (
+          match.mode === 'rune_grid'
+          || match.mode === 'memory_pairs'
+          || match.mode === 'circuit_claim'
+          || match.mode === 'neon_trail'
+        ) ? match.mode : undefined,
+      });
+    }
     triggerHaptic('light');
     if (singlePlayer) {
       playSinglePlayerTurn(cell);
     } else {
       playTurn(cell);
     }
-  }, [disabled, singlePlayer]);
+  }, [disabled, firstDuel, match, room?.difficulty, singlePlayer]);
 
   const handleSend = useCallback(() => {
     if (!message.trim()) return;

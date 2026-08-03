@@ -14,9 +14,11 @@ import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useSettingsStore, type AppLanguage } from '@/store/settingsStore';
 import { triggerHaptic } from '@/services/HapticsService';
-import { ChevronLeft, Eye, Vibrate, Zap, Type, Hand, Volume2, Bell, Globe2, Check } from 'lucide-react-native';
+import { BarChart3, Bell, Check, ChevronLeft, Eye, Globe2, Hand, ShieldCheck, Type, Vibrate, Volume2, Zap } from 'lucide-react-native';
 import { useTranslation } from '@/src/i18n';
 import { audioService } from '@/services/AudioService';
+import { clearAnalyticsQueue, flushAnalyticsEvents } from '@/services/AnalyticsService';
+import { initializeCrashReporting } from '@/services/CrashReportingService';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -149,6 +151,45 @@ export default function SettingsScreen() {
               onChange={s.setButtonVolume}
             />
           </Panel>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText variant="label" color="muted" style={styles.sectionLabel}>
+            {t('settings.privacy')}
+          </ThemedText>
+          <Panel variant="surface" style={styles.toggleGroup}>
+            <ToggleRow
+              icon={BarChart3}
+              label={t('settings.usageAnalytics')}
+              description={t('settings.usageAnalyticsDescription')}
+              value={s.usageAnalyticsEnabled}
+              onToggle={() => {
+                const enabling = !s.usageAnalyticsEnabled;
+                s.toggleUsageAnalytics();
+                if (enabling) {
+                  void flushAnalyticsEvents();
+                } else {
+                  void clearAnalyticsQueue();
+                }
+                triggerHaptic('light');
+              }}
+            />
+            <Divider />
+            <ToggleRow
+              icon={ShieldCheck}
+              label={t('settings.crashReporting')}
+              description={t('settings.crashReportingDescription')}
+              value={s.crashReportingEnabled}
+              onToggle={() => {
+                s.toggleCrashReporting();
+                initializeCrashReporting();
+                triggerHaptic('light');
+              }}
+            />
+          </Panel>
+          <ThemedText variant="caption" color="muted">
+            {t('settings.privacyNote')}
+          </ThemedText>
         </View>
 
         {/* Reset */}

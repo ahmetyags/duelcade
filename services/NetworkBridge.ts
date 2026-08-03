@@ -16,6 +16,7 @@ import type { PuzzleAction } from '@/types/puzzle';
 import type { TurnMatchState } from '@/types/turnGame';
 import type { PlayerAvatarId } from '@/types/profile';
 import { triggerHaptic } from '@/services/HapticsService';
+import { trackAnalyticsEvent } from '@/services/AnalyticsService';
 
 let initialized = false;
 
@@ -53,6 +54,13 @@ function handleServerMessage(message: ServerMessage): void {
         durationMs: event.payload.durationMs,
       });
       networkService.send({ event: 'game.loaded', payload: { loaded: true } });
+      trackAnalyticsEvent('match_started', {
+        playMode: 'online',
+        difficulty: roomStore.room?.difficulty === 'final'
+          ? 'hard'
+          : roomStore.room?.difficulty,
+        roundCount: roomStore.room?.puzzleCount,
+      });
       break;
     case 'puzzle.updated': {
       const puzzle = event.payload.puzzle;
