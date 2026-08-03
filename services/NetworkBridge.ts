@@ -122,6 +122,7 @@ function handleServerMessage(message: ServerMessage): void {
       roomStore.setRoomStatus('failed');
       break;
     case 'rematch.prompt':
+      roomStore.setRematchVote(event.payload.playerId, event.payload.vote);
       break;
     case 'error':
       roomStore.setError(event.payload.userMessageKey || event.payload.details);

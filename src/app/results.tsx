@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,12 +24,14 @@ export default function ResultsScreen() {
   const copy = TURN_RESULTS[language];
   const turnUi = TURN_UI[language];
   const router = useRouter();
-  const [rematchRequested, setRematchRequested] = useState(false);
   const result = useGameStore((state) => state.result);
   const room = useRoomStore((state) => state.room);
   const localPlayerId = useRoomStore((state) => state.localPlayerId);
+  const rematchVotes = useRoomStore((state) => state.rematchVotes);
   const singlePlayer = room?.sessionMode === 'single_player';
   const firstDuel = room?.code === FIRST_DUEL_ROOM_CODE;
+  const localRequestedRematch = !!localPlayerId && rematchVotes.includes(localPlayerId);
+  const opponentRequestedRematch = rematchVotes.some((playerId) => playerId !== localPlayerId);
 
   useEffect(() => {
     if (result && firstDuel && result.forfeitedPlayerId !== localPlayerId) {
@@ -38,8 +40,8 @@ export default function ResultsScreen() {
   }, [firstDuel, localPlayerId, result]);
 
   useEffect(() => {
-    if (rematchRequested && room?.status === 'waiting') router.replace('/lobby');
-  }, [rematchRequested, room?.status, router]);
+    if (!singlePlayer && room?.status === 'waiting') router.replace('/lobby');
+  }, [room?.status, router, singlePlayer]);
 
   const handleHome = useCallback(() => {
     if (singlePlayer) {
@@ -117,7 +119,7 @@ export default function ResultsScreen() {
 
         <View style={styles.actions}>
           <Pressable
-            disabled={rematchRequested}
+            disabled={localRequestedRematch}
             onPress={() => {
               if (singlePlayer) {
                 clearSinglePlayerSession();
@@ -127,13 +129,20 @@ export default function ResultsScreen() {
                 return;
               }
               voteRematch(true);
-              setRematchRequested(true);
             }}
-            style={[styles.action, styles.primaryAction, rematchRequested && styles.disabled]}
+            style={[
+              styles.action,
+              styles.primaryAction,
+              localRequestedRematch && styles.disabled,
+            ]}
           >
             <RotateCw size={21} color={colors.textOnPrimary} />
             <ThemedText variant="label" color="onPrimary">
-              {rematchRequested ? copy.waiting : copy.playAgain}
+              {localRequestedRematch
+                ? copy.waiting
+                : opponentRequestedRematch
+                  ? copy.acceptRematch
+                  : copy.playAgain}
             </ThemedText>
           </Pressable>
           <Pressable onPress={handleHome} style={styles.action}>

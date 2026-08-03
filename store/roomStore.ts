@@ -19,6 +19,7 @@ interface RoomStoreState {
   roomCode: string | null;
   error: string | null;
   isLoading: boolean;
+  rematchVotes: string[];
 
   // Actions
   setRoom: (room: RoomConfig) => void;
@@ -34,6 +35,7 @@ interface RoomStoreState {
   setDifficulty: (difficulty: Difficulty) => void;
   setError: (error: string | null) => void;
   setLoading: (loading: boolean) => void;
+  setRematchVote: (playerId: string, vote: boolean) => void;
   clearRoom: () => void;
 
   // Selectors
@@ -51,8 +53,9 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
   roomCode: null,
   error: null,
   isLoading: false,
+  rematchVotes: [],
 
-  setRoom: (room) => set({ room, error: null }),
+  setRoom: (room) => set({ room, error: null, rematchVotes: [] }),
 
   setLocalPlayer: (playerId, isHost) => set({ localPlayerId: playerId, isHost }),
 
@@ -127,6 +130,12 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
 
   setError: (error) => set({ error }),
   setLoading: (isLoading) => set({ isLoading }),
+  setRematchVote: (playerId, vote) =>
+    set((state) => ({
+      rematchVotes: vote
+        ? [...new Set([...state.rematchVotes, playerId])]
+        : state.rematchVotes.filter((id) => id !== playerId),
+    })),
 
   clearRoom: () =>
     set({
@@ -136,6 +145,7 @@ export const useRoomStore = create<RoomStoreState>((set, get) => ({
       roomCode: null,
       error: null,
       isLoading: false,
+      rematchVotes: [],
     }),
 
   getLocalPlayer: () => {
