@@ -27,6 +27,7 @@ export default function JoinRoomScreen() {
   const { language, t } = useTranslation();
   const params = useLocalSearchParams<{ code?: string }>();
   const user = useAuthStore((s) => s.user);
+  const updateDisplayName = useAuthStore((s) => s.updateDisplayName);
   const displayName = useSettingsStore((s) => s.displayName);
   const setDisplayName = useSettingsStore((s) => s.setDisplayName);
   const avatarId = useSettingsStore((s) => s.avatarId);
@@ -52,6 +53,7 @@ export default function JoinRoomScreen() {
     triggerHaptic('medium');
     const finalName = name.trim() || t('common.playerFallback', { number: Math.floor(Math.random() * 999) });
     setDisplayName(finalName);
+    void updateDisplayName(finalName);
 
     setLoading(true);
     setError(null);
@@ -69,7 +71,7 @@ export default function JoinRoomScreen() {
     });
 
     joinRoom(code.toUpperCase(), finalName, avatarId, 'no_preference');
-  }, [avatarId, code, name, setDisplayName, setLoading, setError, router, t]);
+  }, [avatarId, code, name, setDisplayName, updateDisplayName, setLoading, setError, router, t]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>

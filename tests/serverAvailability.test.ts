@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   getGameServerHealthUrl,
+  getGameServerHttpUrl,
   warmUpGameServer,
 } from '../services/GameServerAvailability';
 
@@ -14,6 +15,10 @@ test('health endpoint uses HTTP equivalents for secure and local WebSocket URLs'
   assert.equal(
     getGameServerHealthUrl('ws://127.0.0.1:2567'),
     'http://127.0.0.1:2567/health',
+  );
+  assert.equal(
+    getGameServerHttpUrl('wss://duelcade.example.com/'),
+    'https://duelcade.example.com',
   );
 });
 

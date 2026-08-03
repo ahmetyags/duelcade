@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   LogIn,
   Gamepad2,
+  History,
   Plus,
   Settings,
   Sparkles,
@@ -244,6 +245,16 @@ export default function HomeScreen() {
               fullWidth
               loading={isLoading}
               onPress={handleContinue}
+            />
+          )}
+          {user?.serverBacked && (
+            <ThemedButton
+              label={t('home.history')}
+              variant="ghost"
+              size="md"
+              fullWidth
+              icon={<History size={19} color={colors.textPrimary} strokeWidth={2.2} />}
+              onPress={() => router.push('/history')}
             />
           )}
           {error && (

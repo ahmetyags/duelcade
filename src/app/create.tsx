@@ -32,6 +32,7 @@ export default function CreateRoomScreen() {
   const router = useRouter();
   const { language, t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const updateDisplayName = useAuthStore((s) => s.updateDisplayName);
   const displayName = useSettingsStore((s) => s.displayName);
   const setDisplayName = useSettingsStore((s) => s.setDisplayName);
   const avatarId = useSettingsStore((s) => s.avatarId);
@@ -79,6 +80,7 @@ export default function CreateRoomScreen() {
     const finalName = name.trim() || displayName || user?.displayName
       || t('common.playerFallback', { number: Math.floor(Math.random() * 999) });
     setDisplayName(finalName);
+    void updateDisplayName(finalName);
 
     setLoading(true);
     setError(null);
@@ -93,7 +95,7 @@ export default function CreateRoomScreen() {
     });
 
     createRoom(finalName, avatarId, 'no_preference', difficulty, durationMinutes);
-  }, [avatarId, displayName, user?.displayName, difficulty, durationMinutes, name, serverStatus, setDisplayName, setLoading, setError, router, t]);
+  }, [avatarId, displayName, user?.displayName, difficulty, durationMinutes, name, serverStatus, setDisplayName, updateDisplayName, setLoading, setError, router, t]);
 
   const serverStatusLabel =
     serverStatus === 'checking'

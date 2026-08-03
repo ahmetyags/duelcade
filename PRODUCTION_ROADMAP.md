@@ -37,12 +37,12 @@ oynama isteğini, güvenilir multiplayer'ı ve ölçülebilir kaliteyi tamamlama
 
 - [x] Ana ekran mesajlarını tek ürün kimliğinde birleştir; eski
   Operator/Explorer/kaçış anlatısını ana akıştan kaldır
-- [ ] Oyuncuyu ilk hamlesine yönlendiren etkileşimli solo öğretici oluştur
-- [ ] İlk kez açılışta 30 saniye içinde oynanabilir maça ulaş
+- [x] Oyuncuyu ilk hamlesine yönlendiren etkileşimli solo öğretici oluştur
+- [x] İlk kez açılışta 30 saniye içinde oynanabilir maça ulaş
 - [x] Başlangıç havuzunu Rün Düellosu, Hafıza Eşleri, Devre Alanı ve Neon İz
   olarak sabitle
 - [ ] Dört çekirdek modu animasyon, öğretici, ses ve denge açısından cilala
-- [ ] Maç sonu kutlaması, rövanş ve yeni maç geçişlerini kesintisiz hale getir
+- [x] Maç sonu kutlaması, rövanş ve yeni maç geçişlerini kesintisiz hale getir
 - [ ] Bot zorluğunu oyuncunun ilk maç deneyimine göre dengele
 - [ ] TalkBack, büyük metin, renk körlüğü ve azaltılmış hareket kontrollerini
   gerçek cihazda doğrula
@@ -52,7 +52,9 @@ oynama isteğini, güvenilir multiplayer'ı ve ölçülebilir kaliteyi tamamlama
 - [ ] Mobil ve bağımsız backend arasında sürümlenmiş `protocol` ve
   `game-engine` paket sınırlarını oluştur
 - [ ] PostgreSQL üzerinde oyuncu, maç, mod ustalığı ve envanter modellerini kur
-- [ ] Sunucu üretimli misafir hesap ve daha sonra hesap yükseltme akışı ekle
+- [x] Sunucu üretimli misafir hesap, token yenileme ve eski yerel misafirleri
+  otomatik yükseltme akışı ekle
+- [x] Çevrimiçi maç sonucunu PostgreSQL'e kaydet ve oyuncuya maç geçmişi sun
 - [ ] XP, oyuncu seviyesi ve her mod için ustalık ilerlemesi ekle
 - [ ] Yalnızca kozmetik avatar, çerçeve ve masa teması envanteri ekle
 - [ ] Oyuncu verisini dışa aktarma ve silme akışını backend üzerinden sağla

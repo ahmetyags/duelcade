@@ -8,6 +8,11 @@ Başlangıç sürümünün dört çekirdek modu Rün Düellosu, Hafıza Eşleri,
 Alanı ve Neon İz'dir. Diğer tamamlanmış modlar ileride sezonluk içerik ve
 canlı etkinlik havuzu olarak korunur.
 
+Anonim oyuncu kimliği backend tarafından üretilir. Android ve iOS'ta yenileme
+tokenı Expo SecureStore içinde, kısa ömürlü erişim tokenı yalnızca bellekte
+tutulur. Çevrimiçi maç sonuçları PostgreSQL'e yazılır ve ana ekrandaki Maç
+Geçmişi bölümünden görüntülenir.
+
 ## Gereksinimler
 
 - Node.js 22.13.1 veya daha yeni bir 22.x sürümü
@@ -136,6 +141,15 @@ Sağlık kontrolü `GET /health` adresindedir. Colyseus odaları 6 karakterli
 davet kodu kullanır ve geçici bağlantı kesilmelerinde 60 saniye yeniden
 bağlanma hakkı verir. Ayrıştırmanın kalan adımları backend projesindeki
 [`MIGRATION.md`](../duelcade-backend/MIGRATION.md) dosyasında tutulur.
+
+Backend geliştirmede PostgreSQL bağlantısı, en az 32 baytlık token sırrı ve
+geçiş bayrağı gerekir:
+
+```dotenv
+DATABASE_URL=postgresql://duelcade:duelcade@localhost:5432/duelcade
+AUTH_TOKEN_SECRET=replace-with-at-least-32-random-bytes
+ALLOW_LEGACY_PLAYER_IDS=true
+```
 
 ## Mağaza derlemeleri
 

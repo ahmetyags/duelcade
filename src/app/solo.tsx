@@ -21,6 +21,7 @@ export default function SoloSetupScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
+  const updateDisplayName = useAuthStore((state) => state.updateDisplayName);
   const displayName = useSettingsStore((state) => state.displayName);
   const setDisplayName = useSettingsStore((state) => state.setDisplayName);
   const avatarId = useSettingsStore((state) => state.avatarId);
@@ -34,9 +35,10 @@ export default function SoloSetupScreen() {
     const finalName = name.trim() || displayName || user?.displayName
       || t('common.playerFallback', { number: Math.floor(Math.random() * 999) });
     setDisplayName(finalName);
+    void updateDisplayName(finalName);
     startSinglePlayer(finalName, difficulty, durationMinutes);
     router.replace('/game');
-  }, [difficulty, displayName, durationMinutes, name, router, setDisplayName, t, user?.displayName]);
+  }, [difficulty, displayName, durationMinutes, name, router, setDisplayName, t, updateDisplayName, user?.displayName]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>

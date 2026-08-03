@@ -5,6 +5,7 @@ import type { ClientEvent, ServerMessage } from '@/types/network';
 import { PROTOCOL_VERSION, SERVER_CLOSE_CODE } from '@/types/network';
 import type { NetworkTransport } from '@/services/NetworkService';
 import { GAME_SERVER_URL } from '@/services/GameServerAvailability';
+import { getAccessTokenForNetwork } from '@/services/AccessTokenProvider';
 
 /**
  * Production transport backed by a real Colyseus room.
@@ -27,6 +28,7 @@ export class ColyseusTransport implements NetworkTransport {
 
   async connect(roomCode: string, playerId: string): Promise<void> {
     this.consentedDisconnect = false;
+    this.client.auth.token = await getAccessTokenForNetwork() ?? '';
     const options = { playerId, protocolVersion: PROTOCOL_VERSION };
     const room =
       roomCode === '__CREATE__'

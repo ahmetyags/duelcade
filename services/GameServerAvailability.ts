@@ -14,11 +14,14 @@ interface WarmUpOptions {
 }
 
 export function getGameServerHealthUrl(endpoint = GAME_SERVER_URL): string {
-  const httpEndpoint = endpoint
+  return `${getGameServerHttpUrl(endpoint)}/health`;
+}
+
+export function getGameServerHttpUrl(endpoint = GAME_SERVER_URL): string {
+  return endpoint
     .replace(/^wss:/, 'https:')
     .replace(/^ws:/, 'http:')
     .replace(/\/+$/, '');
-  return `${httpEndpoint}/health`;
 }
 
 function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
