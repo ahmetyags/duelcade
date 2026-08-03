@@ -91,11 +91,20 @@ export class ColyseusTransport implements NetworkTransport {
     room.reconnection.maxEnqueuedMessages = 20;
 
     room.onMessage<ServerMessage>('event', (message) => {
+      if (this.room !== room) return;
       this.serverEventListeners.forEach((listener) => listener(message));
     });
-    room.onDrop(() => this.emitConnection('reconnecting'));
-    room.onReconnect(() => this.emitConnection('connected'));
+    room.onDrop(() => {
+      if (this.room !== room) return;
+      this.emitConnection('reconnecting');
+    });
+    room.onReconnect(() => {
+      if (this.room !== room) return;
+      this.emitConnection('connected');
+    });
     room.onLeave((code) => {
+      if (this.room !== room) return;
+      this.room = null;
       this.stopPing();
       if (this.consentedDisconnect) return;
       const terminalServerClose = Object.values(SERVER_CLOSE_CODE).includes(
@@ -104,6 +113,7 @@ export class ColyseusTransport implements NetworkTransport {
       this.emitConnection(terminalServerClose ? 'error' : 'disconnected');
     });
     room.onError((_code, message) => {
+      if (this.room !== room) return;
       console.warn('[ColyseusTransport]', message ?? 'Connection error');
       this.emitConnection('error');
     });

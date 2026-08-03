@@ -47,3 +47,37 @@ test('failed connection attempts leave the service in an error state', async () 
   );
   assert.equal(service.getConnectionState(), 'error');
 });
+
+test('intentional disconnect cannot schedule a reconnect to the room being left', async () => {
+  const service = new NetworkService();
+  let connectionListener: ((state: 'connected' | 'disconnected') => void) | null = null;
+  const transport: NetworkTransport = {
+    connect: async () => {},
+    reconnect: async () => {},
+    disconnect: () => connectionListener?.('disconnected'),
+    getSession: () => ({
+      roomCode: 'OLD123',
+      reconnectionToken: 'OLD123:token',
+    }),
+    send: () => {},
+    onEvent: () => () => {},
+    onConnectionChange: (listener) => {
+      connectionListener = listener;
+      return () => {
+        connectionListener = null;
+      };
+    },
+    onPingUpdate: () => () => {},
+  };
+  service.setTransport(transport);
+
+  await service.connect('OLD123', 'old-player');
+  service.disconnect();
+
+  const internal = service as unknown as {
+    reconnectTimer: ReturnType<typeof setTimeout> | null;
+  };
+  assert.equal(service.getConnectionState(), 'disconnected');
+  assert.equal(service.getSession(), null);
+  assert.equal(internal.reconnectTimer, null);
+});

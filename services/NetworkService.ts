@@ -124,10 +124,16 @@ export class NetworkService {
       this.reconnectTimer = null;
     }
     this.gracePeriodStart = null;
+    this.playerId = null;
+    this.roomCode = null;
+    this.processedMessageIds.clear();
+    // Mark the disconnect as intentional before the transport emits its
+    // synchronous notification, otherwise it is mistaken for a dropped socket
+    // and briefly schedules a reconnect to the room being left.
+    this.setState('disconnected');
     if (this.transport) {
       this.transport.disconnect();
     }
-    this.setState('disconnected');
   }
 
   /** Send a client event to the server. */
