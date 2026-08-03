@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, Pressable, ScrollView, Switch } from 'react-native';
+import { Alert, View, StyleSheet, Pressable, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ui/ThemedText';
@@ -14,16 +14,21 @@ import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useSettingsStore, type AppLanguage } from '@/store/settingsStore';
 import { triggerHaptic } from '@/services/HapticsService';
-import { BarChart3, Bell, Check, ChevronLeft, Eye, Globe2, Hand, ShieldCheck, Type, Vibrate, Volume2, Zap } from 'lucide-react-native';
+import { BarChart3, Bell, Bug, Check, ChevronLeft, Eye, Globe2, Hand, ShieldCheck, TriangleAlert, Type, Vibrate, Volume2, Zap } from 'lucide-react-native';
 import { useTranslation } from '@/src/i18n';
 import { audioService } from '@/services/AudioService';
 import { clearAnalyticsQueue, flushAnalyticsEvents } from '@/services/AnalyticsService';
-import { initializeCrashReporting } from '@/services/CrashReportingService';
+import {
+  captureHandledError,
+  initializeCrashReporting,
+  triggerNativeCrashTest,
+} from '@/services/CrashReportingService';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const s = useSettingsStore();
   const { t } = useTranslation();
+  const sentryTestMode = process.env.EXPO_PUBLIC_SENTRY_TEST_MODE === 'true';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -191,6 +196,53 @@ export default function SettingsScreen() {
             {t('settings.privacyNote')}
           </ThemedText>
         </View>
+
+        {sentryTestMode && s.crashReportingEnabled && (
+          <View style={styles.section}>
+            <ThemedText variant="label" color="muted" style={styles.sectionLabel}>
+              {t('settings.diagnosticsTest')}
+            </ThemedText>
+            <Panel variant="surface" style={styles.diagnosticsCard}>
+              <ThemedText variant="caption" color="muted">
+                {t('settings.diagnosticsTestDescription')}
+              </ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  captureHandledError(new Error('Duelcade Sentry verification event'));
+                  triggerHaptic('success');
+                }}
+                style={styles.diagnosticsButton}
+              >
+                <Bug size={18} color={colors.primary} />
+                <ThemedText variant="label" color="operator">
+                  {t('settings.sendTestReport')}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => Alert.alert(
+                  t('settings.nativeCrashTitle'),
+                  t('settings.nativeCrashDescription'),
+                  [
+                    { text: t('game.exitCancel'), style: 'cancel' },
+                    {
+                      text: t('settings.runNativeCrash'),
+                      style: 'destructive',
+                      onPress: triggerNativeCrashTest,
+                    },
+                  ],
+                )}
+                style={[styles.diagnosticsButton, styles.crashButton]}
+              >
+                <TriangleAlert size={18} color={colors.error} />
+                <ThemedText variant="label" color="error">
+                  {t('settings.runNativeCrash')}
+                </ThemedText>
+              </Pressable>
+            </Panel>
+          </View>
+        )}
 
         {/* Reset */}
         <Pressable
@@ -371,6 +423,24 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     letterSpacing: 1.5,
+  },
+  diagnosticsCard: {
+    gap: spacing.sm,
+  },
+  diagnosticsButton: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    backgroundColor: colors.primaryContainer,
+  },
+  crashButton: {
+    borderColor: colors.error,
+    backgroundColor: colors.alarmBackground,
   },
   languageCard: {
     gap: spacing.md,

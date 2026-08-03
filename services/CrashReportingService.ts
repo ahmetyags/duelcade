@@ -27,3 +27,13 @@ export function captureHandledError(error: unknown): void {
     Sentry.captureException(error);
   }
 }
+
+export function triggerNativeCrashTest(): void {
+  if (
+    process.env.EXPO_PUBLIC_SENTRY_TEST_MODE === 'true'
+    && initialized
+    && useSettingsStore.getState().crashReportingEnabled
+  ) {
+    Sentry.nativeCrash();
+  }
+}
