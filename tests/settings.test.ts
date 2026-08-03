@@ -22,6 +22,7 @@ test('saved settings are validated, clamped and stripped of unknown values', () 
     lastRoomPlayerId: 'P'.repeat(120),
     lastRoomReconnectToken: 'T'.repeat(700),
     language: 'de',
+    hasCompletedFirstDuel: 'yes',
     setButtonVolume: 'malicious persisted action',
   });
 
@@ -33,6 +34,7 @@ test('saved settings are validated, clamped and stripped of unknown values', () 
   assert.equal(normalized.lastRoomCode, 'ABC123');
   assert.equal(normalized.lastRoomPlayerId?.length, 96);
   assert.equal(normalized.lastRoomReconnectToken?.length, 512);
+  assert.equal(normalized.hasCompletedFirstDuel, false);
   assert.equal('setButtonVolume' in normalized, false);
 });
 
@@ -51,6 +53,7 @@ test('settings actions clamp volume and reset preferences without deleting profi
     largeText: true,
     leftHandedMode: true,
     visualAlertsInsteadOfSound: true,
+    hasCompletedFirstDuel: true,
   });
 
   useSettingsStore.getState().setButtonVolume(-4);
@@ -71,4 +74,11 @@ test('settings actions clamp volume and reset preferences without deleting profi
   assert.equal(reset.largeText, false);
   assert.equal(reset.leftHandedMode, false);
   assert.equal(reset.visualAlertsInsteadOfSound, false);
+  assert.equal(reset.hasCompletedFirstDuel, false);
+});
+
+test('first duel completion is persisted as onboarding progress', () => {
+  useSettingsStore.setState({ hasCompletedFirstDuel: false });
+  useSettingsStore.getState().completeFirstDuel();
+  assert.equal(useSettingsStore.getState().hasCompletedFirstDuel, true);
 });

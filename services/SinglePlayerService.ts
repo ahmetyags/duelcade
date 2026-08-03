@@ -26,6 +26,7 @@ import type {
 const HUMAN_ID = 'solo_player';
 const BOT_ID = 'solo_bot';
 const SOLO_ROOM_CODE = 'SOLO';
+export const FIRST_DUEL_ROOM_CODE = 'TUTOR1';
 
 let session: TurnMatchSession | null = null;
 let startedAt = 0;
@@ -372,13 +373,15 @@ export function startSinglePlayer(
   displayName: string,
   difficulty: Difficulty,
   durationMinutes: number,
+  options: { tutorial?: boolean } = {},
 ): void {
+  const tutorial = options.tutorial === true;
   clearSinglePlayerSession();
   networkService.disconnect();
   useSettingsStore.getState().clearLastRoomSession();
 
   const normalizedDuration = normalizeMatchDurationMinutes(durationMinutes);
-  const totalRounds = roundCountForDuration(normalizedDuration);
+  const totalRounds = tutorial ? 1 : roundCountForDuration(normalizedDuration);
   const durationMs = normalizedDuration * 60 * 1000;
   const seed = SeededRandom.generateSeed();
   const now = Date.now();
@@ -411,7 +414,7 @@ export function startSinglePlayer(
     },
   ];
   const room: RoomConfig = {
-    code: SOLO_ROOM_CODE,
+    code: tutorial ? FIRST_DUEL_ROOM_CODE : SOLO_ROOM_CODE,
     hostId: HUMAN_ID,
     status: 'playing',
     players,
@@ -432,6 +435,7 @@ export function startSinglePlayer(
     totalRounds,
     difficulty,
     durationMs,
+    tutorial ? ['rune_grid'] : undefined,
   );
   startedAt = now;
   botMoveCount = 0;
@@ -439,10 +443,10 @@ export function startSinglePlayer(
   useRoomStore.getState().clearRoom();
   useGameStore.getState().resetGame();
   useRoomStore.getState().setRoom(room);
-  useRoomStore.getState().setRoomCode(SOLO_ROOM_CODE);
+  useRoomStore.getState().setRoomCode(room.code);
   useRoomStore.getState().setLocalPlayer(HUMAN_ID, true);
   useGameStore.getState().startGame({
-    roomId: SOLO_ROOM_CODE,
+    roomId: room.code,
     levelId: 'single-player-table',
     seed,
     durationMs,

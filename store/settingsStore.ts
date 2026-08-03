@@ -40,6 +40,7 @@ interface ProfileSettings {
   lastRoomPlayerId: string | null;
   lastRoomReconnectToken: string | null;
   language: AppLanguage;
+  hasCompletedFirstDuel: boolean;
 }
 
 interface SettingsStoreState extends AudioSettings, AccessibilitySettings, ProfileSettings {
@@ -68,6 +69,7 @@ interface SettingsStoreState extends AudioSettings, AccessibilitySettings, Profi
   }) => void;
   clearLastRoomSession: () => void;
   setLanguage: (language: AppLanguage) => void;
+  completeFirstDuel: () => void;
 
   // Persistence
   loadSettings: () => Promise<void>;
@@ -90,6 +92,7 @@ const defaultSettings: AudioSettings & AccessibilitySettings & ProfileSettings =
   lastRoomPlayerId: null,
   lastRoomReconnectToken: null,
   language: 'tr',
+  hasCompletedFirstDuel: false,
 };
 
 function clampVolume(value: number): number {
@@ -128,6 +131,10 @@ export function normalizeSavedSettings(
       ? saved.lastRoomReconnectToken.slice(0, 512)
       : null,
     language: saved.language === 'en' ? 'en' : 'tr',
+    hasCompletedFirstDuel: savedBoolean(
+      saved.hasCompletedFirstDuel,
+      defaultSettings.hasCompletedFirstDuel,
+    ),
   };
 }
 
@@ -165,6 +172,10 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
     get().saveSettings();
   },
   setLanguage: (language) => { set({ language }); get().saveSettings(); },
+  completeFirstDuel: () => {
+    set({ hasCompletedFirstDuel: true });
+    get().saveSettings();
+  },
 
   loadSettings: async () => {
     try {
@@ -210,6 +221,7 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
         lastRoomPlayerId: state.lastRoomPlayerId,
         lastRoomReconnectToken: state.lastRoomReconnectToken,
         language: state.language,
+        hasCompletedFirstDuel: state.hasCompletedFirstDuel,
       };
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(toSave));
     } catch {

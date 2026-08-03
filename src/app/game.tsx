@@ -23,6 +23,7 @@ import {
   Send,
   SkipForward,
   Smile,
+  Sparkles,
   Trophy,
 } from 'lucide-react-native';
 
@@ -48,6 +49,7 @@ import {
   voteRoundSkip,
 } from '@/services/NetworkBridge';
 import {
+  FIRST_DUEL_ROOM_CODE,
   forfeitSinglePlayer,
   playSinglePlayerTurn,
   skipSinglePlayerRound,
@@ -501,6 +503,7 @@ export default function GameScreen() {
   const lastRoomPlayerId = useSettingsStore((state) => state.lastRoomPlayerId);
   const lastRoomReconnectToken = useSettingsStore((state) => state.lastRoomReconnectToken);
   const singlePlayer = room?.sessionMode === 'single_player';
+  const firstDuel = room?.code === FIRST_DUEL_ROOM_CODE;
 
   useEffect(() => {
     if (phase === 'completed' || phase === 'failed') router.replace('/results');
@@ -650,6 +653,22 @@ export default function GameScreen() {
             TUR {match.roundIndex + 1}/{match.totalRounds}
           </ThemedText>
         </View>
+
+        {firstDuel && match.status === 'playing' && (
+          <View style={styles.tutorialCoach}>
+            <Sparkles size={19} color={colors.primaryDark} />
+            <View style={styles.tutorialCoachCopy}>
+              <ThemedText variant="label">{turnUi.tutorialTitle}</ThemedText>
+              <ThemedText variant="caption" color="secondary">
+                {match.moveNumber === 0
+                  ? turnUi.tutorialFirstMove
+                  : isMyTurn
+                    ? turnUi.tutorialBuildAndBlock
+                    : turnUi.tutorialWatchOpponent}
+              </ThemedText>
+            </View>
+          </View>
+        )}
 
         {match.status === 'round_complete' && (
           <RoundVictoryBanner
@@ -986,6 +1005,8 @@ const styles = StyleSheet.create({
   turnRow: { minHeight: 34, paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 15 },
   helpBubble: { width: 30, height: 30, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   gameDescription: { flex: 1, textAlign: 'center', color: colors.textSecondary },
+  tutorialCoach: { width: '100%', padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primaryContainer, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  tutorialCoachCopy: { flex: 1, gap: spacing.xs },
   reactionToast: { position: 'absolute', zIndex: 20, top: 168, left: spacing.xl, right: spacing.xl, maxWidth: 400, alignSelf: 'center', minHeight: 54, paddingHorizontal: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, ...shadows.md },
   reactionAvatar: { width: 32, height: 32, flexShrink: 0, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceElevated },
   reactionName: { flex: 1, color: colors.textPrimary },

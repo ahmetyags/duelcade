@@ -104,7 +104,7 @@ await cdp.send('Emulation.setDeviceMetricsOverride', {
 }, page.sessionId);
 
 try {
-  await waitText(cdp, page, 'BULMACA ARCADE');
+  await waitText(cdp, page, 'HIZLI ZEKÂ DÜELLOLARI');
   await waitText(cdp, page, 'Tek Oyunculu');
   await screenshot(cdp, page, 'mobile-home.png');
   await click(cdp, page, 'Maç Oluştur');
@@ -130,7 +130,7 @@ try {
   if (avatarCount !== 6) throw new Error(`Avatar balloon has ${avatarCount} options instead of 6`);
   await screenshot(cdp, page, 'mobile-avatar-balloon.png');
   await evaluate(cdp, page, 'history.back(); true');
-  await waitText(cdp, page, 'BULMACA ARCADE');
+  await waitText(cdp, page, 'HIZLI ZEKÂ DÜELLOLARI');
   await click(cdp, page, 'Tek Oyunculu');
   await waitText(cdp, page, 'DuelBot’a karşı hemen başla');
   const soloProfileControls = await evaluate(cdp, page, `(() => ({
@@ -177,7 +177,8 @@ try {
         .find((line) => /^\\d+$/.test(line)) ?? null;
     })()`,
   );
-  if (!sliderValue || Number.parseInt(sliderValue, 10) <= 5) {
+  const parsedSliderValue = Number.parseInt(sliderValue, 10);
+  if (!sliderValue || parsedSliderValue < 4 || parsedSliderValue > 5) {
     throw new Error(`Slider did not update: ${sliderValue}`);
   }
   await screenshot(cdp, page, 'mobile-solo-settings.png');
@@ -186,8 +187,7 @@ try {
   await waitText(cdp, page, 'TEK OYUNCULU · DUELBOT');
   await waitText(cdp, page, 'DuelBot');
   const modeNames = [
-    'Rün Düellosu', 'Devre Döndürme', 'Dört Hat', 'Rezonans Kilidi', 'Hafıza Eşleri',
-    'Şifre Çatışması', 'Devre Alanı', 'Neon İz', 'Geçit Savaşı', 'Polarite Savaşı',
+    'Rün Düellosu', 'Hafıza Eşleri', 'Devre Alanı', 'Neon İz',
   ];
   await wait(
     cdp,
@@ -286,15 +286,9 @@ try {
   if (PLAY_ALL_ROUNDS) {
     const slugs = {
       'Rün Düellosu': 'rune-grid',
-      'Devre Döndürme': 'pipe-circuit',
-      'Dört Hat': 'connect-four',
-      'Rezonans Kilidi': 'resonance',
       'Hafıza Eşleri': 'memory',
-      'Şifre Çatışması': 'cipher',
       'Devre Alanı': 'circuit-claim',
       'Neon İz': 'neon-trail',
-      'Geçit Savaşı': 'gateway-race',
-      'Polarite Savaşı': 'polarity',
     };
     const deadline = Date.now() + 900_000;
     while (Date.now() < deadline) {
@@ -332,7 +326,7 @@ try {
     await wait(cdp, page, `location.pathname.includes('/results')`, 10_000);
     const missingModes = modeNames.filter((name) => !seenModes.has(name));
     if (missingModes.length > 0) {
-      throw new Error(`Not every game appeared in the 10-round cycle: ${missingModes.join(', ')}`);
+      throw new Error(`Not every core game appeared in the full match: ${missingModes.join(', ')}`);
     }
     await screenshot(cdp, page, 'mobile-all-games-result.png');
   } else {

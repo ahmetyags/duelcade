@@ -21,6 +21,7 @@ import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { initNetwork, resumeRoom } from '@/services/NetworkBridge';
 import { getErrorMessage } from '@/services/ErrorMessages';
 import { networkService } from '@/services/NetworkService';
+import { startSinglePlayer } from '@/services/SinglePlayerService';
 import { triggerHaptic } from '@/services/HapticsService';
 import { useAuthStore } from '@/store/authStore';
 import { useGameStore } from '@/store/gameStore';
@@ -39,6 +40,7 @@ export default function HomeScreen() {
   const lastRoomCode = useSettingsStore((s) => s.lastRoomCode);
   const lastRoomPlayerId = useSettingsStore((s) => s.lastRoomPlayerId);
   const lastRoomReconnectToken = useSettingsStore((s) => s.lastRoomReconnectToken);
+  const hasCompletedFirstDuel = useSettingsStore((s) => s.hasCompletedFirstDuel);
   const setPhase = useGameStore((s) => s.setPhase);
   const activeRoom = useRoomStore((s) => s.room);
   const error = useRoomStore((s) => s.error);
@@ -67,6 +69,15 @@ export default function HomeScreen() {
     triggerHaptic('light');
     await ensureAuth();
     router.push('/solo');
+  };
+
+  const handleFirstDuel = async () => {
+    triggerHaptic('medium');
+    await ensureAuth();
+    const name = useSettingsStore.getState().displayName
+      || t('common.playerFallback', { number: 1 });
+    startSinglePlayer(name, 'easy', 2, { tutorial: true });
+    router.replace('/game');
   };
 
   const handleJoin = async () => {
@@ -190,9 +201,19 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.actions}>
+          {!hasCompletedFirstDuel && (
+            <ThemedButton
+              label={t('home.quickStart')}
+              variant="primary"
+              size="lg"
+              fullWidth
+              icon={<Sparkles size={21} color={colors.textOnPrimary} strokeWidth={2.3} />}
+              onPress={handleFirstDuel}
+            />
+          )}
           <ThemedButton
             label={t('home.singlePlayer')}
-            variant="primary"
+            variant={hasCompletedFirstDuel ? 'primary' : 'secondary'}
             size="lg"
             fullWidth
             icon={<UserRound size={21} color={colors.textOnPrimary} strokeWidth={2.3} />}

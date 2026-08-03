@@ -8,9 +8,13 @@ import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { leaveRoom, voteRematch } from '@/services/NetworkBridge';
-import { clearSinglePlayerSession } from '@/services/SinglePlayerService';
+import {
+  clearSinglePlayerSession,
+  FIRST_DUEL_ROOM_CODE,
+} from '@/services/SinglePlayerService';
 import { useGameStore } from '@/store/gameStore';
 import { useRoomStore } from '@/store/roomStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import { useTranslation } from '@/src/i18n';
 import { TURN_RESULTS, TURN_UI } from '@/src/i18n/turnGames';
@@ -25,6 +29,13 @@ export default function ResultsScreen() {
   const room = useRoomStore((state) => state.room);
   const localPlayerId = useRoomStore((state) => state.localPlayerId);
   const singlePlayer = room?.sessionMode === 'single_player';
+  const firstDuel = room?.code === FIRST_DUEL_ROOM_CODE;
+
+  useEffect(() => {
+    if (result && firstDuel && result.forfeitedPlayerId !== localPlayerId) {
+      useSettingsStore.getState().completeFirstDuel();
+    }
+  }, [firstDuel, localPlayerId, result]);
 
   useEffect(() => {
     if (rematchRequested && room?.status === 'waiting') router.replace('/lobby');
