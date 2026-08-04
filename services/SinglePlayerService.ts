@@ -210,7 +210,7 @@ function chooseBotMove(activeSession: TurnMatchSession): number {
   const rng = new SeededRandom(`${activeSession.seed}_bot_${botMoveCount++}_${state.moveNumber}`);
   const quality = state.difficulty === 'hard' || state.difficulty === 'final'
     ? 0.86
-    : state.difficulty === 'medium' ? 0.66 : 0.42;
+    : state.difficulty === 'medium' ? 0.72 : 0.5;
 
   if (state.mode === 'cipher_clash') {
     const target = activeSession.cipherSolutions[1];
@@ -271,7 +271,7 @@ function chooseBotMove(activeSession: TurnMatchSession): number {
     const win = available.find((cell) => simulatedWinner(activeSession, 1, cell));
     if (win !== undefined) return win;
     const block = available.find((cell) => simulatedWinner(activeSession, 0, cell));
-    if (block !== undefined && rng.chance(quality)) return block;
+    if (block !== undefined && rng.chance(Math.min(0.92, quality + 0.1))) return block;
     return randomItem(available, rng);
   }
 
@@ -340,14 +340,14 @@ function scheduleBotIfNeeded(): void {
     `${session.seed}_bot_delay_${botMoveCount}_${session.state.moveNumber}`,
   );
   const baseDelay = session.difficulty === 'hard' || session.difficulty === 'final'
-    ? 760
-    : session.difficulty === 'medium' ? 1_050 : 1_350;
+    ? 680
+    : session.difficulty === 'medium' ? 860 : 1_150;
   const thinkingDelay = session.state.mode === 'cipher_clash'
-    ? 700
+    ? 620
     : session.state.mode === 'memory_pairs' && session.state.selectedCells.length === 0
-      ? 550
+      ? 440
       : 0;
-  const delay = baseDelay + thinkingDelay + delayRng.nextInt(120, 420);
+  const delay = baseDelay + thinkingDelay + delayRng.nextInt(80, 260);
   botTimer = setTimeout(() => {
     botTimer = null;
     if (!session || session.state.status !== 'playing' || session.state.activePlayerIndex !== 1) return;

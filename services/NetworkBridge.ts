@@ -5,8 +5,7 @@
  * events are handled once here so UI components never need transport details.
  */
 
-import { ColyseusTransport } from '@/services/ColyseusTransport';
-import { networkService } from '@/services/NetworkService';
+import { networkService, type NetworkTransport } from '@/services/NetworkService';
 import { useGameStore } from '@/store/gameStore';
 import { useRoomStore } from '@/store/roomStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -168,10 +167,13 @@ function updateConnectionInfo(): void {
   });
 }
 
-export function initNetwork(): void {
+export async function initNetwork(): Promise<void> {
   if (initialized) return;
 
-  networkService.setTransport(new ColyseusTransport());
+  const { ColyseusTransport } = await import('@/services/ColyseusTransport');
+  const transport: NetworkTransport = new ColyseusTransport();
+
+  networkService.setTransport(transport);
   networkService.addListener(handleServerMessage);
   networkService.onConnectionChange(updateConnectionInfo);
   networkService.onPingUpdate(updateConnectionInfo);
@@ -179,7 +181,7 @@ export function initNetwork(): void {
 }
 
 async function connect(roomCode: string): Promise<void> {
-  initNetwork();
+  await initNetwork();
   const temporaryPlayerId = `client_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   await networkService.connect(roomCode, temporaryPlayerId);
 }
@@ -268,7 +270,7 @@ export async function resumeRoom(
   roomStore.setError(null);
 
   try {
-    initNetwork();
+    await initNetwork();
     await networkService.reconnect(normalizedCode, playerId, reconnectToken);
     const session = networkService.getSession();
     if (session) useSettingsStore.getState().setLastRoomSession(session);

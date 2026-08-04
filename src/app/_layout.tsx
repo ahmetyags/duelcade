@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -21,6 +22,7 @@ import {
   flushAnalyticsEvents,
   trackAnalyticsEvent,
 } from '@/services/AnalyticsService';
+import { isDailyReturnWindow } from '@/services/AnalyticsMetrics';
 import { initializeCrashReporting } from '@/services/CrashReportingService';
 import '../global.css';
 
@@ -74,12 +76,21 @@ function RootLayout() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const settingsLoaded = useSettingsStore((s) => s.isLoaded);
   const usageAnalyticsEnabled = useSettingsStore((s) => s.usageAnalyticsEnabled);
+  const lastSessionAt = useSettingsStore((s) => s.lastSessionAt);
   const authLoading = useAuthStore((s) => s.isLoading);
 
   useEffect(() => {
     loadSession();
     loadSettings();
     audioService.init();
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background') {
+        void flushAnalyticsEvents();
+      }
+    });
+
+    return () => subscription.remove();
   }, [loadSession, loadSettings]);
 
   useEffect(() => {
@@ -95,9 +106,14 @@ function RootLayout() {
       || analyticsSessionTracked.current
     ) return;
     analyticsSessionTracked.current = true;
-    trackAnalyticsEvent('app_session_started');
+    const sessionAt = Date.now();
+    const returning = isDailyReturnWindow(lastSessionAt ?? sessionAt, sessionAt);
+    trackAnalyticsEvent('app_session_started', {
+      isReturningSession: returning,
+    });
+    useSettingsStore.getState().markSessionStarted(sessionAt);
     void flushAnalyticsEvents();
-  }, [authLoading, settingsLoaded, usageAnalyticsEnabled]);
+  }, [authLoading, lastSessionAt, settingsLoaded, usageAnalyticsEnabled]);
 
   const onLayout = useCallback(() => {
     if ((fontsLoaded || fontError) && settingsLoaded) {

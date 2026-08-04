@@ -45,6 +45,7 @@ interface ProfileSettings {
   lastRoomCode: string | null;
   lastRoomPlayerId: string | null;
   lastRoomReconnectToken: string | null;
+  lastSessionAt: number | null;
   language: AppLanguage;
   hasCompletedFirstDuel: boolean;
 }
@@ -83,6 +84,7 @@ interface SettingsStoreState extends AudioSettings, AccessibilitySettings, Profi
     reconnectionToken: string;
   }) => void;
   clearLastRoomSession: () => void;
+  markSessionStarted: (sessionAt: number) => void;
   setLanguage: (language: AppLanguage) => void;
   completeFirstDuel: () => void;
 
@@ -108,6 +110,7 @@ const defaultSettings: AudioSettings & AccessibilitySettings & ProfileSettings &
   lastRoomCode: null,
   lastRoomPlayerId: null,
   lastRoomReconnectToken: null,
+  lastSessionAt: null,
   language: 'tr',
   hasCompletedFirstDuel: false,
   usageAnalyticsEnabled: false,
@@ -153,6 +156,7 @@ export function normalizeSavedSettings(
     lastRoomReconnectToken: typeof saved.lastRoomReconnectToken === 'string'
       ? saved.lastRoomReconnectToken.slice(0, 512)
       : null,
+    lastSessionAt: typeof saved.lastSessionAt === 'number' ? saved.lastSessionAt : null,
     language: saved.language === 'en' ? 'en' : 'tr',
     hasCompletedFirstDuel: savedBoolean(
       saved.hasCompletedFirstDuel,
@@ -206,6 +210,10 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
     });
     get().saveSettings();
   },
+  markSessionStarted: (sessionAt) => {
+    set({ lastSessionAt: sessionAt });
+    get().saveSettings();
+  },
   setLanguage: (language) => { set({ language }); get().saveSettings(); },
   completeFirstDuel: () => {
     set({ hasCompletedFirstDuel: true });
@@ -257,6 +265,7 @@ export const useSettingsStore = create<SettingsStoreState>((set, get) => ({
         lastRoomCode: state.lastRoomCode,
         lastRoomPlayerId: state.lastRoomPlayerId,
         lastRoomReconnectToken: state.lastRoomReconnectToken,
+        lastSessionAt: state.lastSessionAt,
         language: state.language,
         hasCompletedFirstDuel: state.hasCompletedFirstDuel,
         usageAnalyticsEnabled: state.usageAnalyticsEnabled,

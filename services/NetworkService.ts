@@ -63,6 +63,7 @@ export class NetworkService {
   private roomCode: string | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private gracePeriodStart: number | null = null;
+  private reconnectAttempts = 0;
   private processedMessageIds = new Set<string>();
   // A page reload creates a new NetworkService while the authoritative room
   // keeps the player's last movement sequence. Seed from wall-clock time so a
@@ -83,6 +84,7 @@ export class NetworkService {
   async connect(roomCode: string, playerId: string): Promise<void> {
     this.playerId = playerId;
     this.roomCode = roomCode;
+    this.reconnectAttempts = 0;
     if (!this.transport) {
       throw new Error('No transport configured');
     }
@@ -104,6 +106,7 @@ export class NetworkService {
   ): Promise<void> {
     this.playerId = playerId;
     this.roomCode = roomCode;
+    this.reconnectAttempts = 0;
     if (!this.transport) {
       throw new Error('No transport configured');
     }
@@ -124,6 +127,7 @@ export class NetworkService {
       this.reconnectTimer = null;
     }
     this.gracePeriodStart = null;
+    this.reconnectAttempts = 0;
     this.playerId = null;
     this.roomCode = null;
     this.processedMessageIds.clear();
@@ -242,7 +246,8 @@ export class NetworkService {
       this.setState('reconnecting');
       this.scheduleReconnect();
     } else {
-      if (state === 'connected' && this.gracePeriodStart) {
+      if (state === 'connected') {
+        this.reconnectAttempts = 0;
         this.gracePeriodStart = null;
       }
       this.setState(state);
@@ -261,6 +266,8 @@ export class NetworkService {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    const delay = Math.min(30_000, 3_000 * Math.pow(2, this.reconnectAttempts));
+    this.reconnectAttempts += 1;
     this.reconnectTimer = setTimeout(() => {
       if (this.state !== 'reconnecting') return;
       if (!this.roomCode || !this.playerId || !this.transport) {
@@ -280,7 +287,7 @@ export class NetworkService {
         .catch(() => {
           this.scheduleReconnect();
         });
-    }, 3000);
+    }, delay);
   }
 }
 

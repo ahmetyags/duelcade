@@ -48,7 +48,7 @@ function boardConfig(mode: TurnGameMode, difficulty: Difficulty): BoardConfig {
   if (mode === 'rune_grid') {
     return [
       { rows: 3, columns: 3, winLength: 3 },
-      { rows: 4, columns: 5, winLength: 4 },
+      { rows: 4, columns: 4, winLength: 4 },
       { rows: 5, columns: 6, winLength: 5 },
       { rows: 6, columns: 7, winLength: 5 },
     ][level];
@@ -57,14 +57,14 @@ function boardConfig(mode: TurnGameMode, difficulty: Difficulty): BoardConfig {
     return [
       { rows: 5, columns: 6, winLength: 4 },
       { rows: 6, columns: 7, winLength: 4 },
-      { rows: 7, columns: 8, winLength: 5 },
+      { rows: 6, columns: 8, winLength: 5 },
       { rows: 8, columns: 9, winLength: 5 },
     ][level];
   }
   if (mode === 'memory_pairs') {
     return [
       { rows: 3, columns: 4, winLength: 0 },
-      { rows: 4, columns: 5, winLength: 0 },
+      { rows: 4, columns: 4, winLength: 0 },
       { rows: 5, columns: 6, winLength: 0 },
       { rows: 6, columns: 7, winLength: 0 },
     ][level];
@@ -94,7 +94,7 @@ function boardConfig(mode: TurnGameMode, difficulty: Difficulty): BoardConfig {
     ][level];
   }
   if (mode === 'neon_trail') {
-    const size = [5, 6, 7, 8][level];
+    const size = [5, 5, 7, 8][level];
     return { rows: size, columns: size, winLength: 0 };
   }
   if (mode === 'gateway_race') {

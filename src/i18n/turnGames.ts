@@ -305,9 +305,9 @@ export const TURN_UI = {
     skipWaitingDescription: 'The game will change when your opponent approves.',
     skipCancel: 'Cancel request',
     tutorialTitle: 'YOUR FIRST DUEL',
-    tutorialFirstMove: 'Tap any empty square to place your rune.',
-    tutorialWatchOpponent: 'Watch DuelBot’s move and look for the line it is building.',
-    tutorialBuildAndBlock: 'Build your own line—or block DuelBot before its next move.',
+    tutorialFirstMove: 'Tap an empty square to place your first rune.',
+    tutorialWatchOpponent: 'Watch DuelBot and block the line it is building.',
+    tutorialBuildAndBlock: 'Build your own line before the next bot move.',
   },
   tr: {
     howToPlay: 'NASIL OYNANIR?', closeHowTo: 'Nasıl oynanır penceresini kapat',
@@ -351,9 +351,9 @@ export const TURN_UI = {
     skipWaitingDescription: 'Rakibin onayladığında oyun ikiniz için de değişecek.',
     skipCancel: 'İsteği iptal et',
     tutorialTitle: 'İLK DÜELLON',
-    tutorialFirstMove: 'Rününü yerleştirmek için boş bir kareye dokun.',
-    tutorialWatchOpponent: 'DuelBot’un hamlesini izle ve kurduğu çizgiyi bul.',
-    tutorialBuildAndBlock: 'Kendi çizgini kur veya DuelBot’un sonraki hamlesini engelle.',
+    tutorialFirstMove: 'İlk rünü koymak için boş bir kareye dokun.',
+    tutorialWatchOpponent: 'DuelBot’un hamlesini izle ve kurduğu çizgiyi engelle.',
+    tutorialBuildAndBlock: 'Sıradaki bot hamlesinden önce kendi çizgini kur.',
   },
 } as const;
 

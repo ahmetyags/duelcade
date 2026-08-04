@@ -165,7 +165,6 @@ export function GameHowToPlayModal({
     [ui.goal, content.help.goal],
     [ui.yourTurn, content.help.turn],
     [ui.win, content.help.win],
-    [ui.difficulty, content.help.difficulty],
   ] as const;
 
   return (

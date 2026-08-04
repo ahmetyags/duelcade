@@ -70,6 +70,7 @@ export default function ResultsScreen() {
             ? 'win' as const
             : 'loss' as const,
       durationBucket: durationBucket(result.completionTimeMs),
+      durationMs: result.completionTimeMs,
       roundCount: result.totalPuzzles,
     };
     trackAnalyticsEvent(

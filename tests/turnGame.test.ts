@@ -80,6 +80,14 @@ test('round order is seeded, shuffled and preserves match score', () => {
   assert.deepEqual(session.state.scores, [1, 0]);
 });
 
+test('medium core boards stay compact for a smoother first session', () => {
+  const rune = createTurnMatchSession('medium-rune', ['a', 'b'], 5, 'medium', 5 * 60 * 1000, ['rune_grid']);
+  const memory = createTurnMatchSession('medium-memory', ['a', 'b'], 5, 'medium', 5 * 60 * 1000, ['memory_pairs']);
+
+  assert.equal(rune.state.cells.length, 16);
+  assert.equal(memory.state.cells.length, 16);
+});
+
 test('hard difficulty scales compact games to roughly thirty cells', () => {
   const session = createTurnMatchSession('hard-scale', ['a', 'b'], 10, 'hard');
   for (let index = 0; index < session.modeOrder.length; index += 1) {

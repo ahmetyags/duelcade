@@ -30,9 +30,11 @@ export interface AnalyticsProperties {
   difficulty?: 'easy' | 'medium' | 'hard';
   result?: 'win' | 'loss' | 'draw' | 'abandoned';
   durationBucket?: 'under_2m' | '2_to_5m' | 'over_5m';
+  durationMs?: number;
   roundCount?: number;
   questKey?: 'play_duel' | 'win_duel' | 'win_rounds';
   mode?: 'rune_grid' | 'memory_pairs' | 'circuit_claim' | 'neon_trail';
+  isReturningSession?: boolean;
 }
 
 interface QueuedAnalyticsEvent {
