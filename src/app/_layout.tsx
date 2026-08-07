@@ -55,6 +55,7 @@ function RootLayoutNav() {
       <Stack.Screen name="lobby" />
       <Stack.Screen name="game" />
       <Stack.Screen name="results" />
+      <Stack.Screen name="profile" />
       <Stack.Screen name="history" />
       <Stack.Screen name="progression" />
       <Stack.Screen name="settings" />

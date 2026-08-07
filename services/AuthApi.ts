@@ -30,6 +30,49 @@ export interface MatchHistoryItem {
   xpEarned: number;
 }
 
+export interface LeaderboardSummary {
+  globalRank: number | null;
+  totalScore: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+export type CompetitiveLeague =
+  | 'Bronze'
+  | 'Silver'
+  | 'Gold'
+  | 'Platinum'
+  | 'Diamond'
+  | 'Master'
+  | 'Grandmaster';
+
+export interface CompetitiveSummary {
+  seasonRating: number;
+  league: CompetitiveLeague;
+  season: string;
+  results: {
+    wins: number;
+    losses: number;
+    draws: number;
+  };
+  winRate: number;
+}
+
+export interface SeasonSummary {
+  id: string;
+  name: string;
+  startsAt: number;
+  endsAt: number;
+}
+
+export interface ProfileSummary {
+  player: ServerPlayer;
+  leaderboard: LeaderboardSummary;
+  competitive: CompetitiveSummary;
+  season: SeasonSummary;
+}
+
 export type CosmeticType = 'avatar' | 'frame' | 'table_theme';
 export type QuestKey = 'play_duel' | 'win_duel' | 'win_rounds';
 export type FeedbackCategory =
@@ -175,6 +218,49 @@ export function updateServerDisplayName(
   displayName: string,
 ): Promise<{ player: ServerPlayer }> {
   return request('/me', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ displayName }),
+  });
+}
+
+export function fetchProfile(accessToken: string): Promise<ProfileSummary> {
+  return request('/profile', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function fetchLeaderboard(
+  accessToken: string,
+): Promise<{ leaderboard: LeaderboardSummary }> {
+  return request('/leaderboard', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function fetchCompetitive(
+  accessToken: string,
+): Promise<{ competitive: CompetitiveSummary }> {
+  return request('/competitive', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function fetchSeason(accessToken: string): Promise<{ season: SeasonSummary }> {
+  return request('/season', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function updateProfile(
+  accessToken: string,
+  displayName: string,
+): Promise<{ player: ServerPlayer }> {
+  return request('/profile', {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ displayName }),

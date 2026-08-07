@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,11 +21,11 @@ import {
   Gauge,
   LogIn,
   Play,
-  Gamepad2,
   History,
   Plus,
   RefreshCw,
   Settings,
+  UserRound,
   WifiOff,
   X,
 } from 'lucide-react-native';
@@ -79,6 +80,8 @@ export default function HomeScreen() {
   const progression = useProgressionQuery();
   const progressionData = progression.data?.progression;
   const [activeActionModal, setActiveActionModal] = useState<ActionModalKind | null>(null);
+  const [profileAuthVisible, setProfileAuthVisible] = useState(false);
+  const [profileAuthLoading, setProfileAuthLoading] = useState(false);
   const displayedProgression = progressionData ?? {
     level: 1,
     totalXp: 0,
@@ -121,6 +124,33 @@ export default function HomeScreen() {
       const name = displayName || t('common.adventurerFallback', { number: Math.floor(Math.random() * 999) });
       await signInAsGuest(name);
       if (!displayName) setDisplayName(name);
+    }
+  };
+
+  const openProfile = () => {
+    triggerHaptic('light');
+    if (user?.serverBacked) {
+      router.push('/profile' as never);
+      return;
+    }
+    setProfileAuthVisible(true);
+  };
+
+  const handleProfileSignIn = async () => {
+    if (profileAuthLoading) return;
+    setProfileAuthLoading(true);
+    try {
+      const name = displayName || user?.displayName
+        || t('common.playerFallback', { number: Math.floor(Math.random() * 999) });
+      if (isAuthenticated && !user?.serverBacked) {
+        await useAuthStore.getState().signOut();
+      }
+      await useAuthStore.getState().signInAsGuest(name);
+      if (!displayName) setDisplayName(name);
+      setProfileAuthVisible(false);
+      router.push('/profile' as never);
+    } finally {
+      setProfileAuthLoading(false);
     }
   };
 
@@ -213,14 +243,24 @@ export default function HomeScreen() {
             levelLabel={t('progression.level')}
             viewRewardsLabel={t('home.viewRewards')}
           />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('common.settings')}
-            onPress={() => router.push('/settings')}
-            style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}
-          >
-            <Settings size={20} color={colors.primary} strokeWidth={2.2} />
-          </Pressable>
+          <View style={styles.topBarActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Profile"
+              onPress={openProfile}
+              style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}
+            >
+              <UserRound size={20} color={colors.primary} strokeWidth={2.2} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('common.settings')}
+              onPress={() => router.push('/settings')}
+              style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}
+            >
+              <Settings size={20} color={colors.primary} strokeWidth={2.2} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.hero}>
@@ -333,11 +373,99 @@ export default function HomeScreen() {
           ensureAuth={ensureAuth}
         />
       )}
+      {profileAuthVisible && (
+        <ProfileAuthModal
+          loading={profileAuthLoading}
+          onClose={() => setProfileAuthVisible(false)}
+          onSignIn={handleProfileSignIn}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 type ActionModalKind = 'solo' | 'create' | 'join';
+
+function ProfileAuthModal({
+  loading,
+  onClose,
+  onSignIn,
+}: {
+  loading: boolean;
+  onClose: () => void;
+  onSignIn: () => void;
+}) {
+  const { language, t } = useTranslation();
+  const title = language === 'tr' ? 'Profilini oluştur' : 'Create your profile';
+  const description = language === 'tr'
+    ? 'İlerlemeni kaydetmek, sezonlara katılmak ve liderlik tablosunda yer almak için giriş yap.'
+    : 'Sign in to save progress, join seasons, and appear on the leaderboard.';
+  const methodLabel = language === 'tr' ? 'Duelcade hesabı oluştur' : 'Create Duelcade account';
+  const methodHelp = language === 'tr'
+    ? 'Mevcut auth altyapısı güvenli guest session kullanıyor.'
+    : 'The current auth flow uses a secure guest session.';
+  const unavailable = language === 'tr'
+    ? `${Platform.OS === 'ios' ? 'Apple, ' : ''}Google, Discord, GitHub ve Email yakında.`
+    : `${Platform.OS === 'ios' ? 'Apple, ' : ''}Google, Discord, GitHub, and Email are coming soon.`;
+
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View accessibilityViewIsModal style={styles.profileAuthModal}>
+          <View style={styles.actionModalHeader}>
+            <View style={styles.actionModalTitle}>
+              <UserRound size={23} color={colors.primaryDark} />
+              <ThemedText variant="subtitle">{title}</ThemedText>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+              onPress={onClose}
+              style={styles.modalCloseButton}
+            >
+              <X size={20} color={colors.textSecondary} strokeWidth={2.6} />
+            </Pressable>
+          </View>
+          <ThemedText color="secondary" style={styles.profileAuthDescription}>
+            {description}
+          </ThemedText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={methodLabel}
+            onPress={onSignIn}
+            disabled={loading}
+            style={({ pressed }) => [
+              styles.authMethod,
+              pressed && styles.onlineActionPressed,
+              loading && styles.disabledAuthMethod,
+            ]}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.primaryDark} />
+            ) : (
+              <UserRound size={20} color={colors.primaryDark} strokeWidth={2.6} />
+            )}
+            <View style={styles.authMethodCopy}>
+              <ThemedText variant="label" style={styles.authMethodLabel}>
+                {methodLabel}
+              </ThemedText>
+              <ThemedText variant="caption" color="muted">{methodHelp}</ThemedText>
+            </View>
+          </Pressable>
+          <ThemedText variant="caption" color="muted" style={styles.profileAuthFootnote}>
+            {unavailable}
+          </ThemedText>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 function HomeActionModal({
   kind,
@@ -660,6 +788,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  topBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   settingsButton: {
     width: 44,
     height: 44,
@@ -758,6 +891,51 @@ const styles = StyleSheet.create({
     borderColor: colors.amber,
   },
   levelChipText: { color: colors.amberMuted },
+  profileAuthModal: {
+    width: '92%',
+    maxWidth: 420,
+    maxHeight: '86%',
+    borderRadius: radius.xl,
+    borderWidth: 2,
+    borderTopColor: colors.metalLight,
+    borderRightColor: colors.border,
+    borderBottomColor: colors.borderDark,
+    borderLeftColor: colors.border,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...shadows.lg,
+  },
+  profileAuthDescription: {
+    lineHeight: 22,
+  },
+  authMethod: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderColor: colors.primary,
+    borderBottomColor: colors.primaryDark,
+    backgroundColor: colors.primaryContainer,
+    ...shadows.sm,
+  },
+  disabledAuthMethod: {
+    opacity: 0.58,
+  },
+  authMethodCopy: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  authMethodLabel: {
+    color: colors.primaryDark,
+  },
+  profileAuthFootnote: {
+    textAlign: 'center',
+  },
   progressionHeaderHud: {
     width: 208,
     height: 44,
