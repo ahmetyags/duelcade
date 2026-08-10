@@ -5,6 +5,8 @@ import {
   AuthApiError,
   createGuestSession,
   createEmailSession,
+  exchangeFirebaseSession,
+  fetchAuthProviders,
   registerEmailSession,
   logoutGuestSession,
   refreshGuestSession,
@@ -13,6 +15,15 @@ import {
   type AuthProvider,
 } from '@/services/AuthApi';
 import { openOAuthSession } from '@/services/OAuthAuth';
+import {
+  isFirebaseConfigured,
+  registerFirebaseEmail,
+  restoreFirebaseIdentity,
+  signInFirebaseEmail,
+  signInFirebaseSocial,
+  signOutFirebase,
+  type FirebaseIdentityToken,
+} from '@/services/FirebaseAuth';
 import {
   deleteRefreshToken,
   readRefreshToken,
@@ -114,6 +125,20 @@ async function persistServerSession(
   };
 }
 
+async function persistFirebaseSession(identity: FirebaseIdentityToken) {
+  const session = await exchangeFirebaseSession(identity.idToken, identity.displayName);
+  return persistServerSession(session, identity.provider);
+}
+
+async function firebaseModeEnabled(): Promise<boolean> {
+  if (!isFirebaseConfigured) return false;
+  try {
+    return (await fetchAuthProviders()).providers.firebase === true;
+  } catch {
+    return false;
+  }
+}
+
 function parseSavedUser(raw: string | null): AuthUser | null {
   if (!raw) return null;
   try {
@@ -185,10 +210,16 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     set({ isLoading: true });
     try {
       const previousRefreshToken = await readRefreshToken().catch(() => null);
-      const session = await createEmailSession(email.trim().toLowerCase(), password);
-      const persisted = await persistServerSession(session, 'email');
+      const normalizedEmail = email.trim().toLowerCase();
+      const useFirebase = await firebaseModeEnabled();
+      const session = useFirebase
+        ? null
+        : await createEmailSession(normalizedEmail, password);
+      const persisted = useFirebase
+        ? await persistFirebaseSession(await signInFirebaseEmail(normalizedEmail, password))
+        : await persistServerSession(session!, 'email');
       set({ ...persisted, isAuthenticated: true, isLoading: false });
-      if (previousRefreshToken && previousRefreshToken !== session.refreshToken) {
+      if (previousRefreshToken) {
         await logoutGuestSession(previousRefreshToken).catch(() => undefined);
       }
     } catch (error) {
@@ -201,14 +232,21 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     set({ isLoading: true });
     try {
       const previousRefreshToken = await readRefreshToken().catch(() => null);
-      const session = await registerEmailSession(
-        displayName.trim().slice(0, 24),
-        email.trim().toLowerCase(),
-        password,
-      );
-      const persisted = await persistServerSession(session, 'email');
+      const normalizedName = displayName.trim().slice(0, 24);
+      const normalizedEmail = email.trim().toLowerCase();
+      const useFirebase = await firebaseModeEnabled();
+      const session = useFirebase
+        ? null
+        : await registerEmailSession(normalizedName, normalizedEmail, password);
+      const persisted = useFirebase
+        ? await persistFirebaseSession(await registerFirebaseEmail(
+          normalizedName,
+          normalizedEmail,
+          password,
+        ))
+        : await persistServerSession(session!, 'email');
       set({ ...persisted, isAuthenticated: true, isLoading: false });
-      if (previousRefreshToken && previousRefreshToken !== session.refreshToken) {
+      if (previousRefreshToken) {
         await logoutGuestSession(previousRefreshToken).catch(() => undefined);
       }
     } catch (error) {
@@ -221,10 +259,13 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     set({ isLoading: true });
     try {
       const previousRefreshToken = await readRefreshToken().catch(() => null);
-      const session = await openOAuthSession(provider);
-      const persisted = await persistServerSession(session, provider);
+      const useFirebase = await firebaseModeEnabled();
+      const session = useFirebase ? null : await openOAuthSession(provider);
+      const persisted = useFirebase
+        ? await persistFirebaseSession(await signInFirebaseSocial(provider))
+        : await persistServerSession(session!, provider);
       set({ ...persisted, isAuthenticated: true, isLoading: false });
-      if (previousRefreshToken && previousRefreshToken !== session.refreshToken) {
+      if (previousRefreshToken) {
         await logoutGuestSession(previousRefreshToken).catch(() => undefined);
       }
     } catch (error) {
@@ -274,6 +315,19 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
             }
           }
         }
+        const firebaseIdentity = await firebaseModeEnabled()
+          ? await restoreFirebaseIdentity().catch(() => null)
+          : null;
+        if (firebaseIdentity) {
+          try {
+            const persisted = await persistFirebaseSession(firebaseIdentity);
+            await AsyncStorage.multiRemove([...LEGACY_AUTH_KEYS]);
+            set({ ...persisted, isAuthenticated: true, isLoading: false });
+            return;
+          } catch {
+            // Keep evaluating the local guest fallback below.
+          }
+        }
         if (saved) {
           if (!saved.isGuest) {
             await AsyncStorage.multiRemove([AUTH_KEY, ...LEGACY_AUTH_KEYS]);
@@ -319,6 +373,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       refreshToken
         ? logoutGuestSession(refreshToken).catch(() => undefined)
         : Promise.resolve(),
+      signOutFirebase().catch(() => undefined),
     ]);
   },
 
@@ -349,7 +404,19 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     if (refreshInFlight) return refreshInFlight;
     refreshInFlight = (async () => {
       const refreshToken = await readRefreshToken().catch(() => null);
-      if (!refreshToken) return null;
+      if (!refreshToken) {
+        const firebaseIdentity = await firebaseModeEnabled()
+          ? await restoreFirebaseIdentity().catch(() => null)
+          : null;
+        if (!firebaseIdentity) return null;
+        try {
+          const persisted = await persistFirebaseSession(firebaseIdentity);
+          set({ ...persisted, isAuthenticated: true });
+          return persisted.accessToken;
+        } catch {
+          return null;
+        }
+      }
       try {
         const session = await refreshGuestSession(refreshToken);
         const persisted = await persistServerSession(session, current.user?.authProvider ?? 'guest');
@@ -358,6 +425,18 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       } catch (error) {
         if (isRejectedSession(error)) {
           await deleteRefreshToken().catch(() => undefined);
+        }
+        const firebaseIdentity = await firebaseModeEnabled()
+          ? await restoreFirebaseIdentity().catch(() => null)
+          : null;
+        if (firebaseIdentity) {
+          try {
+            const persisted = await persistFirebaseSession(firebaseIdentity);
+            set({ ...persisted, isAuthenticated: true });
+            return persisted.accessToken;
+          } catch {
+            // Fall through and clear the stale backend token below.
+          }
         }
         set({
           accessToken: null,

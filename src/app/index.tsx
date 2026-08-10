@@ -64,6 +64,7 @@ import {
   type PlayerProgression,
 } from '@/services/AuthApi';
 import { isRegistrationPasswordValid, passwordRequirements } from '@/services/PasswordPolicy';
+import { firebaseClientProviderAvailable } from '@/services/FirebaseAuth';
 import { warmUpGameServer, type GameServerStatus } from '@/services/GameServerAvailability';
 import type { Difficulty } from '@/types/game';
 
@@ -438,6 +439,13 @@ function ProfileAuthModal({
   } as const;
   const requirementStates = passwordRequirements(password);
   const validRegistrationPassword = isRegistrationPasswordValid(password);
+  const authMethodAvailable = (provider: 'email' | SocialAuthProvider) => (
+    providerAvailability?.[provider] === true
+    && (
+      providerAvailability.firebase !== true
+      || firebaseClientProviderAvailable(provider)
+    )
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -470,6 +478,12 @@ function ProfileAuthModal({
         EMAIL_ALREADY_REGISTERED: { tr: 'Bu e-posta zaten kayıtlı. Giriş yapmayı dene.', en: 'This email is already registered. Try signing in.' },
         INVALID_EMAIL_OR_PASSWORD: { tr: 'E-posta veya şifre hatalı.', en: 'Email or password is incorrect.' },
         OAUTH_PROVIDER_NOT_CONFIGURED: { tr: 'Bu giriş sağlayıcısı henüz yapılandırılmadı.', en: 'This sign-in provider is not configured yet.' },
+        FIREBASE_NOT_CONFIGURED: { tr: 'Firebase uygulama ayarları eksik.', en: 'Firebase app configuration is missing.' },
+        FIREBASE_AUTH_NOT_CONFIGURED: { tr: 'Firebase sunucuda henüz etkin değil.', en: 'Firebase is not enabled on the server yet.' },
+        ACCOUNT_PROVIDER_MISMATCH: { tr: 'Bu e-posta başka bir giriş yöntemiyle kayıtlı.', en: 'This email is registered with another sign-in method.' },
+        INVALID_EMAIL: { tr: 'Geçerli bir e-posta adresi gir.', en: 'Enter a valid email address.' },
+        WEAK_PASSWORD: { tr: 'Şifre gerekliliklerini tamamla.', en: 'Complete all password requirements.' },
+        NETWORK_ERROR: { tr: 'Firebase bağlantısı kurulamadı.', en: 'Could not reach Firebase.' },
         PERSISTENCE_UNAVAILABLE: { tr: 'Hesap sunucusu şu anda kullanılamıyor.', en: 'The account server is currently unavailable.' },
       };
       setAuthError((messages[code] ?? {
@@ -513,11 +527,11 @@ function ProfileAuthModal({
                 accessibilityRole="button"
                 accessibilityLabel={`${label} sign in`}
                 onPress={() => void run(() => onOAuth(id))}
-                disabled={loading || providerAvailability?.[id] !== true}
+                disabled={loading || !authMethodAvailable(id)}
                 style={({ pressed }) => [
                   styles.providerButton,
                   pressed && styles.onlineActionPressed,
-                  (loading || providerAvailability?.[id] !== true) && styles.disabledAuthMethod,
+                  (loading || !authMethodAvailable(id)) && styles.disabledAuthMethod,
                 ]}
               >
                 <AuthProviderIcon provider={id as SocialAuthProvider} size={21} />
@@ -591,7 +605,7 @@ function ProfileAuthModal({
             fullWidth
             loading={loading}
             disabled={
-              providerAvailability?.email !== true
+              !authMethodAvailable('email')
               ||
               !email.includes('@')
               || password.length < 8

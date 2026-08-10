@@ -135,6 +135,19 @@ EXPO_PUBLIC_GAME_SERVER_URL=http://192.168.1.50:2567
 
 Üretimde HTTPS/WSS destekli bir sunucu adresi zorunludur.
 
+### Firebase Authentication
+
+Uygulama e-posta/şifre ile Google, Facebook ve GitHub kimliklerini Firebase JS
+SDK üzerinden doğrular. Firebase Console'daki web uygulamasının herkese açık
+ayarlarını `.env.example` içinde belgelenen `EXPO_PUBLIC_FIREBASE_*`
+değişkenlerine ekleyin. Android/iOS sosyal girişleri aynı dosyada listelenen
+provider client ID'lerini de kullanır.
+
+Firebase ID token backend ile değiştirilir; oyuncu UUID'si, oyun oturumu,
+ilerleme ve leaderboard üzerindeki otorite mevcut Duelcade backend'inde kalır.
+Firebase değişkenleri henüz yoksa geçiş süresince eski Duelcade giriş akışı
+çalışmaya devam eder.
+
 Production web dağıtımında `.env.production` içindeki sunucu adresinin eski
 Metro önbelleğinden etkilenmemesi için export komutu önbelleği temizler:
 

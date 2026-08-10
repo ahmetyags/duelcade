@@ -28,6 +28,7 @@ export interface LeaderboardEntry {
 }
 
 export interface AuthProviderAvailability {
+  firebase: boolean;
   email: boolean;
   google: boolean;
   facebook: boolean;
@@ -221,6 +222,16 @@ export function createGuestSession(displayName: string): Promise<ServerSession> 
 
 export function fetchAuthProviders(): Promise<{ providers: AuthProviderAvailability }> {
   return request('/auth/providers', { method: 'GET' }, 30_000);
+}
+
+export function exchangeFirebaseSession(
+  idToken: string,
+  displayName?: string | null,
+): Promise<ServerSession> {
+  return request('/auth/firebase/exchange', {
+    method: 'POST',
+    body: JSON.stringify({ idToken, displayName: displayName || undefined }),
+  }, 30_000);
 }
 
 export function registerEmailSession(
