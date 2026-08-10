@@ -131,6 +131,14 @@ function handleServerMessage(message: ServerMessage): void {
     case 'rematch.prompt':
       roomStore.setRematchVote(event.payload.playerId, event.payload.vote);
       break;
+    case 'round.skip.updated': {
+      const current = useGameStore.getState().turnMatch;
+      if (current) gameStore.setTurnMatch({ ...current, skipVotes: [...event.payload.skipVotes] });
+      if (event.payload.requestedByPlayerId && event.payload.requestedByPlayerId !== roomStore.localPlayerId) {
+        triggerHaptic('warning');
+      }
+      break;
+    }
     case 'error':
       roomStore.setError(event.payload.userMessageKey || event.payload.details);
       roomStore.setLoading(false);

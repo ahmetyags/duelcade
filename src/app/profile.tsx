@@ -5,6 +5,7 @@ import {
   Award,
   CalendarDays,
   Medal,
+  LogOut,
   RotateCw,
   ScrollText,
   ShieldCheck,
@@ -20,10 +21,12 @@ import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { ThemedText } from '@/components/ui/ThemedText';
 import {
   fetchMatchHistory,
+  fetchLeaderboard,
   fetchProfile,
   type CompetitiveSummary,
   type LeaderboardSummary,
   type MatchHistoryItem,
+  type LeaderboardEntry,
   type ProfileSummary,
 } from '@/services/AuthApi';
 import { useAuthStore } from '@/store/authStore';
@@ -52,6 +55,7 @@ export default function ProfileScreen() {
   const { language } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const getValidAccessToken = useAuthStore((state) => state.getValidAccessToken);
+  const signOut = useAuthStore((state) => state.signOut);
   const avatarId = useSettingsStore((state) => state.avatarId);
   const frameId = useSettingsStore((state) => state.frameId);
   const copy = language === 'tr' ? trCopy : enCopy;
@@ -73,6 +77,16 @@ export default function ProfileScreen() {
       const token = await getValidAccessToken();
       if (!token) throw new Error('AUTH_UNAVAILABLE');
       return fetchMatchHistory(token, 8);
+    },
+  });
+
+  const ranking = useQuery({
+    queryKey: ['leaderboard', user?.id],
+    enabled: user?.serverBacked === true,
+    queryFn: async () => {
+      const token = await getValidAccessToken();
+      if (!token) throw new Error('AUTH_UNAVAILABLE');
+      return fetchLeaderboard(token);
     },
   });
 
@@ -117,6 +131,14 @@ export default function ProfileScreen() {
               </ThemedText>
             </View>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.signOut}
+            onPress={() => void signOut().then(() => router.replace('/'))}
+            style={styles.signOutButton}
+          >
+            <LogOut size={18} color={colors.error} />
+          </Pressable>
         </View>
 
         {profile.isError && (
@@ -130,6 +152,17 @@ export default function ProfileScreen() {
             <Stat label={copy.wins} value={String(leaderboard.wins)} tone="success" />
             <Stat label={copy.losses} value={String(leaderboard.losses)} tone="error" />
             <Stat label={copy.winRate} value={`${leaderboard.winRate}%`} />
+          </View>
+          <View style={styles.leaderboardList}>
+            {ranking.isPending ? (
+              <ThemedText color="muted">{copy.loadingLeaderboard}</ThemedText>
+            ) : ranking.isError ? (
+              <RetryCard compact copy={copy.leaderboardError} onRetry={() => ranking.refetch()} />
+            ) : ranking.data.entries.length === 0 ? (
+              <ThemedText color="muted">{copy.emptyLeaderboard}</ThemedText>
+            ) : ranking.data.entries.slice(0, 20).map((entry) => (
+              <LeaderboardRow key={entry.playerId} entry={entry} current={entry.playerId === user.id} />
+            ))}
           </View>
         </SectionCard>
 
@@ -183,6 +216,19 @@ export default function ProfileScreen() {
         </SectionCard>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function LeaderboardRow({ entry, current }: { entry: LeaderboardEntry; current: boolean }) {
+  return (
+    <View style={[styles.leaderboardRow, current && styles.leaderboardRowCurrent]}>
+      <ThemedText variant="mono" style={styles.rank}>#{entry.rank}</ThemedText>
+      <ThemedText variant="label" numberOfLines={1} style={styles.leaderboardName}>
+        {entry.displayName}
+      </ThemedText>
+      <ThemedText variant="caption" color="muted">{entry.wins}W · {entry.losses}L</ThemedText>
+      <ThemedText variant="label" color="operator">{entry.totalScore}</ThemedText>
+    </View>
   );
 }
 
@@ -337,6 +383,10 @@ type ProfileCopy = {
   loadingMatches: string;
   matchError: string;
   emptyMatches: string;
+  loadingLeaderboard: string;
+  leaderboardError: string;
+  emptyLeaderboard: string;
+  signOut: string;
   rules: { title: string; body: string }[];
 };
 
@@ -355,6 +405,10 @@ const enCopy: ProfileCopy = {
   loadingMatches: 'Loading matches...',
   matchError: 'Recent matches could not be loaded.',
   emptyMatches: 'Finish an online duel to start your match history.',
+  loadingLeaderboard: 'Loading global ranking...',
+  leaderboardError: 'The global ranking could not be loaded.',
+  emptyLeaderboard: 'The first ranked players will appear here.',
+  signOut: 'Sign out',
   rules: [
     { title: 'Season Rating', body: 'Players gain and lose rating throughout a season.' },
     { title: 'Leagues', body: 'Players promote through leagues based on their rating.' },
@@ -379,6 +433,10 @@ const trCopy: ProfileCopy = {
   loadingMatches: 'Maçlar yükleniyor...',
   matchError: 'Son maçlar yüklenemedi.',
   emptyMatches: 'Maç geçmişini başlatmak için çevrimiçi bir düello tamamla.',
+  loadingLeaderboard: 'Global sıralama yükleniyor...',
+  leaderboardError: 'Global sıralama yüklenemedi.',
+  emptyLeaderboard: 'İlk sıralamalı oyuncular burada görünecek.',
+  signOut: 'Çıkış yap',
   rules: [
     { title: 'Sezonluk Puan Sistemi', body: 'Oyuncular sezon boyunca puan kazanır ve kaybeder.' },
     { title: 'Ligler', body: 'Oyuncular puanlarına göre liglere yükselir.' },
@@ -436,6 +494,7 @@ const styles = StyleSheet.create({
     ...shadows.md,
   },
   profileCopy: { flex: 1, gap: spacing.xs },
+  signOutButton: { width: 42, height: 42, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.error, alignItems: 'center', justifyContent: 'center' },
   playerName: { color: colors.textPrimary },
   inlineMeta: {
     flexDirection: 'row',
@@ -476,6 +535,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
   },
   statValue: { fontSize: 20, lineHeight: 25 },
+  leaderboardList: { gap: spacing.xs },
+  leaderboardRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.borderSubtle },
+  leaderboardRowCurrent: { borderColor: colors.primary, backgroundColor: colors.primaryContainer },
+  rank: { width: 42, color: colors.amberMuted },
+  leaderboardName: { flex: 1 },
   competitiveTop: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Award,
   Bot,
+  Check,
   ChevronDown,
   Clock3,
   Gauge,
@@ -23,6 +23,7 @@ import {
   Play,
   History,
   Plus,
+  Mail,
   RefreshCw,
   Settings,
   UserRound,
@@ -37,6 +38,7 @@ import { PowerCoreMark } from '@/components/ui/PowerCoreMark';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { DurationSlider } from '@/components/ui/DurationSlider';
 import { PlayerProfileEditor } from '@/components/ui/PlayerProfileEditor';
+import { AuthProviderIcon, type SocialAuthProvider } from '@/components/ui/AuthProviderIcon';
 import { createRoom, initNetwork, joinRoom, resumeRoom } from '@/services/NetworkBridge';
 import { getErrorMessage } from '@/services/ErrorMessages';
 import { networkService } from '@/services/NetworkService';
@@ -54,7 +56,14 @@ import {
   isPlayerFrameId,
   isTableThemeId,
 } from '@/types/profile';
-import type { PlayerProgression } from '@/services/AuthApi';
+import {
+  AuthApiError,
+  fetchAuthProviders,
+  type AuthProvider,
+  type AuthProviderAvailability,
+  type PlayerProgression,
+} from '@/services/AuthApi';
+import { isRegistrationPasswordValid, passwordRequirements } from '@/services/PasswordPolicy';
 import { warmUpGameServer, type GameServerStatus } from '@/services/GameServerAvailability';
 import type { Difficulty } from '@/types/game';
 
@@ -129,24 +138,20 @@ export default function HomeScreen() {
 
   const openProfile = () => {
     triggerHaptic('light');
-    if (user?.serverBacked) {
+    if (user?.serverBacked && !user.isGuest) {
       router.push('/profile' as never);
       return;
     }
     setProfileAuthVisible(true);
   };
 
-  const handleProfileSignIn = async () => {
+  const finishProfileSignIn = async (action: () => Promise<void>) => {
     if (profileAuthLoading) return;
     setProfileAuthLoading(true);
     try {
-      const name = displayName || user?.displayName
-        || t('common.playerFallback', { number: Math.floor(Math.random() * 999) });
-      if (isAuthenticated && !user?.serverBacked) {
-        await useAuthStore.getState().signOut();
-      }
-      await useAuthStore.getState().signInAsGuest(name);
-      if (!displayName) setDisplayName(name);
+      await action();
+      const signedInUser = useAuthStore.getState().user;
+      if (signedInUser) setDisplayName(signedInUser.displayName);
       setProfileAuthVisible(false);
       router.push('/profile' as never);
     } finally {
@@ -238,7 +243,11 @@ export default function HomeScreen() {
           <HomeProgressionHud
             progression={displayedProgression}
             onPress={() => {
-              void ensureAuth().then(() => router.push('/progression'));
+              if (user?.serverBacked && !user.isGuest) {
+                router.push('/progression');
+              } else {
+                setProfileAuthVisible(true);
+              }
             }}
             levelLabel={t('progression.level')}
             viewRewardsLabel={t('home.viewRewards')}
@@ -377,7 +386,14 @@ export default function HomeScreen() {
         <ProfileAuthModal
           loading={profileAuthLoading}
           onClose={() => setProfileAuthVisible(false)}
-          onSignIn={handleProfileSignIn}
+          onOAuth={(provider) => finishProfileSignIn(
+            () => useAuthStore.getState().signInWithOAuth(provider),
+          )}
+          onEmail={(mode, name, email, password) => finishProfileSignIn(
+            () => mode === 'register'
+              ? useAuthStore.getState().registerWithEmail(name, email, password)
+              : useAuthStore.getState().signInWithEmail(email, password),
+          )}
         />
       )}
     </SafeAreaView>
@@ -389,24 +405,79 @@ type ActionModalKind = 'solo' | 'create' | 'join';
 function ProfileAuthModal({
   loading,
   onClose,
-  onSignIn,
+  onOAuth,
+  onEmail,
 }: {
   loading: boolean;
   onClose: () => void;
-  onSignIn: () => void;
+  onOAuth: (provider: Exclude<AuthProvider, 'guest' | 'email'>) => Promise<void>;
+  onEmail: (mode: 'login' | 'register', name: string, email: string, password: string) => Promise<void>;
 }) {
   const { language, t } = useTranslation();
+  const currentName = useSettingsStore((state) => state.displayName);
+  const [emailMode, setEmailMode] = useState<'login' | 'register'>('register');
+  const [name, setName] = useState(currentName);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [providerAvailability, setProviderAvailability] = useState<AuthProviderAvailability | null>(null);
   const title = language === 'tr' ? 'Profilini oluştur' : 'Create your profile';
   const description = language === 'tr'
     ? 'İlerlemeni kaydetmek, sezonlara katılmak ve liderlik tablosunda yer almak için giriş yap.'
     : 'Sign in to save progress, join seasons, and appear on the leaderboard.';
-  const methodLabel = language === 'tr' ? 'Duelcade hesabı oluştur' : 'Create Duelcade account';
-  const methodHelp = language === 'tr'
-    ? 'Mevcut auth altyapısı güvenli guest session kullanıyor.'
-    : 'The current auth flow uses a secure guest session.';
-  const unavailable = language === 'tr'
-    ? `${Platform.OS === 'ios' ? 'Apple, ' : ''}Google, Discord, GitHub ve Email yakında.`
-    : `${Platform.OS === 'ios' ? 'Apple, ' : ''}Google, Discord, GitHub, and Email are coming soon.`;
+  const providers = [
+    { id: 'google' as const, label: 'Google' },
+    { id: 'facebook' as const, label: 'Facebook' },
+    { id: 'github' as const, label: 'GitHub' },
+  ];
+  const requirementCopy = {
+    length: { tr: 'En az 8 karakter', en: 'At least 8 characters' },
+    lower: { tr: 'Bir küçük harf', en: 'One lowercase letter' },
+    upper: { tr: 'Bir büyük harf', en: 'One uppercase letter' },
+    number: { tr: 'Bir rakam', en: 'One number' },
+  } as const;
+  const requirementStates = passwordRequirements(password);
+  const validRegistrationPassword = isRegistrationPasswordValid(password);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void warmUpGameServer({ signal: controller.signal }).then((status) => {
+      if (controller.signal.aborted) return;
+      if (status !== 'ready') {
+        setAuthError(language === 'tr'
+          ? 'Hesap sunucusuna ulaşılamıyor.'
+          : 'The account server is unavailable.');
+        return;
+      }
+      void fetchAuthProviders()
+        .then((response) => setProviderAvailability(response.providers))
+        .catch(() => setAuthError(language === 'tr'
+          ? 'Giriş sistemi sunucuda henüz etkin değil.'
+          : 'The sign-in system is not enabled on the server yet.'));
+    });
+    return () => controller.abort();
+  }, [language]);
+  const run = async (action: () => Promise<void>) => {
+    setAuthError(null);
+    try {
+      await action();
+    } catch (error) {
+      const code = error instanceof AuthApiError
+        ? error.code
+        : error instanceof Error ? error.message : 'AUTH_FAILED';
+      const messages: Record<string, { tr: string; en: string }> = {
+        OAUTH_CANCELLED: { tr: 'Giriş iptal edildi.', en: 'Sign-in was cancelled.' },
+        EMAIL_ALREADY_REGISTERED: { tr: 'Bu e-posta zaten kayıtlı. Giriş yapmayı dene.', en: 'This email is already registered. Try signing in.' },
+        INVALID_EMAIL_OR_PASSWORD: { tr: 'E-posta veya şifre hatalı.', en: 'Email or password is incorrect.' },
+        OAUTH_PROVIDER_NOT_CONFIGURED: { tr: 'Bu giriş sağlayıcısı henüz yapılandırılmadı.', en: 'This sign-in provider is not configured yet.' },
+        PERSISTENCE_UNAVAILABLE: { tr: 'Hesap sunucusu şu anda kullanılamıyor.', en: 'The account server is currently unavailable.' },
+      };
+      setAuthError((messages[code] ?? {
+        tr: 'Giriş tamamlanamadı. Bağlantını kontrol edip tekrar dene.',
+        en: 'Could not sign in. Check your connection and try again.',
+      })[language]);
+    }
+  };
 
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
@@ -417,7 +488,7 @@ function ProfileAuthModal({
           onPress={onClose}
           style={StyleSheet.absoluteFill}
         />
-        <View accessibilityViewIsModal style={styles.profileAuthModal}>
+        <ScrollView accessibilityViewIsModal style={styles.profileAuthModal} contentContainerStyle={styles.profileAuthContent}>
           <View style={styles.actionModalHeader}>
             <View style={styles.actionModalTitle}>
               <UserRound size={23} color={colors.primaryDark} />
@@ -435,33 +506,108 @@ function ProfileAuthModal({
           <ThemedText color="secondary" style={styles.profileAuthDescription}>
             {description}
           </ThemedText>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={methodLabel}
-            onPress={onSignIn}
-            disabled={loading}
-            style={({ pressed }) => [
-              styles.authMethod,
-              pressed && styles.onlineActionPressed,
-              loading && styles.disabledAuthMethod,
-            ]}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color={colors.primaryDark} />
-            ) : (
-              <UserRound size={20} color={colors.primaryDark} strokeWidth={2.6} />
-            )}
-            <View style={styles.authMethodCopy}>
-              <ThemedText variant="label" style={styles.authMethodLabel}>
-                {methodLabel}
+          <View style={styles.providerGrid}>
+            {providers.map(({ id, label }) => (
+              <Pressable
+                key={id}
+                accessibilityRole="button"
+                accessibilityLabel={`${label} sign in`}
+                onPress={() => void run(() => onOAuth(id))}
+                disabled={loading || providerAvailability?.[id] !== true}
+                style={({ pressed }) => [
+                  styles.providerButton,
+                  pressed && styles.onlineActionPressed,
+                  (loading || providerAvailability?.[id] !== true) && styles.disabledAuthMethod,
+                ]}
+              >
+                <AuthProviderIcon provider={id as SocialAuthProvider} size={21} />
+                <ThemedText variant="label">{label}</ThemedText>
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.authDivider}><View style={styles.authDividerLine} /><ThemedText variant="caption" color="muted">EMAIL</ThemedText><View style={styles.authDividerLine} /></View>
+          {!providerAvailability && !authError && (
+            <View style={styles.authLoadingRow}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <ThemedText variant="caption" color="muted">
+                {language === 'tr' ? 'Giriş sunucusu hazırlanıyor…' : 'Preparing sign-in server…'}
               </ThemedText>
-              <ThemedText variant="caption" color="muted">{methodHelp}</ThemedText>
             </View>
+          )}
+          {emailMode === 'register' && (
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder={language === 'tr' ? 'Oyuncu adı' : 'Player name'}
+              placeholderTextColor={colors.textMuted}
+              maxLength={24}
+              style={styles.authInput}
+            />
+          )}
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="email@example.com"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            style={styles.authInput}
+          />
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder={language === 'tr' ? 'Şifre (en az 8 karakter)' : 'Password (8+ characters)'}
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            autoComplete={emailMode === 'register' ? 'new-password' : 'current-password'}
+            style={styles.authInput}
+          />
+          {emailMode === 'register' && (
+            <View style={styles.passwordRequirements} accessibilityLiveRegion="polite">
+              {requirementStates.map((requirement) => (
+                <View key={requirement.key} style={styles.passwordRequirement}>
+                  <View style={[
+                    styles.requirementIndicator,
+                    { backgroundColor: requirement.valid ? colors.success : colors.surfaceDark },
+                  ]}>
+                    {requirement.valid && <Check size={11} color={colors.textOnPrimary} strokeWidth={3} />}
+                  </View>
+                  <ThemedText
+                    variant="caption"
+                    style={{ color: requirement.valid ? colors.success : colors.textMuted }}
+                  >
+                    {requirementCopy[requirement.key][language]}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          )}
+          {authError && <ThemedText variant="caption" color="error">{authError}</ThemedText>}
+          <ThemedButton
+            label={emailMode === 'register'
+              ? language === 'tr' ? 'Email ile hesap oluştur' : 'Create account with email'
+              : language === 'tr' ? 'Email ile giriş yap' : 'Sign in with email'}
+            fullWidth
+            loading={loading}
+            disabled={
+              providerAvailability?.email !== true
+              ||
+              !email.includes('@')
+              || password.length < 8
+              || (emailMode === 'register' && (!name.trim() || !validRegistrationPassword))
+            }
+            icon={<Mail size={18} color={colors.textOnPrimary} />}
+            onPress={() => void run(() => onEmail(emailMode, name, email, password))}
+          />
+          <Pressable onPress={() => { setAuthError(null); setEmailMode((mode) => mode === 'login' ? 'register' : 'login'); }}>
+            <ThemedText variant="caption" color="accent" style={styles.profileAuthFootnote}>
+              {emailMode === 'register'
+                ? language === 'tr' ? 'Zaten hesabın var mı? Giriş yap' : 'Already have an account? Sign in'
+                : language === 'tr' ? 'Hesabın yok mu? Kayıt ol' : 'New here? Create an account'}
+            </ThemedText>
           </Pressable>
-          <ThemedText variant="caption" color="muted" style={styles.profileAuthFootnote}>
-            {unavailable}
-          </ThemedText>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -902,10 +1048,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderDark,
     borderLeftColor: colors.border,
     backgroundColor: colors.surface,
-    padding: spacing.lg,
-    gap: spacing.md,
     ...shadows.lg,
   },
+  profileAuthContent: { padding: spacing.lg, gap: spacing.md },
   profileAuthDescription: {
     lineHeight: 22,
   },
@@ -936,6 +1081,15 @@ const styles = StyleSheet.create({
   profileAuthFootnote: {
     textAlign: 'center',
   },
+  providerGrid: { flexDirection: 'row', gap: spacing.sm },
+  providerButton: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.primaryContainer },
+  authDivider: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  authDividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  authInput: { minHeight: 52, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, color: colors.textPrimary, paddingHorizontal: spacing.md, fontFamily: 'Quicksand-Medium', fontSize: 15 },
+  passwordRequirements: { gap: spacing.xs, paddingHorizontal: spacing.xs },
+  authLoadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  passwordRequirement: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  requirementIndicator: { width: 18, height: 18, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   progressionHeaderHud: {
     width: 208,
     height: 44,

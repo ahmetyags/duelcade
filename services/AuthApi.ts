@@ -14,6 +14,26 @@ export interface ServerSession {
   refreshTokenExpiresAt: number;
 }
 
+export type AuthProvider = 'guest' | 'email' | 'google' | 'facebook' | 'github';
+
+export interface LeaderboardEntry {
+  rank: number;
+  playerId: string;
+  displayName: string;
+  totalScore: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
+}
+
+export interface AuthProviderAvailability {
+  email: boolean;
+  google: boolean;
+  facebook: boolean;
+  github: boolean;
+}
+
 export interface MatchHistoryItem {
   id: string;
   roomId: string;
@@ -199,6 +219,39 @@ export function createGuestSession(displayName: string): Promise<ServerSession> 
   }, 30_000);
 }
 
+export function fetchAuthProviders(): Promise<{ providers: AuthProviderAvailability }> {
+  return request('/auth/providers', { method: 'GET' }, 30_000);
+}
+
+export function registerEmailSession(
+  displayName: string,
+  email: string,
+  password: string,
+): Promise<ServerSession> {
+  return request('/auth/email/register', {
+    method: 'POST',
+    body: JSON.stringify({ displayName, email, password }),
+  }, 30_000);
+}
+
+export function createEmailSession(email: string, password: string): Promise<ServerSession> {
+  return request('/auth/email/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  }, 30_000);
+}
+
+export function exchangeOAuthSession(code: string): Promise<ServerSession> {
+  return request('/auth/oauth/exchange', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  }, 30_000);
+}
+
+export function getOAuthStartUrl(provider: Exclude<AuthProvider, 'guest' | 'email'>, redirectUri: string): string {
+  return `${API_URL}/auth/oauth/${provider}/start?redirectUri=${encodeURIComponent(redirectUri)}`;
+}
+
 export function refreshGuestSession(refreshToken: string): Promise<ServerSession> {
   return request('/auth/refresh', {
     method: 'POST',
@@ -233,7 +286,7 @@ export function fetchProfile(accessToken: string): Promise<ProfileSummary> {
 
 export function fetchLeaderboard(
   accessToken: string,
-): Promise<{ leaderboard: LeaderboardSummary }> {
+): Promise<{ leaderboard: LeaderboardSummary; entries: LeaderboardEntry[] }> {
   return request('/leaderboard', {
     method: 'GET',
     headers: { Authorization: `Bearer ${accessToken}` },

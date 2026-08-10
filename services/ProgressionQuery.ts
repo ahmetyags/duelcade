@@ -13,7 +13,7 @@ export function useProgressionQuery() {
   const getValidAccessToken = useAuthStore((state) => state.getValidAccessToken);
   return useQuery({
     queryKey: progressionQueryKey(user?.id),
-    enabled: user?.serverBacked === true,
+    enabled: user?.serverBacked === true && user.isGuest === false,
     staleTime: 30_000,
     queryFn: async () => {
       const accessToken = await getValidAccessToken();

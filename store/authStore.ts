@@ -4,11 +4,15 @@ import { create } from 'zustand';
 import {
   AuthApiError,
   createGuestSession,
+  createEmailSession,
+  registerEmailSession,
   logoutGuestSession,
   refreshGuestSession,
   updateServerDisplayName,
   type ServerSession,
+  type AuthProvider,
 } from '@/services/AuthApi';
+import { openOAuthSession } from '@/services/OAuthAuth';
 import {
   deleteRefreshToken,
   readRefreshToken,
@@ -26,6 +30,7 @@ export interface AuthUser {
   readonly isGuest: boolean;
   readonly createdAt: number;
   readonly serverBacked: boolean;
+  readonly authProvider: AuthProvider;
 }
 
 interface AuthStoreState {
@@ -36,6 +41,9 @@ interface AuthStoreState {
   isAuthenticated: boolean;
   isLoading: boolean;
   signInAsGuest: (displayName: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  registerWithEmail: (displayName: string, email: string, password: string) => Promise<void>;
+  signInWithOAuth: (provider: Exclude<AuthProvider, 'guest' | 'email'>) => Promise<void>;
   loadSession: () => Promise<void>;
   signOut: () => Promise<void>;
   updateDisplayName: (name: string) => Promise<void>;
@@ -68,16 +76,18 @@ function localUser(displayName: string, previous?: Partial<AuthUser>): AuthUser 
     isGuest: true,
     createdAt: previous?.createdAt ?? Date.now(),
     serverBacked: false,
+    authProvider: 'guest',
   };
 }
 
-function serverUser(session: ServerSession): AuthUser {
+function serverUser(session: ServerSession, authProvider: AuthProvider = 'guest'): AuthUser {
   return {
     id: session.player.id,
     displayName: session.player.displayName,
-    isGuest: true,
+    isGuest: authProvider === 'guest',
     createdAt: session.player.createdAt,
     serverBacked: true,
+    authProvider,
   };
 }
 
@@ -87,10 +97,11 @@ async function saveUser(user: AuthUser): Promise<void> {
 
 async function persistServerSession(
   session: ServerSession,
+  authProvider: AuthProvider = 'guest',
 ): Promise<Pick<AuthStoreState,
   'user' | 'accessToken' | 'accessTokenExpiresAt' | 'refreshTokenExpiresAt'
 >> {
-  const user = serverUser(session);
+  const user = serverUser(session, authProvider);
   await Promise.all([
     saveUser(user),
     saveRefreshToken(session.refreshToken),
@@ -112,12 +123,19 @@ function parseSavedUser(raw: string | null): AuthUser | null {
       || typeof candidate.displayName !== 'string'
       || typeof candidate.createdAt !== 'number'
     ) return null;
+    const authProvider = candidate.authProvider === 'email'
+      || candidate.authProvider === 'google'
+      || candidate.authProvider === 'facebook'
+      || candidate.authProvider === 'github'
+      ? candidate.authProvider
+      : 'guest';
     return {
       id: candidate.id.slice(0, 96),
       displayName: candidate.displayName.trim().slice(0, 24),
-      isGuest: true,
+      isGuest: authProvider === 'guest',
       createdAt: candidate.createdAt,
       serverBacked: candidate.serverBacked === true,
+      authProvider,
     };
   } catch {
     return null;
@@ -163,6 +181,58 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     }
   },
 
+  signInWithEmail: async (email, password) => {
+    set({ isLoading: true });
+    try {
+      const previousRefreshToken = await readRefreshToken().catch(() => null);
+      const session = await createEmailSession(email.trim().toLowerCase(), password);
+      const persisted = await persistServerSession(session, 'email');
+      set({ ...persisted, isAuthenticated: true, isLoading: false });
+      if (previousRefreshToken && previousRefreshToken !== session.refreshToken) {
+        await logoutGuestSession(previousRefreshToken).catch(() => undefined);
+      }
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  registerWithEmail: async (displayName, email, password) => {
+    set({ isLoading: true });
+    try {
+      const previousRefreshToken = await readRefreshToken().catch(() => null);
+      const session = await registerEmailSession(
+        displayName.trim().slice(0, 24),
+        email.trim().toLowerCase(),
+        password,
+      );
+      const persisted = await persistServerSession(session, 'email');
+      set({ ...persisted, isAuthenticated: true, isLoading: false });
+      if (previousRefreshToken && previousRefreshToken !== session.refreshToken) {
+        await logoutGuestSession(previousRefreshToken).catch(() => undefined);
+      }
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  signInWithOAuth: async (provider) => {
+    set({ isLoading: true });
+    try {
+      const previousRefreshToken = await readRefreshToken().catch(() => null);
+      const session = await openOAuthSession(provider);
+      const persisted = await persistServerSession(session, provider);
+      set({ ...persisted, isAuthenticated: true, isLoading: false });
+      if (previousRefreshToken && previousRefreshToken !== session.refreshToken) {
+        await logoutGuestSession(previousRefreshToken).catch(() => undefined);
+      }
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
   loadSession: async () => {
     if (sessionLoadInFlight) return sessionLoadInFlight;
     sessionLoadInFlight = (async () => {
@@ -180,7 +250,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
         if (refreshToken) {
           try {
             const session = await refreshGuestSession(refreshToken);
-            const persisted = await persistServerSession(session);
+            const persisted = await persistServerSession(session, saved?.authProvider ?? 'guest');
             await AsyncStorage.multiRemove([...LEGACY_AUTH_KEYS]);
             set({ ...persisted, isAuthenticated: true, isLoading: false });
             return;
@@ -205,9 +275,14 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
           }
         }
         if (saved) {
+          if (!saved.isGuest) {
+            await AsyncStorage.multiRemove([AUTH_KEY, ...LEGACY_AUTH_KEYS]);
+            set({ user: null, isAuthenticated: false, isLoading: false });
+            return;
+          }
           try {
             const session = await createGuestSession(saved.displayName);
-            const persisted = await persistServerSession(session);
+            const persisted = await persistServerSession(session, saved.authProvider);
             await AsyncStorage.multiRemove([...LEGACY_AUTH_KEYS]);
             set({ ...persisted, isAuthenticated: true, isLoading: false });
             return;
@@ -277,7 +352,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       if (!refreshToken) return null;
       try {
         const session = await refreshGuestSession(refreshToken);
-        const persisted = await persistServerSession(session);
+        const persisted = await persistServerSession(session, current.user?.authProvider ?? 'guest');
         set({ ...persisted, isAuthenticated: true });
         return session.accessToken;
       } catch (error) {

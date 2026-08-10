@@ -167,7 +167,7 @@ export default function ProgressionScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {!user?.serverBacked ? (
+        {!user?.serverBacked || user.isGuest ? (
           <StatusCard copy={t('progression.offline')} />
         ) : progression.isPending ? (
           <StatusCard copy={t('progression.loading')} />
