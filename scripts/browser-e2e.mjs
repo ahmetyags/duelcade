@@ -953,6 +953,24 @@ try {
   const progression = registeredIdentity
     ? await verifyRegisteredProgression(cdp, host)
     : null;
+  let signedOutGuestName = null;
+  if (registeredIdentity) {
+    await clickText(cdp, host, 'Çıkış yap', 'Sign out');
+    await waitUntil(cdp, host, `location.pathname === '/'`, 10_000);
+    await waitUntil(
+      cdp,
+      host,
+      `/Guest-\\d{4}/.test(document.body?.innerText ?? '')`,
+      10_000,
+    );
+    signedOutGuestName = await evaluate(
+      cdp,
+      host,
+      `(document.body?.innerText ?? '').match(/Guest-\\d{4}/)?.[0] ?? null`,
+    );
+    if (!signedOutGuestName) throw new Error('Sign-out did not create a visible Guest-#### identity');
+    await screenshot(cdp, host, 'signed-out-guest-home.png');
+  }
   if (!registeredIdentity) {
     await Promise.all([
       clickText(cdp, host, 'Tekrar Oyna', 'Play Again'),
@@ -981,6 +999,7 @@ try {
     roomCode,
     registeredIdentity,
     progression,
+    signedOutGuestName,
     verified: [
       'two isolated browser contexts',
       'all settings controls and persisted reload state',
@@ -995,6 +1014,9 @@ try {
       registeredIdentity
         ? 'registered profile XP, daily quest, match history, and reload persistence'
         : 'two-player rematch vote and lobby reset',
+      ...(registeredIdentity
+        ? ['sign-out immediately preserved the home identity as Guest-####']
+        : []),
       'no browser exceptions',
     ],
   }, null, 2)}\n`);
