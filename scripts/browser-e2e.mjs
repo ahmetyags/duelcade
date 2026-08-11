@@ -898,8 +898,14 @@ try {
       10_000,
     );
     await cdp.send('Page.reload', {}, guest.sessionId);
+    await waitUntil(cdp, guest, `document.readyState === 'complete'`, 20_000);
     await waitForText(cdp, guest, `${roomCode} koduyla devam et`, 15_000);
-    await sleep(1_000);
+    await waitUntil(cdp, guest, `(() => {
+      const label = ${JSON.stringify(`${roomCode} koduyla devam et`)};
+      const node = [...document.querySelectorAll('[role="button"],button')]
+        .find((candidate) => (candidate.getAttribute('aria-label') || candidate.innerText || '').includes(label));
+      return Boolean(node && Object.keys(node).some((key) => key.startsWith('__reactProps$')));
+    })()`, 20_000);
     await clickTextPhysical(cdp, guest, `${roomCode} koduyla devam et`, `Continue with ${roomCode}`);
     await waitForText(cdp, guest, 'Maç Lobisi', 15_000);
     await waitForText(cdp, guest, 'OYUNCULAR (2/2)', 10_000);
