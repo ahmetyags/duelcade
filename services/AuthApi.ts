@@ -33,6 +33,11 @@ export interface AuthProviderAvailability {
   google: boolean;
   facebook: boolean;
   github: boolean;
+  oauth?: {
+    google: boolean;
+    facebook: boolean;
+    github: boolean;
+  };
 }
 
 export interface MatchHistoryItem {

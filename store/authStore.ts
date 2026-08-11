@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import {
@@ -259,7 +260,12 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     set({ isLoading: true });
     try {
       const previousRefreshToken = await readRefreshToken().catch(() => null);
-      const useFirebase = await firebaseModeEnabled();
+      // GitHub's authorization-code token exchange requires a client secret.
+      // Keep that secret on the backend for native apps; Firebase's popup flow
+      // remains the source of truth on web.
+      const useFirebase = provider !== 'github' || Platform.OS === 'web'
+        ? await firebaseModeEnabled()
+        : false;
       const session = useFirebase ? null : await openOAuthSession(provider);
       const persisted = useFirebase
         ? await persistFirebaseSession(await signInFirebaseSocial(provider))

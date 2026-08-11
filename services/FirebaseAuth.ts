@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { makeRedirectUri, AuthRequest, ResponseType, exchangeCodeAsync } from 'expo-auth-session';
+import { makeRedirectUri, AuthRequest, ResponseType } from 'expo-auth-session';
 import * as Crypto from 'expo-crypto';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import * as FirebaseAuthModule from 'firebase/auth';
@@ -132,11 +132,6 @@ const facebookDiscovery = {
   authorizationEndpoint: 'https://www.facebook.com/v23.0/dialog/oauth',
   tokenEndpoint: 'https://graph.facebook.com/v23.0/oauth/access_token',
 };
-const githubDiscovery = {
-  authorizationEndpoint: 'https://github.com/login/oauth/authorize',
-  tokenEndpoint: 'https://github.com/login/oauth/access_token',
-};
-
 function platformClientId(provider: FirebaseSocialProvider): string {
   if (provider === 'google') {
     const id = Platform.select({
@@ -149,13 +144,11 @@ function platformClientId(provider: FirebaseSocialProvider): string {
   if (provider === 'facebook' && process.env.EXPO_PUBLIC_FACEBOOK_APP_ID?.trim()) {
     return process.env.EXPO_PUBLIC_FACEBOOK_APP_ID.trim();
   }
-  if (provider === 'github' && process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID?.trim()) {
-    return process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID.trim();
-  }
   throw new Error('OAUTH_PROVIDER_NOT_CONFIGURED');
 }
 
 async function nativeCredential(provider: FirebaseSocialProvider): Promise<AuthCredential> {
+  if (provider === 'github') throw new Error('GITHUB_NATIVE_REQUIRES_BACKEND');
   const clientId = platformClientId(provider);
   const redirectUri = makeRedirectUri({ scheme: 'duelcade', path: 'auth/callback' });
   if (provider === 'google') {
@@ -187,25 +180,7 @@ async function nativeCredential(provider: FirebaseSocialProvider): Promise<AuthC
     if (!token) throw new Error('OAUTH_FAILED');
     return FacebookAuthProvider.credential(token);
   }
-  const request = new AuthRequest({
-    clientId,
-    redirectUri,
-    responseType: ResponseType.Code,
-    scopes: ['read:user', 'user:email'],
-    usePKCE: true,
-  });
-  const result = await request.promptAsync(githubDiscovery);
-  if (result.type !== 'success') throw new Error('OAUTH_CANCELLED');
-  const code = result.params.code;
-  if (!code) throw new Error('OAUTH_FAILED');
-  const token = await exchangeCodeAsync({
-    clientId,
-    code,
-    redirectUri,
-    extraParams: request.codeVerifier ? { code_verifier: request.codeVerifier } : undefined,
-    extraHeaders: { Accept: 'application/json' },
-  }, githubDiscovery);
-  return GithubAuthProvider.credential(token.accessToken);
+  throw new Error('OAUTH_PROVIDER_NOT_CONFIGURED');
 }
 
 function webProvider(provider: FirebaseSocialProvider) {

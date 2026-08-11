@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -443,7 +444,11 @@ function ProfileAuthModal({
     providerAvailability?.[provider] === true
     && (
       providerAvailability.firebase !== true
-      || firebaseClientProviderAvailable(provider)
+      || (
+        provider === 'github' && Platform.OS !== 'web'
+          ? providerAvailability.oauth?.github === true
+          : firebaseClientProviderAvailable(provider)
+      )
     )
   );
 

@@ -140,8 +140,20 @@ EXPO_PUBLIC_GAME_SERVER_URL=http://192.168.1.50:2567
 Uygulama e-posta/şifre ile Google, Facebook ve GitHub kimliklerini Firebase JS
 SDK üzerinden doğrular. Firebase Console'daki web uygulamasının herkese açık
 ayarlarını `.env.example` içinde belgelenen `EXPO_PUBLIC_FIREBASE_*`
-değişkenlerine ekleyin. Android/iOS sosyal girişleri aynı dosyada listelenen
-provider client ID'lerini de kullanır.
+değişkenlerine ekleyin. GitHub web girişi Firebase popup akışını kullanır;
+Android/iOS GitHub girişi ise OAuth client secret uygulamaya gömülmesin diye
+backend üzerinden tamamlanır.
+
+GitHub'ın tek OAuth App için tek callback host kısıtı nedeniyle iki ayrı GitHub
+OAuth App kullanılır:
+
+- Web/Firebase: `https://FIREBASE_PROJECT_ID.firebaseapp.com/__/auth/handler`
+- Android/iOS/backend: `https://duelcade-game-server.onrender.com/v1/auth/oauth/github/callback`
+
+İkinci uygulamanın `GITHUB_CLIENT_ID` ve `GITHUB_CLIENT_SECRET` değerleri yalnızca
+Render ortamında tutulur. `FIREBASE_PROJECT_ID` ile birlikte backend yeniden
+deploy edildiğinde `/v1/auth/providers` yanıtında hem `firebase` hem de
+`oauth.github` alanları `true` olmalıdır.
 
 Firebase ID token backend ile değiştirilir; oyuncu UUID'si, oyun oturumu,
 ilerleme ve leaderboard üzerindeki otorite mevcut Duelcade backend'inde kalır.
