@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Room } from '@colyseus/sdk';
 
-import { ColyseusTransport } from '../services/ColyseusTransport';
+import { ColyseusTransport as NativeColyseusTransport } from '../services/ColyseusTransport.native';
+import { ColyseusTransport as WebColyseusTransport } from '../services/ColyseusTransport.web';
+import { setAccessTokenProvider } from '../services/AccessTokenProvider';
 import type { ConnectionState, ServerMessage } from '../types/network';
 
 class FakeRoom {
@@ -86,7 +88,7 @@ class FakeRoom {
   }
 }
 
-function attachRoom(transport: ColyseusTransport, room: FakeRoom): void {
+function attachRoom(transport: NativeColyseusTransport, room: FakeRoom): void {
   const privateTransport = transport as unknown as {
     attachRoom: (activeRoom: Room) => void;
   };
@@ -120,7 +122,7 @@ function snapshot(roomId: string, messageId: string): ServerMessage {
 }
 
 test('events from a room being left cannot overwrite the next lobby', () => {
-  const transport = new ColyseusTransport('http://127.0.0.1:2567');
+  const transport = new NativeColyseusTransport('http://127.0.0.1:2567');
   const oldRoom = new FakeRoom('OLD123');
   const newRoom = new FakeRoom('NEW456');
   const received: string[] = [];
@@ -143,4 +145,33 @@ test('events from a room being left cannot overwrite the next lobby', () => {
   assert.equal(oldRoom.leaveCalls, 1);
 
   transport.disconnect();
+});
+
+test('manual reconnect authenticates the fresh Colyseus client on every platform', async () => {
+  setAccessTokenProvider(async () => 'fresh-access-token');
+  try {
+    for (const Transport of [NativeColyseusTransport, WebColyseusTransport]) {
+      const transport = new Transport('http://127.0.0.1:2567');
+      const fakeRoom = new FakeRoom('ROOM12');
+      const client = (transport as unknown as {
+        client: {
+          auth: { token: string };
+          reconnect: (token: string) => Promise<Room>;
+        };
+      }).client;
+      let receivedToken = '';
+      client.reconnect = async (token) => {
+        receivedToken = token;
+        return fakeRoom as unknown as Room;
+      };
+
+      await transport.reconnect('ROOM12:reconnect-token');
+
+      assert.equal(client.auth.token, 'fresh-access-token');
+      assert.equal(receivedToken, 'ROOM12:reconnect-token');
+      transport.disconnect();
+    }
+  } finally {
+    setAccessTokenProvider(async () => null);
+  }
 });

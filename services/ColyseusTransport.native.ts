@@ -1,8 +1,13 @@
 import { Client, type Room } from '@colyseus/sdk';
 
-import type { ConnectionState, ServerEventListener } from '@/types/network';
-import type { ClientEvent, ServerMessage } from '@/types/network';
-import { PROTOCOL_VERSION, SERVER_CLOSE_CODE } from '@/types/network';
+import {
+  PROTOCOL_VERSION,
+  SERVER_CLOSE_CODE,
+  type ClientEvent,
+  type ConnectionState,
+  type ServerEventListener,
+  type ServerMessage,
+} from '@/types/network';
 import type { NetworkTransport } from '@/services/NetworkService';
 import { GAME_SERVER_URL } from '@/services/GameServerAvailability';
 import { getAccessTokenForNetwork } from '@/services/AccessTokenProvider';
@@ -41,6 +46,7 @@ export class ColyseusTransport implements NetworkTransport {
 
   async reconnect(reconnectionToken: string): Promise<void> {
     this.consentedDisconnect = false;
+    this.client.auth.token = await getAccessTokenForNetwork() ?? '';
     const room = await this.client.reconnect(reconnectionToken);
     this.attachRoom(room);
     this.emitConnection('connected');

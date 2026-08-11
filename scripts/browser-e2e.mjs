@@ -8,6 +8,9 @@ const ARTIFACT_DIR = process.env.ARTIFACT_DIR ?? '/tmp/duelcade-e2e';
 const VIEWPORT_WIDTH = Number(process.env.VIEWPORT_WIDTH ?? 430);
 const VIEWPORT_HEIGHT = Number(process.env.VIEWPORT_HEIGHT ?? 932);
 const SKIP_RECONNECT_CHECKS = process.env.SKIP_RECONNECT_CHECKS === '1';
+const REGISTER_HOST_EMAIL = process.env.REGISTER_HOST_EMAIL?.trim() ?? '';
+const REGISTER_HOST_PASSWORD = process.env.REGISTER_HOST_PASSWORD ?? '';
+const REGISTER_HOST_NAME = process.env.REGISTER_HOST_NAME?.trim() ?? 'E2E Oyuncu';
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -154,6 +157,31 @@ async function clickText(cdp, page, ...labels) {
   await sleep(180);
 }
 
+async function clickTextPhysical(cdp, page, ...labels) {
+  const point = await evaluate(cdp, page, `(() => {
+    const labels = ${JSON.stringify(labels)};
+    const nodes = [...document.querySelectorAll(
+      '[role="button"], [role="radio"], [role="switch"], [role="tab"], [aria-label], button, a, [tabindex="0"]',
+    )];
+    const node = labels.flatMap((label) => nodes
+      .filter((candidate) => {
+        const text = (candidate.getAttribute('aria-label') || candidate.innerText || '').trim();
+        return text === label || text.includes(label);
+      })
+      .sort((left, right) => (left.innerText?.length ?? 0) - (right.innerText?.length ?? 0)))[0];
+    const rect = node?.getBoundingClientRect();
+    return rect && { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()`);
+  if (!point) throw new Error(`Button not found for physical click: ${labels.join(' / ')}`);
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1,
+  }, page.sessionId);
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1,
+  }, page.sessionId);
+  await sleep(180);
+}
+
 async function fillInput(cdp, page, index, value) {
   const focused = await evaluate(cdp, page, `(() => {
     const inputs = [...document.querySelectorAll('input, textarea')]
@@ -176,6 +204,91 @@ async function fillInput(cdp, page, index, value) {
   if (actualValue !== value) {
     throw new Error(`Input ${index} expected ${JSON.stringify(value)}, received ${JSON.stringify(actualValue)}`);
   }
+}
+
+async function registerHostAccount(cdp, page) {
+  if (!REGISTER_HOST_EMAIL) return null;
+  if (REGISTER_HOST_PASSWORD.length < 8) {
+    throw new Error('REGISTER_HOST_PASSWORD must contain at least 8 characters');
+  }
+  await clickText(cdp, page, 'Profile');
+  await waitForText(cdp, page, 'Profilini oluştur', 15_000);
+  await waitUntil(
+    cdp,
+    page,
+    `document.querySelector('[aria-label="GitHub sign in"]')?.getAttribute('aria-disabled') !== 'true'`,
+    30_000,
+  );
+  await fillInput(cdp, page, 0, REGISTER_HOST_NAME);
+  await fillInput(cdp, page, 1, REGISTER_HOST_EMAIL);
+  await fillInput(cdp, page, 2, REGISTER_HOST_PASSWORD);
+  await waitUntil(
+    cdp,
+    page,
+    `(() => {
+      const node = [...document.querySelectorAll('[role="button"],button')]
+        .find((candidate) => (candidate.innerText ?? '').includes('Email ile hesap oluştur'));
+      return Boolean(node) && node.getAttribute('aria-disabled') !== 'true' && !node.hasAttribute('disabled');
+    })()`,
+    10_000,
+  );
+  await clickText(cdp, page, 'Email ile hesap oluştur');
+  await waitUntil(cdp, page, `location.pathname === '/profile'`, 30_000);
+  await waitForText(cdp, page, REGISTER_HOST_NAME, 15_000);
+  await screenshot(cdp, page, 'registered-profile.png');
+  const identity = await evaluate(cdp, page, `(() => {
+    const raw = localStorage.getItem('duelcade_auth');
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    return {
+      displayName: value.displayName,
+      serverBacked: value.serverBacked,
+      authProvider: value.authProvider,
+      isGuest: value.isGuest,
+    };
+  })()`);
+  if (
+    identity?.displayName !== REGISTER_HOST_NAME
+    || identity.serverBacked !== true
+    || identity.authProvider !== 'email'
+    || identity.isGuest !== false
+  ) throw new Error(`Registered identity was not persisted: ${JSON.stringify(identity)}`);
+  await navigate(cdp, page, APP_URL);
+  await waitForText(cdp, page, REGISTER_HOST_NAME, 15_000);
+  return identity;
+}
+
+async function verifyRegisteredProgression(cdp, page) {
+  await sleep(2_000);
+  await clickText(cdp, page, 'Ana menü', 'Main menu', 'Ana Sayfa', 'Home');
+  await waitUntil(cdp, page, `location.pathname === '/'`, 15_000);
+  await waitForText(cdp, page, REGISTER_HOST_NAME, 15_000);
+  await clickText(cdp, page, 'Ödülleri gör', 'Ödülleri Gör', 'View Rewards');
+  await waitUntil(cdp, page, `location.pathname === '/progression'`, 15_000);
+  await waitForText(cdp, page, 'Günlük Görevler', 15_000);
+  const progressionText = await bodyText(cdp, page);
+  const totalXp = Number(progressionText.match(/Toplam\s+(\d+)\s+XP/i)?.[1]);
+  if (!Number.isFinite(totalXp) || totalXp <= 0) {
+    throw new Error(`Progression XP did not increase:\n${progressionText.slice(0, 1400)}`);
+  }
+  if (!progressionText.includes('1/1')) {
+    throw new Error(`Daily play quest did not advance:\n${progressionText.slice(0, 1400)}`);
+  }
+  await screenshot(cdp, page, 'registered-progression.png');
+
+  await navigate(cdp, page, `${APP_URL.replace(/\/$/, '')}/profile`);
+  await waitForText(cdp, page, REGISTER_HOST_NAME, 15_000);
+  await waitForText(cdp, page, 'Recent Matches', 15_000);
+  const profileText = await bodyText(cdp, page);
+  if (profileText.includes('Maç geçmişini başlatmak için çevrimiçi bir düello tamamla.')) {
+    throw new Error(`Completed online match is missing from profile:\n${profileText.slice(0, 1600)}`);
+  }
+  await screenshot(cdp, page, 'registered-profile-after-match.png');
+
+  await cdp.send('Page.reload', {}, page.sessionId);
+  await waitForText(cdp, page, REGISTER_HOST_NAME, 20_000);
+  await waitForText(cdp, page, 'Recent Matches', 15_000);
+  return { totalXp, profileText: (await bodyText(cdp, page)).slice(0, 1800) };
 }
 
 async function clickMapAt(cdp, page, xPercent, yPercent) {
@@ -687,17 +800,19 @@ try {
     navigate(cdp, guest, APP_URL),
   ]);
   await Promise.all([
-    waitForText(cdp, host, 'Macera Oluştur', 20_000),
-    waitForText(cdp, guest, 'Arkadaşına Katıl', 20_000),
+    waitForText(cdp, host, 'Oluştur', 20_000),
+    waitForText(cdp, guest, 'Katıl', 20_000),
   ]);
   await screenshot(cdp, host, 'home-industrial.png');
+
+  const registeredIdentity = await registerHostAccount(cdp, host);
 
   await clickText(cdp, host, 'Ayarlar', 'Settings');
   await waitForText(cdp, host, 'ERİŞİLEBİLİRLİK', 10_000);
   await clickText(cdp, host, 'English');
   await waitForText(cdp, host, 'ACCESSIBILITY', 10_000);
   await clickText(cdp, host, 'Go back');
-  await waitForText(cdp, host, 'Create an Adventure', 10_000);
+  await waitForText(cdp, host, 'Create', 10_000);
   await clickText(cdp, host, 'Settings');
   await waitForText(cdp, host, 'ACCESSIBILITY', 10_000);
 
@@ -746,17 +861,13 @@ try {
       checked(document.querySelector('[aria-label="Titreşim"]'));
   })()`, 10_000);
   await navigate(cdp, host, APP_URL);
-  await waitForText(cdp, host, 'Macera Oluştur', 10_000);
+  await waitForText(cdp, host, 'Oluştur', 10_000);
 
-  await clickText(cdp, host, 'Macera Oluştur', 'Create an Adventure');
-  await waitForText(cdp, host, 'Macera Oluştur');
-  await fillInput(cdp, host, 0, 'Tarayıcı Rehber');
-  await clickText(cdp, host, 'Ruh Rehberi', 'Spirit Guide');
+  await clickText(cdp, host, 'Oluştur', 'Create', 'Macera Oluştur', 'Create an Adventure');
+  await waitForText(cdp, host, 'Maç Oluştur');
   await clickText(cdp, host, 'Orta', 'Medium');
-  const puzzleCount = 7;
-  await clickText(cdp, host, '7\nBULMACA', '7\nPUZZLES');
   await clickText(cdp, host, 'Oluştur ve Kodu Paylaş', 'Create & Share the Code');
-  await waitForText(cdp, host, 'Macera Kampı', 12_000);
+  await waitForText(cdp, host, 'Maç Lobisi', 12_000);
 
   const roomCode = await evaluate(cdp, host, `(() => {
     const lines = (document.body?.innerText ?? '').split(/\\n+/).map((line) => line.trim());
@@ -766,12 +877,11 @@ try {
   })()`);
   if (!/^[A-Z2-9]{6}$/.test(roomCode)) throw new Error(`Invalid room code: ${roomCode}`);
 
-  await clickText(cdp, guest, 'Arkadaşına Katıl', 'Join a Friend');
+  await clickText(cdp, guest, 'Katıl', 'Join', 'Arkadaşına Katıl', 'Join a Friend');
   await waitForText(cdp, guest, 'ODA KODU');
   await fillInput(cdp, guest, 0, roomCode);
   await fillInput(cdp, guest, 1, 'Tarayıcı Maceracı');
-  await clickText(cdp, guest, 'Maceracı', 'Adventurer');
-  await clickText(cdp, guest, 'Maceraya Katıl', 'Join the Adventure');
+  await clickText(cdp, guest, 'Maça Katıl', 'Join the Match');
   await Promise.all([
     waitForText(cdp, host, 'OYUNCULAR (2/2)', 12_000),
     waitForText(cdp, guest, 'OYUNCULAR (2/2)', 12_000),
@@ -789,8 +899,9 @@ try {
     );
     await cdp.send('Page.reload', {}, guest.sessionId);
     await waitForText(cdp, guest, `${roomCode} koduyla devam et`, 15_000);
-    await clickText(cdp, guest, `${roomCode} koduyla devam et`, `Continue with ${roomCode}`);
-    await waitForText(cdp, guest, 'Macera Kampı', 15_000);
+    await sleep(1_000);
+    await clickTextPhysical(cdp, guest, `${roomCode} koduyla devam et`, `Continue with ${roomCode}`);
+    await waitForText(cdp, guest, 'Maç Lobisi', 15_000);
     await waitForText(cdp, guest, 'OYUNCULAR (2/2)', 10_000);
   }
 
@@ -799,158 +910,57 @@ try {
     clickText(cdp, guest, 'Hazırım', 'Ready Up'),
   ]);
   await Promise.all([
-    waitUntil(
-      cdp,
-      host,
-      `(document.body?.innerText ?? '').includes('Ruh Kilidi') ||
-       (document.body?.innerText ?? '').includes('Renkli Bomba Düzeneği')`,
-      15_000,
-    ),
-    waitForText(cdp, guest, 'Bulmaca İstasyonunu Bul', 15_000),
+    waitForText(cdp, host, 'ORTAK MASA', 20_000),
+    waitForText(cdp, guest, 'ORTAK MASA', 20_000),
   ]);
-  await screenshot(cdp, host, 'host-guide-lock.png');
+  await screenshot(cdp, host, 'registered-online-match.png');
 
-  await clickText(cdp, host, 'İpucu', 'Hint');
-  await waitForText(cdp, host, 'Yeni bir ipucu istemeden önce biraz bekle.', 10_000);
-  await clickText(cdp, host, 'Bildirimi kapat', 'Dismiss notification');
+  const moveSelector = [
+    '[aria-label^="Hücre "]', '[aria-label^="Devre parçası "]', '[aria-label^="Sütun "]',
+    '[aria-label$="kanalını artır"]', '[aria-label^="Kart "]',
+    '[aria-label^="Rün "]:not([aria-label$="nasıl oynanır?"])',
+    '[aria-label="Şifre tahminini gönder"]', '[aria-label^="Devre hattı "]',
+    '[aria-label^="Neon hücresi "]', '[aria-label^="Geçit hücresi "]',
+    '[aria-label^="Polarite hücresi "]',
+  ].join(', ');
+  await waitUntil(cdp, host, `(() => [...document.querySelectorAll(${JSON.stringify(moveSelector)})]
+    .some((node) => !node.hasAttribute('disabled') && node.getAttribute('aria-disabled') !== 'true'))()`, 10_000);
+  const firstMovePlayed = await evaluate(cdp, host, `(() => {
+    const node = [...document.querySelectorAll(${JSON.stringify(moveSelector)})]
+      .find((item) => !item.hasAttribute('disabled') && item.getAttribute('aria-disabled') !== 'true');
+    node?.click();
+    return Boolean(node);
+  })()`);
+  if (!firstMovePlayed) throw new Error('Registered host could not play the first move');
+  await sleep(1_000);
+  await screenshot(cdp, guest, 'online-opponent-move.png');
 
-  const guideSolutions = [await solveGuideLock(cdp, host)];
+  await clickText(cdp, guest, 'Oyundan çık', 'Leave game');
+  await waitForText(cdp, guest, 'Maçtan çıkmak istediğine emin misin?', 10_000);
+  await clickText(cdp, guest, 'Evet, çık', 'Yes, leave');
+  await Promise.all([
+    waitUntil(cdp, host, `location.pathname.includes('/results')`, 20_000),
+    waitUntil(cdp, guest, `location.pathname.includes('/results')`, 20_000),
+  ]);
+  await screenshot(cdp, host, 'registered-online-result.png');
 
-  const guestTaskBody = await bodyText(cdp, guest);
-  const needsFuse = guestTaskBody.includes('Ana Sigorta Kutusuna');
-  await clickText(cdp, guest, 'Haritayı Aç', 'Open Map');
-  await waitForText(cdp, guest, 'KEŞİF HARİTASI', 10_000);
-  await screenshot(cdp, guest, 'guest-map.png');
-  await clickMapAt(cdp, guest, needsFuse ? 20 : 50, needsFuse ? 103 : 62);
-  if (needsFuse) await solveFuseDevice(cdp, guest);
-  else await solveTerminalDevice(cdp, guest);
-  await clickText(cdp, guest, 'Görev', 'Task');
-  await waitUntil(
-    cdp,
-    guest,
-    `!(document.body?.innerText ?? '').includes('Bulmaca İstasyonunu Bul')`,
-    10_000,
-  );
-  await clickText(cdp, guest, 'Harita', 'Map');
-  await waitForText(cdp, guest, 'KEŞİF HARİTASI', 10_000);
-
-  await clickMapAt(cdp, guest, 78, 25);
-  await solveAccessDevice(cdp, guest);
-  const guestHasRemovedBag = await evaluate(
-    cdp,
-    guest,
-    `Boolean(document.querySelector('[aria-label="Çanta"], [aria-label="Bag"]'))`,
-  );
-  if (guestHasRemovedBag) throw new Error('Removed Bag tab is still rendered');
-
-  await clickText(cdp, host, 'Mesaj', 'Signals');
-  await fillInput(cdp, host, 0, 'Boruları satır satır kontrol et.');
-  await clickText(cdp, host, 'Mesaj gönder', 'Send message');
-  await waitForText(cdp, host, 'Boruları satır satır kontrol et.', 10_000);
-  await clickText(cdp, guest, 'Mesaj', 'Signals');
-  await waitForText(cdp, guest, 'Boruları satır satır kontrol et.', 10_000);
-  await screenshot(cdp, guest, 'guest-chat.png');
-
-  await clickText(cdp, host, 'Bak', 'Look');
-  await waitForText(cdp, guest, 'Tarayıcı Rehber sinyal gönderdi', 10_000);
-  await waitUntil(
-    cdp,
-    host,
-    `document.querySelector('[aria-label="Bak"], [aria-label="Look"]')?.getAttribute('aria-disabled') === 'true'`,
-    5_000,
-  );
-  await waitUntil(
-    cdp,
-    guest,
-    `!(document.body?.innerText ?? '').includes('Tarayıcı Rehber sinyal gönderdi')`,
-    6_000,
-  );
-
-  const hostHasRemovedTools = await evaluate(
-    cdp,
-    host,
-    `Boolean(document.querySelector('[aria-label="Araçlar"], [aria-label="Tools"]'))`,
-  );
-  if (hostHasRemovedTools) throw new Error('Removed Tools tab is still rendered');
-
-  await clickText(cdp, host, 'Yolculuk', 'Journey');
-  await waitForText(cdp, host, 'Macera Yolu', 10_000);
-  await waitForText(cdp, host, '1. Gizem', 10_000);
-
-  const puzzleCategories = [];
-  for (let puzzleIndex = 0; puzzleIndex < puzzleCount; puzzleIndex += 1) {
-    if (puzzleIndex > 0) {
-      guideSolutions.push(await solveGuideLock(cdp, host));
-      const taskBody = await bodyText(cdp, guest);
-      await activateCurrentStation(cdp, guest, taskBody.includes('Ana Sigorta Kutusuna'));
-    }
-
-    const category = await solveCurrentFieldPuzzle(cdp, host, guest);
-    puzzleCategories.push(category);
-    await waitUntil(
-      cdp,
-      host,
-      `(document.body?.innerText ?? '').includes('${puzzleIndex + 1}/${puzzleCount}')`,
-      12_000,
-    );
-    if (puzzleIndex === 0 && !SKIP_RECONNECT_CHECKS) {
-      await cdp.send('Page.reload', {}, guest.sessionId);
-      await waitForText(cdp, guest, `${roomCode} koduyla devam et`, 15_000);
-      await clickText(cdp, guest, `${roomCode} koduyla devam et`, `Continue with ${roomCode}`);
-      await waitUntil(
-        cdp,
-        guest,
-        `(document.body?.innerText ?? '').includes('1/${puzzleCount}')`,
-        15_000,
-      );
-      const restoredBag = await evaluate(
-        cdp,
-        guest,
-        `Boolean(document.querySelector('[aria-label="Çanta"], [aria-label="Bag"]'))`,
-      );
-      if (restoredBag) throw new Error('Removed Bag tab returned after reconnect');
-    }
-    if (puzzleIndex < puzzleCount - 1) {
-      await waitUntil(
-        cdp,
-        host,
-        `(document.body?.innerText ?? '').includes('Ruh Kilidi') ||
-         (document.body?.innerText ?? '').includes('Renkli Bomba Düzeneği')`,
-        12_000,
-      );
-    }
+  const progression = registeredIdentity
+    ? await verifyRegisteredProgression(cdp, host)
+    : null;
+  if (!registeredIdentity) {
+    await Promise.all([
+      clickText(cdp, host, 'Tekrar Oyna', 'Play Again'),
+      clickText(cdp, guest, 'Tekrar Oyna', 'Play Again'),
+    ]);
+    await Promise.all([
+      waitForText(cdp, host, 'Maç Lobisi', 15_000),
+      waitForText(cdp, guest, 'Maç Lobisi', 15_000),
+    ]);
+    await Promise.all([
+      waitForText(cdp, host, 'Hazırım', 10_000),
+      waitForText(cdp, guest, 'Hazırım', 10_000),
+    ]);
   }
-
-  const expectedCategories = ['code', 'circuit', 'symbol', 'map', 'logic', 'timing'];
-  for (const category of expectedCategories) {
-    if (!puzzleCategories.includes(category)) {
-      throw new Error(`Medium adventure did not exercise ${category}: ${JSON.stringify(puzzleCategories)}`);
-    }
-  }
-
-  await clickText(cdp, guest, 'Harita', 'Map');
-  await waitForText(cdp, guest, 'KEŞİF HARİTASI', 10_000);
-  await clickMapAt(cdp, guest, 80, 128);
-  await solveDoorDevice(cdp, guest);
-
-  await Promise.all([
-    waitForText(cdp, host, 'Çıkış Yolunu Buldunuz!', 15_000),
-    waitForText(cdp, guest, 'Çıkış Yolunu Buldunuz!', 15_000),
-  ]);
-  await screenshot(cdp, guest, 'completed-adventure.png');
-
-  await Promise.all([
-    clickText(cdp, host, 'Tekrar Oyna', 'Play Again'),
-    clickText(cdp, guest, 'Tekrar Oyna', 'Play Again'),
-  ]);
-  await Promise.all([
-    waitForText(cdp, host, 'Macera Kampı', 15_000),
-    waitForText(cdp, guest, 'Macera Kampı', 15_000),
-  ]);
-  await Promise.all([
-    waitForText(cdp, host, 'Hazırım', 10_000),
-    waitForText(cdp, guest, 'Hazırım', 10_000),
-  ]);
 
   const browserErrors = cdp.events.filter((event) =>
     event.method === 'Runtime.exceptionThrown' ||
@@ -963,30 +973,22 @@ try {
   process.stdout.write(`${JSON.stringify({
     ok: true,
     roomCode,
-    guideSolutions,
-    puzzleCategories,
-    station: needsFuse ? 'fuse_box_main' : 'room_terminal',
+    registeredIdentity,
+    progression,
     verified: [
       'two isolated browser contexts',
       'all settings controls and persisted reload state',
       'settings reset without stale values',
       'room create and join',
-      'saved-session resume into the same reserved seat after a full page reload',
-      'mid-game resume with solved progress checkpoint restored',
-      'explicit asymmetric roles',
-      'all generated Spirit Locks',
-      '2.5D point-and-click scene hotspots',
-      'four close-up 2D device puzzles',
-      'server-validated station interaction',
-      'map-only key-card activation',
-      'cross-client chat',
-      'server-rejected hint feedback',
-      'cross-client quick signals and cooldown',
-      'removed Bag and Tools tabs stay absent after reconnect',
-      'operator journey progress',
-      'all six medium puzzle mechanics through their rendered controls',
-      'seven-puzzle full completion and key-card escape',
-      'two-player rematch vote and lobby reset',
+      ...(!SKIP_RECONNECT_CHECKS
+        ? ['saved-session resume into the same reserved seat after a full page reload']
+        : []),
+      'shared turn-based board loaded for both players',
+      'registered host played a server-authoritative move',
+      'opponent forfeit produced the shared result',
+      registeredIdentity
+        ? 'registered profile XP, daily quest, match history, and reload persistence'
+        : 'two-player rematch vote and lobby reset',
       'no browser exceptions',
     ],
   }, null, 2)}\n`);
