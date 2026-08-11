@@ -49,6 +49,7 @@ export class ColyseusTransport implements NetworkTransport {
     this.client.auth.token = await getAccessTokenForNetwork() ?? '';
     const room = await this.client.reconnect(reconnectionToken);
     this.attachRoom(room);
+    room.send('event', { event: 'room.sync', payload: {} });
     this.emitConnection('connected');
   }
 
