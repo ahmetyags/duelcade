@@ -32,6 +32,8 @@ import {
 } from '@/services/AuthTokenStorage';
 import { setAccessTokenProvider } from '@/services/AccessTokenProvider';
 import { SeededRandom } from '@/engine/SeededRandom';
+import { useSettingsStore } from '@/store/settingsStore';
+import { generateGuestDisplayName } from '@/services/GuestIdentity';
 
 const AUTH_KEY = 'duelcade_auth';
 const LEGACY_AUTH_KEYS = ['duo_arcade_auth', 'asymmetric_escape_auth'] as const;
@@ -73,12 +75,6 @@ function isRejectedSession(error: unknown): boolean {
 function generateGuestId(): string {
   const rng = new SeededRandom(Date.now().toString());
   return `guest_${rng.nextInt(100000, 999999)}_${Date.now().toString(36)}`;
-}
-
-function generateDefaultName(): string {
-  const adjectives = ['Cipher', 'Echo', 'Vector', 'Nova', 'Pulse', 'Grid', 'Flux', 'Axis'];
-  const rng = new SeededRandom(Date.now().toString());
-  return `${rng.pick(adjectives)}-${rng.nextInt(100, 999)}`;
 }
 
 function localUser(displayName: string, previous?: Partial<AuthUser>): AuthUser {
@@ -181,7 +177,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     signInInFlight = (async () => {
       if (sessionLoadInFlight) await sessionLoadInFlight;
       if (get().isAuthenticated) return;
-      const name = displayName.trim().slice(0, 24) || generateDefaultName();
+      const name = displayName.trim().slice(0, 24) || generateGuestDisplayName();
       set({ isLoading: true });
       try {
         const session = await createGuestSession(name);
@@ -365,14 +361,24 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
   },
 
   signOut: async () => {
-    const refreshToken = await readRefreshToken().catch(() => null);
+    const refreshTokenPromise = readRefreshToken().catch(() => null);
+    const guestName = generateGuestDisplayName();
+    const guestUser = localUser(guestName);
+
+    // Switch both sources of the home-screen identity before the first await.
+    // Token revocation and server guest creation may take time, but the UI must
+    // never fall through to an empty or stale registered-account name.
+    useSettingsStore.getState().setDisplayName(guestName);
     set({
-      user: null,
+      user: guestUser,
       accessToken: null,
       accessTokenExpiresAt: 0,
       refreshTokenExpiresAt: 0,
-      isAuthenticated: false,
+      isAuthenticated: true,
+      isLoading: false,
     });
+
+    const refreshToken = await refreshTokenPromise;
     await Promise.all([
       AsyncStorage.multiRemove([AUTH_KEY, ...LEGACY_AUTH_KEYS]),
       deleteRefreshToken().catch(() => undefined),
@@ -381,6 +387,21 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
         : Promise.resolve(),
       signOutFirebase().catch(() => undefined),
     ]);
+
+    try {
+      const persisted = await persistServerSession(await createGuestSession(guestName));
+      set({ ...persisted, isAuthenticated: true, isLoading: false });
+    } catch {
+      await saveUser(guestUser).catch(() => undefined);
+      set({
+        user: guestUser,
+        accessToken: null,
+        accessTokenExpiresAt: 0,
+        refreshTokenExpiresAt: 0,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    }
   },
 
   updateDisplayName: async (name) => {

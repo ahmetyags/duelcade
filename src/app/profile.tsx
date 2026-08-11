@@ -134,7 +134,10 @@ export default function ProfileScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={copy.signOut}
-            onPress={() => void signOut().then(() => router.replace('/'))}
+            onPress={() => {
+              void signOut();
+              router.replace('/');
+            }}
             style={styles.signOutButton}
           >
             <LogOut size={18} color={colors.error} />
