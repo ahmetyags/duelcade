@@ -298,6 +298,7 @@ export class DuelcadeRoom extends Room {
   private createdAt = Date.now();
   private pausedAt: number | null = null;
   private pingCooldowns = new Map<string, number>();
+  private clientDataBySessionId = new Map<string, ClientData>();
 
   async onCreate(options: unknown): Promise<void> {
     JoinOptionsSchema.parse(options);
@@ -587,6 +588,7 @@ export class DuelcadeRoom extends Room {
       true,
     );
     clientData.registered = true;
+    this.clientDataBySessionId.set(client.sessionId, { ...clientData });
     this.game.players.push(player);
     this.game.positions.set(player.id, { x: 50, y: 132, sequence: 0 });
     this.sendRoomSnapshot(client, false);
@@ -638,6 +640,7 @@ export class DuelcadeRoom extends Room {
       false,
     );
     clientData.registered = true;
+    this.clientDataBySessionId.set(client.sessionId, { ...clientData });
     this.game.players.push(player);
     this.game.positions.set(player.id, { x: 50, y: 132, sequence: 0 });
     this.broadcastEvent({ event: 'player.joined', payload: { player } });
@@ -1240,7 +1243,11 @@ export class DuelcadeRoom extends Room {
   }
 
   private findPlayer(client: EscapeClient): Player | undefined {
-    if (!client.userData?.registered) return undefined;
+    const restoredData = this.clientDataBySessionId.get(client.sessionId);
+    if (!client.userData?.registered) {
+      if (!restoredData) return undefined;
+      client.userData = { ...restoredData };
+    }
     return this.game.players.find((player) => player.id === client.userData?.playerId);
   }
 
