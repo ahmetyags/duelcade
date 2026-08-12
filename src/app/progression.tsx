@@ -8,7 +8,9 @@ import {
   LockKeyhole,
   Palette,
   RotateCw,
+  Sparkles,
   Target,
+  Trophy,
 } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -85,6 +87,12 @@ const ITEM_LABELS = {
     midnight: 'Gece Masası',
     aurora: 'Aurora Masası',
   },
+} as const;
+
+const TABLE_THEME_PREVIEWS = {
+  classic: { board: '#F2F7F5', line: colors.cyanMuted, piece: colors.actionAmber },
+  midnight: { board: '#17312C', line: colors.actionCyan, piece: colors.actionAmber },
+  aurora: { board: '#DDF5F1', line: '#7C61FF', piece: colors.actionCyan },
 } as const;
 
 export default function ProgressionScreen() {
@@ -166,7 +174,7 @@ export default function ProgressionScreen() {
         <Award size={25} color={colors.amber} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {!user?.serverBacked || user.isGuest ? (
           <StatusCard copy={t('progression.offline')} />
         ) : progression.isPending ? (
@@ -184,28 +192,44 @@ export default function ProgressionScreen() {
         ) : (
           <>
             <View style={styles.levelCard}>
+              <View pointerEvents="none" style={styles.levelGlow} />
               <View style={styles.levelBadge}>
-                <ThemedText variant="label" color="muted">
-                  {t('progression.level')}
-                </ThemedText>
-                <ThemedText variant="title" style={styles.levelNumber}>
-                  {data.level}
-                </ThemedText>
+                <View style={styles.levelBadgeInner}>
+                  <View style={styles.levelBadgeContent}>
+                    <Trophy size={17} color={colors.actionAmber} />
+                    <ThemedText variant="title" style={styles.levelNumber}>{data.level}</ThemedText>
+                  </View>
+                </View>
+                <View style={styles.levelLabelPill}>
+                  <ThemedText variant="caption" style={styles.levelLabel}>
+                    {t('progression.level')}
+                  </ThemedText>
+                </View>
               </View>
               <View style={styles.levelCopy}>
-                <View style={styles.levelTop}>
-                  <ThemedText variant="subtitle">
-                    {t('progression.totalXp', { xp: data.totalXp })}
+                <View style={styles.rankEyebrow}>
+                  <Sparkles size={14} color={colors.actionAmber} />
+                  <ThemedText variant="label" style={styles.rankEyebrowText}>
+                    {t('progression.playerRank')}
                   </ThemedText>
-                  <ThemedText variant="caption" color="muted">
+                </View>
+                <ThemedText variant="subtitle" style={styles.totalXp}>
+                    {t('progression.totalXp', { xp: data.totalXp })}
+                </ThemedText>
+                <View style={styles.levelTop}>
+                  <ThemedText variant="caption" style={styles.levelProgressLabel}>
+                    {t('progression.levelProgress')}
+                  </ThemedText>
+                  <ThemedText variant="caption" style={styles.levelProgressValue}>
                     {data.currentLevelXp}/{data.nextLevelXp} XP
                   </ThemedText>
                 </View>
                 <ProgressBar
                   value={data.currentLevelXp}
                   target={data.nextLevelXp}
+                  accent="amber"
                 />
-                <ThemedText variant="caption" color="secondary">
+                <ThemedText variant="caption" style={styles.nextUnlock}>
                   {t('progression.nextUnlock')}
                 </ThemedText>
               </View>
@@ -259,27 +283,6 @@ export default function ProgressionScreen() {
             </View>
 
             <SectionHeader
-              icon={<Award size={19} color={colors.amber} />}
-              title={t('progression.mastery')}
-              subtitle={t('progression.masteryHelp')}
-            />
-            <View style={styles.masteryGrid}>
-              {data.mastery.map((item) => (
-                <View key={item.mode} style={styles.masteryCard}>
-                  <ThemedText variant="label">
-                    {getTurnModeCopy(language, item.mode).title}
-                  </ThemedText>
-                  <ThemedText variant="monoLarge" color="operator">
-                    {item.xp} XP
-                  </ThemedText>
-                  <ThemedText variant="caption" color="muted">
-                    {t('progression.matches', { count: item.matchesPlayed })}
-                  </ThemedText>
-                </View>
-              ))}
-            </View>
-
-            <SectionHeader
               icon={<Palette size={19} color={colors.secondary} />}
               title={t('progression.cosmetics')}
               subtitle={t('progression.cosmeticsHelp')}
@@ -295,6 +298,34 @@ export default function ProgressionScreen() {
                 onEquip={(itemId) => equip.mutate({ type, itemId })}
               />
             ))}
+
+            <SectionHeader
+              icon={<Award size={19} color={colors.amber} />}
+              title={t('progression.mastery')}
+              subtitle={t('progression.masteryHelp')}
+            />
+            <View style={styles.masteryGrid}>
+              {data.mastery.map((item, index) => (
+                <View key={item.mode} style={styles.masteryCard}>
+                  <View style={[
+                    styles.masteryAccent,
+                    { backgroundColor: index % 2 === 0 ? colors.actionCyan : colors.actionAmber },
+                  ]} />
+                  <ThemedText variant="label">
+                    {getTurnModeCopy(language, item.mode).title}
+                  </ThemedText>
+                  <View style={styles.masteryStats}>
+                    <ThemedText variant="mono" color="operator">
+                      {item.xp}
+                    </ThemedText>
+                    <ThemedText variant="caption" color="muted">XP</ThemedText>
+                  </View>
+                  <ThemedText variant="caption" color="muted">
+                    {t('progression.matches', { count: item.matchesPlayed })}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
           </>
         )}
       </ScrollView>
@@ -330,7 +361,12 @@ function CosmeticGroup({
       : progression.equipped.tableTheme;
   return (
     <View style={styles.cosmeticSection}>
-      <ThemedText variant="label" color="muted">{title}</ThemedText>
+      <View style={styles.cosmeticGroupHeader}>
+        <ThemedText variant="label" color="muted">{title}</ThemedText>
+        <ThemedText variant="caption" color="muted">
+          {owned.size}/{progression.catalog.filter((item) => item.type === type).length}
+        </ThemedText>
+      </View>
       <View style={styles.cosmeticGrid}>
         {progression.catalog.filter((item) => item.type === type).map((item) => {
           const unlocked = owned.has(item.itemId);
@@ -347,7 +383,11 @@ function CosmeticGroup({
                 !unlocked && styles.cosmeticLocked,
               ]}
             >
-              {type === 'avatar' && isPlayerAvatarId(item.itemId) ? (
+              {!unlocked ? (
+                <View style={styles.lockedPreview}>
+                  <LockKeyhole size={22} color={colors.textMuted} />
+                </View>
+              ) : type === 'avatar' && isPlayerAvatarId(item.itemId) ? (
                 <PlayerAvatar
                   avatarId={item.itemId as PlayerAvatarId}
                   size={42}
@@ -357,10 +397,18 @@ function CosmeticGroup({
                       : 'default'
                   }
                 />
-              ) : unlocked ? (
-                <Palette size={25} color={selected ? colors.success : colors.secondary} />
+              ) : type === 'frame' && isPlayerFrameId(item.itemId) ? (
+                <PlayerAvatar
+                  avatarId={isPlayerAvatarId(progression.equipped.avatar)
+                    ? progression.equipped.avatar as PlayerAvatarId
+                    : 'sparkles'}
+                  size={42}
+                  frameId={item.itemId as PlayerFrameId}
+                />
+              ) : type === 'table_theme' ? (
+                <TableThemePreview itemId={item.itemId} />
               ) : (
-                <LockKeyhole size={24} color={colors.textMuted} />
+                <Palette size={25} color={selected ? colors.success : colors.secondary} />
               )}
               <ThemedText variant="caption" style={styles.cosmeticLabel}>
                 {ITEM_LABELS[language][item.itemId as keyof typeof ITEM_LABELS.en]
@@ -380,6 +428,19 @@ function CosmeticGroup({
           );
         })}
       </View>
+    </View>
+  );
+}
+
+function TableThemePreview({ itemId }: { itemId: string }) {
+  const palette = TABLE_THEME_PREVIEWS[itemId as keyof typeof TABLE_THEME_PREVIEWS]
+    ?? TABLE_THEME_PREVIEWS.classic;
+  return (
+    <View style={[styles.tablePreview, { backgroundColor: palette.board, borderColor: palette.line }]}>
+      <View style={[styles.tablePreviewLine, styles.tablePreviewVertical, { backgroundColor: palette.line }]} />
+      <View style={[styles.tablePreviewLine, styles.tablePreviewHorizontal, { backgroundColor: palette.line }]} />
+      <View style={[styles.tablePreviewPiece, styles.tablePieceOne, { backgroundColor: palette.piece }]} />
+      <View style={[styles.tablePreviewPiece, styles.tablePieceTwo, { backgroundColor: palette.line }]} />
     </View>
   );
 }
@@ -404,11 +465,23 @@ function SectionHeader({
   );
 }
 
-function ProgressBar({ value, target }: { value: number; target: number }) {
+function ProgressBar({
+  value,
+  target,
+  accent = 'cyan',
+}: {
+  value: number;
+  target: number;
+  accent?: 'cyan' | 'amber';
+}) {
   const ratio = target <= 0 ? 0 : Math.min(1, Math.max(0, value / target));
   return (
-    <View style={styles.progressTrack}>
-      <View style={[styles.progressFill, { width: `${ratio * 100}%` }]} />
+    <View style={[styles.progressTrack, accent === 'amber' && styles.progressTrackOnDark]}>
+      <View style={[
+        styles.progressFill,
+        accent === 'amber' && styles.progressFillAmber,
+        { width: `${ratio * 100}%` },
+      ]} />
     </View>
   );
 }
@@ -457,34 +530,84 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   levelCard: {
+    position: 'relative',
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
+    minHeight: 154,
     padding: spacing.lg,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.amber,
-    backgroundColor: colors.surface,
+    borderColor: colors.cyanMuted,
+    backgroundColor: colors.primaryDark,
     ...shadows.md,
   },
+  levelGlow: {
+    position: 'absolute',
+    width: 190,
+    height: 190,
+    right: -54,
+    top: -88,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(69, 220, 203, 0.12)',
+  },
   levelBadge: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 92,
+    height: 104,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.amberMuted,
-    borderWidth: 2,
-    borderColor: colors.amber,
   },
-  levelNumber: { color: colors.amber, lineHeight: 34 },
-  levelCopy: { flex: 1, gap: spacing.sm },
+  levelBadgeInner: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.secondaryContainer,
+    borderWidth: 3,
+    borderColor: colors.actionAmber,
+    transform: [{ rotate: '45deg' }],
+    ...shadows.glow,
+  },
+  levelLabelPill: {
+    position: 'absolute',
+    bottom: 0,
+    minWidth: 68,
+    minHeight: 24,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.actionAmber,
+    borderWidth: 2,
+    borderColor: colors.primaryDark,
+  },
+  levelBadgeContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-45deg' }],
+  },
+  levelLabel: { color: colors.textOnAccent, fontFamily: 'Quicksand-Bold' },
+  levelNumber: {
+    color: colors.actionAmberDark,
+    fontSize: 34,
+    lineHeight: 38,
+  },
+  levelCopy: { flex: 1, gap: spacing.xs, zIndex: 1 },
+  rankEyebrow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  rankEyebrowText: { color: colors.actionAmber },
+  totalXp: { color: '#FFFFFF', fontSize: 21, lineHeight: 27 },
   levelTop: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
+    marginTop: spacing.xs,
   },
+  levelProgressLabel: { color: '#C9E9E4', flexShrink: 1 },
+  levelProgressValue: { color: '#FFFFFF', fontFamily: 'Quicksand-SemiBold' },
+  nextUnlock: { color: '#C9E9E4', marginTop: spacing.xs },
   progressTrack: {
     width: '100%',
     height: 8,
@@ -499,6 +622,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
   },
+  progressTrackOnDark: {
+    height: 10,
+    backgroundColor: 'rgba(8, 48, 43, 0.68)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  progressFillAmber: { backgroundColor: colors.actionAmber },
   sectionHeader: {
     marginTop: spacing.md,
     flexDirection: 'row',
@@ -536,25 +665,45 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   masteryCard: {
+    position: 'relative',
+    overflow: 'hidden',
     flexGrow: 1,
     flexBasis: '46%',
     minWidth: 150,
-    padding: spacing.md,
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
     gap: spacing.xs,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  cosmeticSection: { gap: spacing.sm },
+  masteryAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 5 },
+  masteryStats: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs },
+  cosmeticSection: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+  },
+  cosmeticGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   cosmeticGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
   cosmeticCard: {
-    width: 112,
-    minHeight: 118,
+    flexGrow: 1,
+    flexBasis: '29%',
+    maxWidth: 148,
+    minWidth: 96,
+    minHeight: 126,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
@@ -570,6 +719,30 @@ const styles = StyleSheet.create({
   },
   cosmeticLocked: { opacity: 0.55, backgroundColor: colors.surfaceDark },
   cosmeticLabel: { textAlign: 'center', fontFamily: 'Quicksand-SemiBold' },
+  lockedPreview: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tablePreview: {
+    position: 'relative',
+    overflow: 'hidden',
+    width: 58,
+    height: 42,
+    borderRadius: radius.md,
+    borderWidth: 2,
+  },
+  tablePreviewLine: { position: 'absolute', opacity: 0.52 },
+  tablePreviewVertical: { width: 2, top: 0, bottom: 0, left: 27 },
+  tablePreviewHorizontal: { height: 2, left: 0, right: 0, top: 19 },
+  tablePreviewPiece: { position: 'absolute', width: 9, height: 9, borderRadius: radius.pill },
+  tablePieceOne: { left: 10, top: 7 },
+  tablePieceTwo: { right: 10, bottom: 6 },
   statusCard: {
     minHeight: 220,
     alignItems: 'center',
