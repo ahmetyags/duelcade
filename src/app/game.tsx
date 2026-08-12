@@ -68,12 +68,20 @@ import {
   TURN_BOARD_GRID_GAP,
   turnBoardCellSize,
 } from '@/components/game/turnBoardLayout';
+import {
+  AnimatedTurnPiece,
+  BoardStateFlash,
+  TURN_PLAYER_COLORS,
+  TurnBoardTransition,
+  turnPieceGlow,
+  useTurnBoardReducedMotion,
+} from '@/components/game/TurnBoardVisuals';
 
 const MEMORY_SYMBOLS = [
   '◆', '●', '▲', '✦', '■', '⬟', '✚', '◈', '★', '◇', '⬢',
   '✿', '☀', '☾', '♠', '♥', '♣', '♦', '◎', '◐', '⌁',
 ];
-const PLAYER_COLORS = [colors.cyan, colors.amber] as const;
+const PLAYER_COLORS = TURN_PLAYER_COLORS;
 const REACTIONS = ['👏', '😄', '🤔', '🔥', '😮', 'GG'];
 
 function formatClock(value: number): string {
@@ -213,7 +221,7 @@ function PlayerCard({
   );
 }
 
-function RuneBoard({ match, disabled, onMove }: BoardProps) {
+function RuneBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const viewport = useWindowDimensions();
@@ -241,12 +249,19 @@ function RuneBoard({ match, disabled, onMove }: BoardProps) {
           ]}
         >
           {value !== null && (
-            <ThemedText style={[
-              styles.runeMark,
-              { color: PLAYER_COLORS[value], fontSize: markSize, lineHeight: markSize + 6 },
-            ]}>
-              {value === 0 ? '○' : '×'}
-            </ThemedText>
+            <AnimatedTurnPiece
+              identity={`${value}-${winnerCells.has(index)}`}
+              color={PLAYER_COLORS[value]}
+              completed={winnerCells.has(index)}
+              reduceMotion={reduceMotion}
+            >
+              <ThemedText style={[
+                styles.runeMark,
+                { color: PLAYER_COLORS[value], fontSize: markSize, lineHeight: markSize + 6 },
+              ]}>
+                {value === 0 ? '○' : '×'}
+              </ThemedText>
+            </AnimatedTurnPiece>
           )}
         </Pressable>
       ))}
@@ -254,7 +269,7 @@ function RuneBoard({ match, disabled, onMove }: BoardProps) {
   );
 }
 
-function ConnectBoard({ match, disabled, onMove }: BoardProps) {
+function ConnectBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const winnerCells = winningCells(match);
@@ -276,13 +291,23 @@ function ConnectBoard({ match, disabled, onMove }: BoardProps) {
                 key={row}
                 style={[
                   styles.connectSlot,
-                  value !== null && {
-                    backgroundColor: PLAYER_COLORS[value],
-                    borderColor: PLAYER_COLORS[value],
-                  },
                   winnerCells.has(index) && styles.winningConnectSlot,
                 ]}
-              />
+              >
+                {value !== null && (
+                  <AnimatedTurnPiece
+                    identity={`${value}-${winnerCells.has(index)}`}
+                    color={PLAYER_COLORS[value]}
+                    glow
+                    completed={winnerCells.has(index)}
+                    reduceMotion={reduceMotion}
+                    style={[
+                      styles.connectPiece,
+                      { backgroundColor: PLAYER_COLORS[value] },
+                    ]}
+                  />
+                )}
+              </View>
             );
           })}
         </Pressable>
@@ -291,7 +316,7 @@ function ConnectBoard({ match, disabled, onMove }: BoardProps) {
   );
 }
 
-function MemoryBoard({ match, disabled, onMove }: BoardProps) {
+function MemoryBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const viewport = useWindowDimensions();
@@ -322,16 +347,29 @@ function MemoryBoard({ match, disabled, onMove }: BoardProps) {
               pressed && styles.pressed,
             ]}
           >
-            <ThemedText style={[
-              styles.memorySymbol,
-              {
-                color: value === null ? colors.border : PLAYER_COLORS[value % 2],
-                fontSize: symbolSize,
-                lineHeight: symbolSize + 6,
-              },
-            ]}>
-              {value === null ? '?' : MEMORY_SYMBOLS[value]}
-            </ThemedText>
+            {value === null ? (
+              <ThemedText style={[styles.memorySymbol, styles.memoryHiddenSymbol]}>?</ThemedText>
+            ) : (
+              <AnimatedTurnPiece
+                identity={`${value}-${matched}-${owner ?? 'none'}`}
+                color={owner === null || owner === undefined
+                  ? PLAYER_COLORS[value % 2]
+                  : PLAYER_COLORS[owner]}
+                completed={matched}
+                reduceMotion={reduceMotion}
+              >
+                <ThemedText style={[
+                  styles.memorySymbol,
+                  {
+                    color: PLAYER_COLORS[value % 2],
+                    fontSize: symbolSize,
+                    lineHeight: symbolSize + 6,
+                  },
+                ]}>
+                  {MEMORY_SYMBOLS[value]}
+                </ThemedText>
+              </AnimatedTurnPiece>
+            )}
           </Pressable>
         );
       })}
@@ -339,7 +377,7 @@ function MemoryBoard({ match, disabled, onMove }: BoardProps) {
   );
 }
 
-function PipeBoard({ match, disabled, onMove }: BoardProps) {
+function PipeBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const viewport = useWindowDimensions();
@@ -369,14 +407,23 @@ function PipeBoard({ match, disabled, onMove }: BoardProps) {
               pressed && styles.pressed,
             ]}
           >
-            <PipeDirectionGlyph
-              kind={kind}
-              rotation={rotation ?? 0}
-              size={glyphSize}
+            <AnimatedTurnPiece
+              identity={`${rotation}-${owner ?? 'open'}`}
               color={index === 0 || index === match.cells.length - 1
-                ? colors.amber
-                : colors.cyanMuted}
-            />
+                ? colors.actionAmber
+                : colors.actionCyan}
+              completed={owner !== null}
+              reduceMotion={reduceMotion}
+            >
+              <PipeDirectionGlyph
+                kind={kind}
+                rotation={rotation ?? 0}
+                size={glyphSize}
+                color={index === 0 || index === match.cells.length - 1
+                  ? colors.actionAmber
+                  : colors.actionCyan}
+              />
+            </AnimatedTurnPiece>
             <View style={styles.pipeTarget}>
               <PipeDirectionGlyph
                 kind={kind}
@@ -395,7 +442,7 @@ function PipeBoard({ match, disabled, onMove }: BoardProps) {
   );
 }
 
-function ResonanceBoard({ match, disabled, onMove }: BoardProps) {
+function ResonanceBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const winnerCells = winningCells(match);
@@ -449,15 +496,21 @@ function ResonanceBoard({ match, disabled, onMove }: BoardProps) {
           >
             <Minus size={20} color={colors.textSecondary} />
           </Pressable>
-          <View style={[
-            styles.frequencyValue,
-            value === match.targets?.[dial] && styles.frequencyMatched,
-          ]}>
+          <AnimatedTurnPiece
+            identity={`${value}-${value === match.targets?.[dial]}`}
+            color={dial % 2 ? colors.actionAmber : colors.actionCyan}
+            completed={value === match.targets?.[dial]}
+            reduceMotion={reduceMotion}
+            style={[
+              styles.frequencyValue,
+              value === match.targets?.[dial] && styles.frequencyMatched,
+            ]}
+          >
             <ThemedText variant="mono" style={{ color: colors.textPrimary, fontSize: 20 }}>
               {resonanceFrequency(dial, value)}
             </ThemedText>
             <ThemedText variant="caption" color="muted">Hz</ThemedText>
-          </View>
+          </AnimatedTurnPiece>
           <Pressable
             accessibilityLabel={ui.channelIncrease(labels[dial])}
             disabled={disabled || value === match.targets?.[dial]}
@@ -476,6 +529,7 @@ interface BoardProps {
   match: TurnMatchState;
   disabled: boolean;
   onMove: (cell: number) => void;
+  reduceMotion: boolean;
 }
 
 export default function GameScreen() {
@@ -499,7 +553,7 @@ export default function GameScreen() {
   const chatMessages = useGameStore((state) => state.chatMessages);
   const room = useRoomStore((state) => state.room);
   const localPlayerId = useRoomStore((state) => state.localPlayerId);
-  const reduceMotion = useSettingsStore((state) => state.reduceMotion);
+  const reduceMotion = useTurnBoardReducedMotion();
   const settingsLoaded = useSettingsStore((state) => state.isLoaded);
   const lastRoomCode = useSettingsStore((state) => state.lastRoomCode);
   const lastRoomPlayerId = useSettingsStore((state) => state.lastRoomPlayerId);
@@ -598,6 +652,16 @@ export default function GameScreen() {
 
   const modeCopy = getTurnModeCopy(language, match.mode);
   const compact = height < 900;
+  const latestCipherGuess = match.cipherHistory?.[match.cipherHistory.length - 1];
+  const boardFeedbackColor = match.status === 'round_complete'
+    ? colors.success
+    : match.mode === 'memory_pairs' && match.status === 'resolving'
+      ? colors.warning
+      : match.mode === 'cipher_clash'
+        && latestCipherGuess
+        && latestCipherGuess.exact < (match.cipherCodeLength ?? 4)
+        ? colors.error
+        : PLAYER_COLORS[match.activePlayerIndex];
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <MagicBackdrop />
@@ -721,36 +785,43 @@ export default function GameScreen() {
           match.mode === 'resonance_dials' && styles.boardShellResonance,
         ]}>
           <View style={styles.boardGlow} />
-          {match.mode === 'rune_grid' && (
-            <RuneBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
-          {match.mode === 'connect_four' && (
-            <ConnectBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
-          {match.mode === 'memory_pairs' && (
-            <MemoryBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
-          {match.mode === 'pipe_circuit' && (
-            <PipeBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
-          {match.mode === 'resonance_dials' && (
-            <ResonanceBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
-          {match.mode === 'cipher_clash' && (
-            <CipherClashBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
-          {match.mode === 'circuit_claim' && (
-            <CircuitClaimBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
-          {match.mode === 'neon_trail' && (
-            <NeonTrailBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
-          {match.mode === 'gateway_race' && (
-            <GatewayRaceBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
-          {match.mode === 'polarity_war' && (
-            <PolarityWarBoard match={match} disabled={disabled} onMove={handleMove} />
-          )}
+          <TurnBoardTransition roundId={match.roundId} reduceMotion={reduceMotion}>
+            {match.mode === 'rune_grid' && (
+              <RuneBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+            {match.mode === 'connect_four' && (
+              <ConnectBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+            {match.mode === 'memory_pairs' && (
+              <MemoryBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+            {match.mode === 'pipe_circuit' && (
+              <PipeBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+            {match.mode === 'resonance_dials' && (
+              <ResonanceBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+            {match.mode === 'cipher_clash' && (
+              <CipherClashBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+            {match.mode === 'circuit_claim' && (
+              <CircuitClaimBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+            {match.mode === 'neon_trail' && (
+              <NeonTrailBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+            {match.mode === 'gateway_race' && (
+              <GatewayRaceBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+            {match.mode === 'polarity_war' && (
+              <PolarityWarBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
+            )}
+          </TurnBoardTransition>
+          <BoardStateFlash
+            signal={`${match.moveNumber}-${match.status}`}
+            color={boardFeedbackColor}
+            reduceMotion={reduceMotion}
+          />
           {!isMyTurn && match.status === 'playing' && (
             <View
               testID="opponent-turn-overlay"
@@ -1034,23 +1105,25 @@ const styles = StyleSheet.create({
   boardGlow: { position: 'absolute', width: '70%', height: '70%', left: '15%', top: '15%', borderRadius: 999, backgroundColor: colors.glow },
   waitOverlay: { position: 'absolute', inset: 0, zIndex: 8, backgroundColor: 'rgba(247,244,238,0.62)' },
   runeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
-  runeCell: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  runeCell: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: '#F8FFFD', alignItems: 'center', justifyContent: 'center' },
   filledCell: { backgroundColor: colors.surfaceElevated },
-  runeMark: { fontSize: 64, lineHeight: 72, fontWeight: '400' },
+  runeMark: { fontSize: 64, lineHeight: 72, fontWeight: '600' },
   winningCell: { borderWidth: 3, transform: [{ scale: 1.035 }], zIndex: 2, ...shadows.glow },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   connectBoard: { flex: 1, flexDirection: 'row', gap: 5, padding: spacing.sm, borderRadius: radius.xl, backgroundColor: colors.primaryDark, borderWidth: 1, borderColor: colors.cyanMuted },
   connectColumn: { flex: 1, gap: 5, justifyContent: 'space-around' },
   columnPressed: { backgroundColor: 'rgba(255,255,255,0.06)' },
-  connectSlot: { width: '100%', aspectRatio: 1, maxWidth: 62, alignSelf: 'center', borderRadius: radius.pill, backgroundColor: colors.backgroundDeep, borderWidth: 1, borderColor: colors.borderSubtle },
+  connectSlot: { width: '100%', aspectRatio: 1, maxWidth: 62, alignSelf: 'center', borderRadius: radius.pill, backgroundColor: colors.backgroundDeep, borderWidth: 1, borderColor: colors.borderSubtle, padding: 3 },
+  connectPiece: { width: '100%', height: '100%', borderRadius: radius.pill },
   winningConnectSlot: { borderWidth: 4, borderColor: '#FFFFFF', transform: [{ scale: 1.08 }], ...shadows.glow },
   memoryBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
-  memoryCard: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  memoryCard: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: '#F8FFFD', alignItems: 'center', justifyContent: 'center' },
   memoryCardOpen: { backgroundColor: colors.surfaceElevated, borderColor: colors.cyanMuted },
   memoryCardMatched: { backgroundColor: colors.primaryContainer, borderColor: colors.success },
   memorySymbol: { fontSize: 30, lineHeight: 36, fontWeight: '700' },
+  memoryHiddenSymbol: { color: colors.border, fontSize: 30, lineHeight: 36 },
   pipeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
-  pipeCell: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
+  pipeCell: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: '#F1FBF8', alignItems: 'center', justifyContent: 'center' },
   pipeTarget: { position: 'absolute', left: 6, top: 5, opacity: 0.48 },
   rotateBadge: { position: 'absolute', right: 7, bottom: 7, width: 22, height: 22, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, alignItems: 'center', justifyContent: 'center' },
   resonanceBoard: { flex: 1, justifyContent: 'center', gap: 10 },
@@ -1063,7 +1136,7 @@ const styles = StyleSheet.create({
   dialLabel: { width: 36, alignItems: 'center' },
   dialButton: { width: 42, height: 42, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   frequencyValue: { flex: 1, height: 48, minWidth: 0, paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
-  frequencyMatched: { borderColor: colors.success, backgroundColor: '#E7F8EE' },
+  frequencyMatched: { borderColor: colors.success, backgroundColor: '#E1FAEC', ...turnPieceGlow(colors.success) },
   roundVictory: { width: '100%', minHeight: 78, padding: spacing.md, borderRadius: radius.xl, borderWidth: 2, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.md },
   roundVictoryIcon: { width: 48, height: 48, flexShrink: 0, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   roundVictoryCopy: { flex: 1, minWidth: 0, gap: 2 },

@@ -35,6 +35,15 @@ export function PipeDirectionGlyph({
           d={path}
           fill="none"
           stroke={color}
+          strokeOpacity={0.2}
+          strokeWidth={strokeWidth + 3}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d={path}
+          fill="none"
+          stroke={color}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeLinejoin="round"

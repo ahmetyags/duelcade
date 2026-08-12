@@ -15,26 +15,24 @@ import { colors, radius, spacing } from '@/theme/tokens';
 import type { TurnMatchState } from '@/types/turnGame';
 import { useTranslation } from '@/src/i18n';
 import { TURN_UI } from '@/src/i18n/turnGames';
+import {
+  AnimatedTurnPiece,
+  TURN_CIPHER_COLORS,
+  TURN_PLAYER_COLORS,
+  turnPieceGlow,
+} from '@/components/game/TurnBoardVisuals';
 
-const PLAYER_COLORS = [colors.cyan, colors.amber] as const;
-const CIPHER_COLORS = [
-  '#E85D75',
-  '#6C4EF6',
-  '#F5C542',
-  '#29C98B',
-  '#2D9CDB',
-  '#F28C38',
-  '#B567D9',
-  '#425466',
-] as const;
+const PLAYER_COLORS = TURN_PLAYER_COLORS;
+const CIPHER_COLORS = TURN_CIPHER_COLORS;
 
 interface BoardProps {
   match: TurnMatchState;
   disabled: boolean;
   onMove: (cell: number) => void;
+  reduceMotion: boolean;
 }
 
-export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
+export function CipherClashBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const viewport = useWindowDimensions();
@@ -58,8 +56,13 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
               {entry.guess.map((symbol, symbolIndex) => {
                 const exact = entry.exactPositions?.includes(symbolIndex);
                 return (
-                  <View
+                  <AnimatedTurnPiece
                     key={symbolIndex}
+                    identity={`${entry.guess.join('-')}-${exact}`}
+                    color={CIPHER_COLORS[symbol]}
+                    glow
+                    completed={exact}
+                    reduceMotion={reduceMotion}
                     style={[
                       styles.historyRune,
                       { backgroundColor: CIPHER_COLORS[symbol] },
@@ -67,7 +70,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
                     ]}
                   >
                     <ThemedText style={styles.historyRuneNumber}>{symbol + 1}</ThemedText>
-                  </View>
+                  </AnimatedTurnPiece>
                 );
               })}
             </View>
@@ -98,15 +101,21 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
               style={[
                 styles.draftSlot,
                 { width: draftSize, height: draftSize },
-                symbol !== undefined && {
-                  backgroundColor: CIPHER_COLORS[symbol],
-                  borderColor: CIPHER_COLORS[symbol],
-                },
               ]}
             >
-              <ThemedText style={styles.draftNumber}>
-                {symbol === undefined ? '·' : symbol + 1}
-              </ThemedText>
+              {symbol === undefined ? (
+                <ThemedText style={styles.draftEmpty}>·</ThemedText>
+              ) : (
+                <AnimatedTurnPiece
+                  identity={`${index}-${symbol}`}
+                  color={CIPHER_COLORS[symbol]}
+                  glow
+                  reduceMotion={reduceMotion}
+                  style={[styles.draftPiece, { backgroundColor: CIPHER_COLORS[symbol] }]}
+                >
+                  <ThemedText style={styles.draftNumber}>{symbol + 1}</ThemedText>
+                </AnimatedTurnPiece>
+              )}
             </View>
           );
         })}
@@ -122,6 +131,7 @@ export function CipherClashBoard({ match, disabled, onMove }: BoardProps) {
             style={({ pressed }) => [
               styles.symbolButton,
               { backgroundColor: CIPHER_COLORS[symbol] },
+              turnPieceGlow(CIPHER_COLORS[symbol]),
               compact && styles.symbolButtonCompact,
               pressed && styles.pressed,
             ]}
@@ -173,7 +183,7 @@ function circuitBoxEdges(rows: number, columns: number, box: number): number[] {
   ];
 }
 
-export function CircuitClaimBoard({ match, disabled, onMove }: BoardProps) {
+export function CircuitClaimBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const width = `${100 / match.boardColumns}%` as `${number}%`;
@@ -203,9 +213,16 @@ export function CircuitClaimBoard({ match, disabled, onMove }: BoardProps) {
             ]}
           >
             {owner !== null && (
-              <ThemedText style={{ color: PLAYER_COLORS[owner], fontSize: 18 }}>
-                {owner === 0 ? '○' : '×'}
-              </ThemedText>
+              <AnimatedTurnPiece
+                identity={`${owner}-${match.status}`}
+                color={PLAYER_COLORS[owner]}
+                completed={match.status === 'round_complete' && owner === match.winnerIndex}
+                reduceMotion={reduceMotion}
+              >
+                <ThemedText style={{ color: PLAYER_COLORS[owner], fontSize: 18, fontWeight: '700' }}>
+                  {owner === 0 ? '○' : '×'}
+                </ThemedText>
+              </AnimatedTurnPiece>
             )}
             {edges.map((edge, edgeIndex) => {
               const edgeOwner = match.cells[edge];
@@ -221,6 +238,7 @@ export function CircuitClaimBoard({ match, disabled, onMove }: BoardProps) {
                     edgeStyles[edgeIndex],
                     edgeOwner !== null && {
                       backgroundColor: PLAYER_COLORS[edgeOwner],
+                      ...turnPieceGlow(PLAYER_COLORS[edgeOwner]),
                     },
                   ]}
                 />
@@ -244,7 +262,7 @@ function neighbors(index: number, rows: number, columns: number): number[] {
   ].filter((value) => value >= 0);
 }
 
-export function NeonTrailBoard({ match, disabled, onMove }: BoardProps) {
+export function NeonTrailBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const width = `${100 / match.boardColumns}%` as `${number}%`;
@@ -264,14 +282,23 @@ export function NeonTrailBoard({ match, disabled, onMove }: BoardProps) {
               styles.gridCell,
               { width },
               owner !== null && {
-                backgroundColor: `${PLAYER_COLORS[owner]}2B`,
+                backgroundColor: `${PLAYER_COLORS[owner]}38`,
                 borderColor: PLAYER_COLORS[owner],
               },
               legal.has(index) && owner === null && styles.legalCell,
               head && styles.headCell,
             ]}
           >
-            {head && <Zap size={20} color={PLAYER_COLORS[owner!]} fill={PLAYER_COLORS[owner!]} />}
+            {head && (
+              <AnimatedTurnPiece
+                identity={`${owner}-${index}`}
+                color={PLAYER_COLORS[owner!]}
+                completed
+                reduceMotion={reduceMotion}
+              >
+                <Zap size={20} color={PLAYER_COLORS[owner!]} fill={PLAYER_COLORS[owner!]} />
+              </AnimatedTurnPiece>
+            )}
           </Pressable>
         );
       })}
@@ -279,7 +306,7 @@ export function NeonTrailBoard({ match, disabled, onMove }: BoardProps) {
   );
 }
 
-export function GatewayRaceBoard({ match, disabled, onMove }: BoardProps) {
+export function GatewayRaceBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const [placingBarrier, setPlacingBarrier] = useState(false);
@@ -342,11 +369,24 @@ export function GatewayRaceBoard({ match, disabled, onMove }: BoardProps) {
               ]}
             >
               {player >= 0 && (
-                <View style={[styles.runner, { backgroundColor: PLAYER_COLORS[player] }]}>
+                <AnimatedTurnPiece
+                  identity={`${player}-${index}`}
+                  color={PLAYER_COLORS[player]}
+                  glow
+                  reduceMotion={reduceMotion}
+                  style={[styles.runner, { backgroundColor: PLAYER_COLORS[player] }]}
+                >
                   <ThemedText style={styles.runnerText}>{player === 0 ? '○' : '×'}</ThemedText>
-                </View>
+                </AnimatedTurnPiece>
               )}
-              {blocked && <View style={styles.barrierMark} />}
+              {blocked && (
+                <AnimatedTurnPiece
+                  identity={`barrier-${index}`}
+                  color={colors.textSecondary}
+                  reduceMotion={reduceMotion}
+                  style={styles.barrierMark}
+                />
+              )}
             </Pressable>
           );
         })}
@@ -382,7 +422,7 @@ function polarityFlips(match: TurnMatchState, cell: number, player: 0 | 1): numb
   return flips;
 }
 
-export function PolarityWarBoard({ match, disabled, onMove }: BoardProps) {
+export function PolarityWarBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const width = `${100 / match.boardColumns}%` as `${number}%`;
@@ -399,7 +439,12 @@ export function PolarityWarBoard({ match, disabled, onMove }: BoardProps) {
             style={[styles.polarityCell, { width }, legal && styles.legalPolarity]}
           >
             {owner !== null && (
-              <View
+              <AnimatedTurnPiece
+                identity={owner}
+                color={PLAYER_COLORS[owner]}
+                glow
+                completed={match.status === 'round_complete' && owner === match.winnerIndex}
+                reduceMotion={reduceMotion}
                 style={[
                   styles.polarityOrb,
                   {
@@ -467,6 +512,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  draftPiece: { width: '100%', height: '100%', borderRadius: radius.pill },
+  draftEmpty: { color: colors.border, fontSize: 20, lineHeight: 24 },
   draftNumber: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   symbolRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: spacing.sm },
   symbolRowCompact: { gap: 6 },
@@ -514,7 +561,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: '#F1FBF8',
   },
   circuitEdge: { position: 'absolute', zIndex: 2, backgroundColor: colors.border },
   edgeTop: { top: -5, left: 4, right: 4, height: 10, borderRadius: radius.pill },
@@ -532,11 +579,11 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    backgroundColor: '#F8FFFD',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  legalCell: { backgroundColor: colors.primaryContainer, borderColor: colors.primary },
+  legalCell: { backgroundColor: '#D6FAF4', borderColor: colors.actionCyan },
   headCell: { borderWidth: 3 },
   gatewayWrap: { flex: 1, gap: 15 },
   gatewayTools: { flexDirection: 'row', gap: spacing.sm },
@@ -555,7 +602,7 @@ const styles = StyleSheet.create({
   gatewayToolActive: { borderColor: colors.primary, backgroundColor: colors.primaryContainer },
   goalTop: { borderTopColor: colors.amber, borderTopWidth: 2 },
   goalBottom: { borderBottomColor: colors.cyan, borderBottomWidth: 2 },
-  barrierCandidate: { backgroundColor: colors.secondaryContainer, borderColor: colors.amber },
+  barrierCandidate: { backgroundColor: colors.secondaryContainer, borderColor: colors.actionAmber },
   barrierCell: { backgroundColor: colors.textSecondary, borderColor: colors.textPrimary },
   barrierMark: { width: '70%', height: 6, borderRadius: radius.pill, backgroundColor: colors.surface },
   runner: {
@@ -575,7 +622,7 @@ const styles = StyleSheet.create({
     alignContent: 'center',
     padding: spacing.sm,
     borderRadius: radius.xl,
-    backgroundColor: colors.primaryDark,
+    backgroundColor: '#116B64',
   },
   polarityCell: {
     aspectRatio: 1,
@@ -592,7 +639,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   winnerOrb: { borderWidth: 4, borderColor: '#FFFFFF', transform: [{ scale: 1.08 }] },
-  legalDot: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: colors.primary },
+  legalDot: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: colors.actionCyan, ...turnPieceGlow(colors.actionCyan) },
   disabled: { opacity: 0.42 },
   pressed: { opacity: 0.72, transform: [{ scale: 0.96 }] },
 });
