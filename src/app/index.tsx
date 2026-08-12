@@ -10,15 +10,14 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type TextStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, {
-  ClipPath,
   Defs,
   LinearGradient,
   Polygon,
-  Rect,
   Stop,
 } from 'react-native-svg';
 import {
@@ -839,6 +838,8 @@ function HomeActionModal({
               fullWidth
               loading={kind !== 'solo' && isLoading}
               disabled={kind === 'create' && serverStatus !== 'ready'}
+              style={kind === 'create' ? styles.createActionButton : undefined}
+              labelStyle={kind === 'create' ? styles.createActionButtonLabel : undefined}
               icon={kind === 'solo' ? <Bot size={20} color={colors.textOnPrimary} /> : kind === 'create' ? <Plus size={20} color={colors.textOnAccent} /> : <LogIn size={20} color={colors.textOnPrimary} />}
               onPress={kind === 'solo' ? handleSoloStart : kind === 'create' ? handleCreate : handleJoin}
             />
@@ -907,7 +908,7 @@ function HomeProgressionHud({
     ? 0
     : Math.min(1, Math.max(0, progression.currentLevelXp / progression.nextLevelXp));
   const xpLabel = `${progression.currentLevelXp} / ${progression.nextLevelXp} XP`;
-  const progressWidth = 218 * progress;
+  const progressWidth = `${progress * 100}%` as const;
 
   return (
     <Pressable
@@ -921,81 +922,51 @@ function HomeProgressionHud({
         pressed && styles.progressionHeaderHudPressed,
       ]}
     >
-      <View style={[styles.progressionHeaderBadge, hovered && styles.progressionHeaderBadgeHovered]}>
-        <Svg width="100%" height="100%" viewBox="0 0 58 58" style={styles.progressionHeaderBadgeArt}>
-          <Defs>
-            <LinearGradient id="levelBadgeFill" x1="0%" y1="0%" x2="0%" y2="100%">
-              <Stop offset="0" stopColor="#FFD67B" />
-              <Stop offset="0.48" stopColor="#FFB62E" />
-              <Stop offset="1" stopColor="#E78A08" />
-            </LinearGradient>
-          </Defs>
-          <Polygon
-            points="19,2 39,2 56,19 56,39 39,56 19,56 2,39 2,19"
-            fill="#FF9F0A"
-            stroke="#B96800"
-            strokeWidth="2"
-          />
-          <Polygon
-            points="20,6 38,6 52,20 52,38 38,52 20,52 6,38 6,20"
-            fill="url(#levelBadgeFill)"
-            stroke="#FFE09A"
-            strokeWidth="1.5"
-          />
-          <Polygon
-            points="20,8 38,8 49,19 45,17 17,17 10,24 8,20"
-            fill="rgba(255,255,255,0.34)"
-          />
-        </Svg>
-        <ThemedText variant="title" style={styles.progressionHeaderLevel}>
-          {progression.level}
-        </ThemedText>
-      </View>
       <View style={styles.progressionHeaderTrack}>
-        <Svg
-          width="100%"
-          height="100%"
-          viewBox="0 0 220 44"
-          preserveAspectRatio="none"
-          style={styles.progressionHeaderTrackArt}
-        >
-          <Defs>
-            <LinearGradient id="levelTrackFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0" stopColor="#F8FFFF" />
-              <Stop offset="0.55" stopColor="#E4FAF7" />
-              <Stop offset="1" stopColor="#BFEDE7" />
-            </LinearGradient>
-            <LinearGradient id="levelProgressFill" x1="0%" y1="0%" x2="100%" y2="0%">
-              <Stop offset="0" stopColor="#65E3D5" />
-              <Stop offset="1" stopColor={hovered ? '#29D9C7' : '#38CDBD'} />
-            </LinearGradient>
-            <ClipPath id="levelTrackClip">
-              <Polygon points="1,1 208,1 219,12 219,32 208,43 1,43" />
-            </ClipPath>
-          </Defs>
-          <Polygon
-            points="1,1 208,1 219,12 219,32 208,43 1,43"
-            fill="url(#levelTrackFill)"
-          />
-          <Rect
-            x="1"
-            y="1"
-            width={progressWidth}
-            height="42"
-            fill="url(#levelProgressFill)"
-            clipPath="url(#levelTrackClip)"
-          />
-          <Polygon
-            points="197,3 207,3 216,12 216,31 207,40 184,40"
-            fill="rgba(255,255,255,0.34)"
-          />
-          <Polygon
-            points="1,1 208,1 219,12 219,32 208,43 1,43"
-            fill="none"
-            stroke="#0EAFA1"
-            strokeWidth="2"
-          />
-        </Svg>
+        <View style={styles.progressionHeaderTrackBody}>
+          <View
+            style={[
+              styles.progressionHeaderFill,
+              hovered && styles.progressionHeaderFillHovered,
+              { width: progressWidth },
+            ]}
+          >
+            <View style={styles.progressionHeaderFillHighlight} />
+          </View>
+          <View style={styles.progressionHeaderTrackHighlight} />
+        </View>
+        <View style={[styles.progressionHeaderBadge, hovered && styles.progressionHeaderBadgeHovered]}>
+          <Svg width="100%" height="100%" viewBox="0 0 52 52" style={styles.progressionHeaderBadgeArt}>
+            <Defs>
+              <LinearGradient id="levelBadgeFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                <Stop offset="0" stopColor={colors.amberStrong} />
+                <Stop offset="0.5" stopColor={colors.secondary} />
+                <Stop offset="1" stopColor={colors.amber} />
+              </LinearGradient>
+            </Defs>
+            <Polygon
+              points="26,2 31.4,5.7 38,5.2 40.9,11.1 46.8,14 46.3,20.6 50,26 46.3,31.4 46.8,38 40.9,40.9 38,46.8 31.4,46.3 26,50 20.6,46.3 14,46.8 11.1,40.9 5.2,38 5.7,31.4 2,26 5.7,20.6 5.2,14 11.1,11.1 14,5.2 20.6,5.7"
+              fill={colors.actionAmber}
+              stroke={colors.actionAmberDark}
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+            />
+            <Polygon
+              points="26,7 30.4,9.6 35.5,9.5 38,14 42.5,16.5 42.4,21.6 45,26 42.4,30.4 42.5,35.5 38,38 35.5,42.5 30.4,42.4 26,45 21.6,42.4 16.5,42.5 14,38 9.5,35.5 9.6,30.4 7,26 9.6,21.6 9.5,16.5 14,14 16.5,9.5 21.6,9.6"
+              fill="url(#levelBadgeFill)"
+              stroke={colors.secondaryContainer}
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+            <Polygon
+              points="14,14 20,9.5 26,8 32,10 38,14 34,13 26,12 18,14"
+              fill="rgba(255,255,255,0.28)"
+            />
+          </Svg>
+          <ThemedText variant="title" style={styles.progressionHeaderLevel}>
+            {progression.level}
+          </ThemedText>
+        </View>
         <ThemedText variant="caption" style={styles.progressionHeaderXp}>
           {xpLabel}
         </ThemedText>
@@ -1186,8 +1157,8 @@ const styles = StyleSheet.create({
   progressionHeaderHud: {
     flex: 1,
     minWidth: 0,
-    maxWidth: 448,
-    height: 58,
+    maxWidth: 260,
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 1,
@@ -1196,45 +1167,96 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   progressionHeaderBadge: {
-    width: 58,
-    height: 58,
+    position: 'absolute',
+    left: 0,
+    width: 50,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
-    ...shadows.sm,
   },
   progressionHeaderBadgeArt: {
     position: 'absolute',
     inset: 0,
   },
   progressionHeaderBadgeHovered: {
-    transform: [{ scale: 1.04 }],
+    transform: [{ scale: 1.05 }],
   },
   progressionHeaderLevel: {
     color: colors.textOnAccent,
     fontFamily: 'Quicksand-Bold',
-    fontSize: 22,
-    lineHeight: 27,
+    fontSize: 18,
+    lineHeight: 22,
+    ...Platform.select({
+      web: { textShadow: `1px 2px 1px ${colors.secondaryContainer}` } as unknown as TextStyle,
+      default: {
+        textShadowColor: colors.secondaryContainer,
+        textShadowOffset: { width: 1, height: 2 },
+        textShadowRadius: 1,
+      },
+    }),
   },
   progressionHeaderTrack: {
     flex: 1,
     minWidth: 0,
-    height: 44,
-    marginLeft: -7,
+    height: 50,
     justifyContent: 'center',
-    ...shadows.sm,
   },
-  progressionHeaderTrackArt: {
+  progressionHeaderTrackBody: {
     position: 'absolute',
-    inset: 0,
+    top: 8,
+    right: 0,
+    bottom: 8,
+    left: 34,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderBottomWidth: 3,
+    borderColor: colors.primary,
+    borderBottomColor: colors.primaryDark,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primaryContainer,
+  },
+  progressionHeaderFill: {
+    height: '100%',
+    overflow: 'hidden',
+    borderRadius: radius.sm,
+    backgroundColor: colors.primary,
+  },
+  progressionHeaderFillHovered: {
+    backgroundColor: colors.actionCyan,
+  },
+  progressionHeaderFillHighlight: {
+    height: '42%',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  progressionHeaderTrackHighlight: {
+    position: 'absolute',
+    top: 3,
+    right: 10,
+    left: 44,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.13)',
   },
   progressionHeaderXp: {
+    position: 'absolute',
+    top: 16,
+    right: 0,
+    left: 34,
     color: colors.textPrimary,
     fontFamily: 'Quicksand-Bold',
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 17,
     textAlign: 'center',
-    paddingLeft: spacing.sm,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs,
+    ...Platform.select({
+      web: { textShadow: `0 1px 1px ${colors.surface}` } as unknown as TextStyle,
+      default: {
+        textShadowColor: colors.surface,
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 1,
+      },
+    }),
   },
   playControl: {
     minHeight: 58,
@@ -1398,6 +1420,8 @@ const styles = StyleSheet.create({
   },
   serverStatusError: { borderColor: colors.error },
   serverStatusCopy: { flex: 1 },
+  createActionButton: { backgroundColor: colors.actionAmber },
+  createActionButtonLabel: { color: colors.textOnAccent },
   serverReadyDot: {
     width: 10,
     height: 10,

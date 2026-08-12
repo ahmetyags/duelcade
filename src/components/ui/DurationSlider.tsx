@@ -22,7 +22,7 @@ export function DurationSlider({
   value,
   onChange,
   min = 2,
-  max = 5,
+  max = 20,
 }: DurationSliderProps) {
   const { language } = useTranslation();
   const copy = TURN_DURATION[language];
