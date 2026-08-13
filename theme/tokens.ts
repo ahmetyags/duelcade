@@ -1,37 +1,40 @@
-/** Industrial terminal design tokens derived from the four device artworks. */
+/** Duelcade's shared modern-neon-arcade design language. */
 
 export const colors = {
-  // Deep facility surfaces
-  backgroundDeep: '#F7F4EE',
-  background: '#FBFAF7',
+  // Layered warm-neutral surfaces. These deliberately avoid an all-white card stack.
+  backgroundDeep: '#F3F0E9',
+  background: '#F8F6F1',
   surfaceDark: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceElevated: '#F2F7F5',
-  surfaceMuted: '#F4F1EA',
+  surfaceElevated: '#EDF7F4',
+  surfaceMuted: '#EEEAE2',
+  surfaceHigh: '#FFFFFF',
+  surfaceTeal: '#E2F6F2',
+  surfaceAmber: '#FFF0DA',
 
   // Worn metal and structural frames
   metalDark: '#E7ECE9',
   metal: '#CAD4CF',
   metalLight: '#F7F9F8',
-  borderDark: '#D8DED9',
-  border: '#C9D5D0',
+  borderDark: '#B8C8C2',
+  border: '#C8D6D1',
   borderFocused: '#168F86',
-  borderSubtle: '#E1E7E3',
+  borderSubtle: '#DDE6E2',
 
   // Terminal data and mechanical energy
-  teal: '#1C665F',
-  cyan: '#55C9BE',
-  cyanMuted: '#2D8179',
-  amber: '#D99A4A',
+  teal: '#116C64',
+  cyan: '#2FCFC0',
+  cyanMuted: '#278D84',
+  amber: '#E49734',
   amberMuted: '#9B6E36',
   amberStrong: '#EDB760',
-  actionCyan: '#45DCCB',
-  actionAmber: '#F2AB45',
-  actionAmberDark: '#9A5D20',
-  primary: '#2CCABB',
-  primaryDark: '#14786F',
+  actionCyan: '#25D4C4',
+  actionAmber: '#F5A63A',
+  actionAmberDark: '#A25B12',
+  primary: '#22C8B8',
+  primaryDark: '#0C746B',
   primaryContainer: '#DDF5F1',
-  secondary: '#F2AB45',
+  secondary: '#F3A33A',
   secondaryDark: '#684722',
   secondaryContainer: '#FFF0D8',
   accent: '#F2AB45',
@@ -57,15 +60,16 @@ export const colors = {
   explorerContainer: '#33281B',
 
   // Typography
-  textPrimary: '#17231F',
-  textSecondary: '#4F5E57',
-  textMuted: '#7B8982',
+  textPrimary: '#14231F',
+  textSecondary: '#465852',
+  textMuted: '#687A73',
   textOnPrimary: '#10211D',
   textOnAccent: '#181208',
 
   // Overlays and restrained glow
-  overlay: 'rgba(247, 244, 238, 0.96)',
-  overlayLight: 'rgba(255, 255, 255, 0.92)',
+  overlay: 'rgba(248, 246, 241, 0.94)',
+  overlayLight: 'rgba(255, 255, 255, 0.90)',
+  modalScrim: 'rgba(12, 32, 28, 0.52)',
   scanline: 'rgba(20, 120, 111, 0.025)',
   glow: 'rgba(44, 202, 187, 0.16)',
   glowOrange: 'rgba(217, 154, 74, 0.20)',
@@ -76,7 +80,7 @@ export const colors = {
   alarmBackground: 'rgba(215, 108, 92, 0.13)',
 } as const;
 
-/** Compact four-point rhythm suited to dense terminal controls. */
+/** A compact four-point rhythm tuned for 320–430 px mobile layouts. */
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -87,17 +91,24 @@ export const spacing = {
   xxxl: 48,
 } as const;
 
-/** Restrained radii keep panels mechanical instead of toy-like. */
+/** Slightly sharpened radii keep the interface geometric, not toy-like. */
 export const radius = {
   none: 0,
   sm: 7,
   md: 10,
   lg: 12,
   xl: 16,
+  xxl: 22,
   pill: 9999,
 } as const;
 
 export const typography = {
+  display: {
+    fontSize: 36,
+    fontWeight: '700' as const,
+    lineHeight: 42,
+    letterSpacing: -1,
+  },
   title: {
     fontSize: 28,
     fontWeight: '700' as const,
@@ -140,31 +151,35 @@ export const typography = {
   },
 } as const;
 
-/** Short dark shadows and restrained glows suggest mounted metal hardware. */
+/** Soft elevation plus focused brand glows. Avoid applying glow to whole screens. */
 export const shadows = {
   sm: {
-    boxShadow: '0 3px 0 rgba(0, 0, 0, 0.42)',
+    boxShadow: '0 2px 5px rgba(20, 52, 45, 0.10)',
     elevation: 2,
   },
   md: {
-    boxShadow: '0 6px 12px rgba(0, 0, 0, 0.38)',
+    boxShadow: '0 8px 20px rgba(20, 52, 45, 0.12)',
     elevation: 4,
   },
   lg: {
-    boxShadow: '0 10px 22px rgba(0, 0, 0, 0.46)',
+    boxShadow: '0 18px 42px rgba(16, 46, 39, 0.18)',
     elevation: 7,
   },
   glow: {
-    boxShadow: '0 0 12px rgba(85, 201, 190, 0.18)',
+    boxShadow: '0 0 18px rgba(37, 212, 196, 0.24)',
+    elevation: 2,
+  },
+  glowAmber: {
+    boxShadow: '0 0 18px rgba(245, 166, 58, 0.24)',
     elevation: 2,
   },
 } as const;
 
 export const animation = {
-  fast: 150,
-  normal: 250,
-  slow: 400,
-  entrance: 500,
+  fast: 140,
+  normal: 220,
+  slow: 380,
+  entrance: 260,
   alarm: 600,
 } as const;
 

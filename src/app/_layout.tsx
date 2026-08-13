@@ -133,7 +133,7 @@ function RootLayout() {
           style={{ flex: 1, backgroundColor: colors.backgroundDeep }}
           onLayout={onLayout}
         >
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           <RootLayoutNav />
         </GestureHandlerRootView>
       </SafeAreaProvider>

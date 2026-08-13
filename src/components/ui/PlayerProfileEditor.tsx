@@ -206,6 +206,7 @@ const styles = StyleSheet.create({
   },
   nameInput: {
     flex: 1,
+    minWidth: 0,
     height: 52,
     paddingHorizontal: spacing.md,
     borderWidth: 1,

@@ -29,7 +29,6 @@ import {
   Gauge,
   LogIn,
   Play,
-  History,
   Plus,
   Mail,
   RefreshCw,
@@ -364,16 +363,6 @@ export default function HomeScreen() {
               fullWidth
               loading={isLoading}
               onPress={handleContinue}
-            />
-          )}
-          {user?.serverBacked && (
-            <ThemedButton
-              label={t('home.history')}
-              variant="ghost"
-              size="md"
-              fullWidth
-              icon={<History size={19} color={colors.textPrimary} strokeWidth={2.2} />}
-              onPress={() => router.push('/history')}
             />
           )}
           {error && (
@@ -982,12 +971,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    width: '100%',
-    maxWidth: 680,
+    width: '92%',
+    maxWidth: 648,
     alignSelf: 'center',
     justifyContent: 'flex-start',
-    boxSizing: 'border-box',
-    paddingHorizontal: spacing.lg,
     paddingTop: 21,
     paddingBottom: spacing.xl,
     gap: spacing.lg,
@@ -1020,7 +1007,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    marginTop: 52,
+    marginTop: 28,
     paddingVertical: spacing.sm,
   },
   heroMark: {
@@ -1261,7 +1248,14 @@ const styles = StyleSheet.create({
   playControl: {
     minHeight: 58,
     flexDirection: 'row',
-    gap: spacing.xs,
+    overflow: 'hidden',
+    borderRadius: radius.xl,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: colors.actionAmber,
+    borderBottomColor: colors.actionAmberDark,
+    backgroundColor: colors.secondary,
+    ...shadows.md,
   },
   playButton: {
     flex: 1,
@@ -1270,11 +1264,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    borderRadius: radius.xl,
-    borderWidth: 2,
-    borderBottomWidth: 5,
-    borderColor: colors.actionAmber,
-    borderBottomColor: colors.actionAmberDark,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(121, 67, 12, 0.26)',
     backgroundColor: colors.secondary,
   },
   playSettingsButton: {
@@ -1282,11 +1273,6 @@ const styles = StyleSheet.create({
     minHeight: 58,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.xl,
-    borderWidth: 2,
-    borderBottomWidth: 5,
-    borderColor: colors.actionAmber,
-    borderBottomColor: colors.actionAmberDark,
     backgroundColor: colors.secondary,
   },
   playButtonPressed: {

@@ -1,4 +1,4 @@
-/** Shared mechanical action control for terminal and facility screens. */
+/** Shared arcade action control with accessible sizing and physical press feedback. */
 
 import React, { useCallback } from 'react';
 import {
@@ -63,7 +63,7 @@ export const ThemedButton = React.memo<ThemedButtonProps>(function ThemedButton(
   const variantColors = VARIANT_COLORS[variant];
   const sizeStyles = SIZE_STYLES[size];
   const { highContrast, reduceMotion } = useSettingsStore();
-  const flatAction = variant === 'primary' || variant === 'secondary';
+  const primaryAction = variant === 'primary';
 
   const handlePress = useCallback(() => {
     if (disabled || loading) return;
@@ -85,10 +85,9 @@ export const ThemedButton = React.memo<ThemedButtonProps>(function ThemedButton(
           paddingVertical: sizeStyles.paddingV,
           paddingHorizontal: sizeStyles.paddingH,
           backgroundColor: variantColors.bg,
-          borderRadius: flatAction ? radius.lg : radius.md,
-          borderWidth: variant === 'ghost' ? 0 : highContrast ? 3 : flatAction ? 1 : 2,
-          borderTopWidth: variant === 'ghost' ? 0 : highContrast ? 3 : flatAction ? 1 : 3,
-          borderBottomWidth: variant === 'ghost' ? 0 : highContrast ? 3 : flatAction ? 1 : 4,
+          borderRadius: radius.lg,
+          borderWidth: variant === 'ghost' ? 0 : highContrast ? 3 : 1,
+          borderBottomWidth: variant === 'ghost' ? 0 : highContrast ? 3 : primaryAction ? 4 : 2,
           borderColor: variantColors.border,
           borderBottomColor: variantColors.base,
           minHeight: size === 'lg' ? 52 : size === 'md' ? 48 : 44,
@@ -98,7 +97,7 @@ export const ThemedButton = React.memo<ThemedButtonProps>(function ThemedButton(
             { scale: !reduceMotion && pressed ? 0.99 : 1 },
           ],
         },
-        variant !== 'ghost' && !flatAction && shadows.sm,
+        variant !== 'ghost' && shadows.sm,
         fullWidth && ({ alignSelf: 'stretch' } as ViewStyle),
         style,
       ]}

@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
-  ArrowLeft,
   Award,
   Check,
   Gift,
@@ -17,6 +16,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { ThemedText } from '@/components/ui/ThemedText';
 import {
@@ -154,25 +154,13 @@ export default function ProgressionScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <MagicBackdrop />
-      <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <ArrowLeft size={22} color={colors.textPrimary} />
-        </Pressable>
-        <View style={styles.headerCopy}>
-          <ThemedText variant="title" style={styles.title}>
-            {t('progression.title')}
-          </ThemedText>
-          <ThemedText variant="caption" color="muted">
-            {t('progression.subtitle')}
-          </ThemedText>
-        </View>
-        <Award size={25} color={colors.amber} />
-      </View>
+      <ScreenHeader
+        title={t('progression.title')}
+        subtitle={t('progression.subtitle')}
+        backLabel={t('common.back')}
+        onBack={() => router.back()}
+        trailing={<Award size={25} color={colors.amber} />}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {!user?.serverBacked || user.isGuest ? (
@@ -497,35 +485,11 @@ function StatusCard({ copy }: { copy: string }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.backgroundDeep },
-  header: {
-    width: '100%',
-    maxWidth: 680,
-    alignSelf: 'center',
-    minHeight: 76,
-    paddingHorizontal: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCopy: { flex: 1 },
-  title: { fontSize: 24 },
   content: {
-    width: '100%',
-    maxWidth: 680,
+    width: '92%',
+    maxWidth: 648,
     alignSelf: 'center',
-    padding: spacing.lg,
+    paddingVertical: spacing.lg,
     paddingBottom: spacing.xxl,
     gap: spacing.md,
   },

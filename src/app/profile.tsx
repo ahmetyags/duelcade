@@ -1,22 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
-  ArrowLeft,
   Award,
   CalendarDays,
+  CircleHelp,
   Medal,
   LogOut,
   RotateCw,
   ScrollText,
-  ShieldCheck,
   Trophy,
   UserRound,
+  X,
 } from 'lucide-react-native';
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { ThemedText } from '@/components/ui/ThemedText';
 import {
@@ -33,6 +34,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTranslation } from '@/src/i18n';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { isPlayerAvatarId, isPlayerFrameId } from '@/types/profile';
 
 const MOCK_LEADERBOARD: LeaderboardSummary = {
   globalRank: null,
@@ -52,12 +54,14 @@ const MOCK_COMPETITIVE: CompetitiveSummary = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { width: viewportWidth } = useWindowDimensions();
   const { language } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const getValidAccessToken = useAuthStore((state) => state.getValidAccessToken);
   const signOut = useAuthStore((state) => state.signOut);
   const avatarId = useSettingsStore((state) => state.avatarId);
   const frameId = useSettingsStore((state) => state.frameId);
+  const [rulesVisible, setRulesVisible] = React.useState(false);
   const copy = language === 'tr' ? trCopy : enCopy;
 
   const profile = useQuery<ProfileSummary>({
@@ -101,7 +105,12 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <MagicBackdrop />
-        <Header title={copy.title} subtitle={copy.subtitle} onBack={() => router.back()} />
+        <Header
+          title={copy.title}
+          subtitle={copy.subtitle}
+          backLabel={language === 'tr' ? 'Geri' : 'Back'}
+          onBack={() => router.back()}
+        />
         <View style={styles.centerState}>
           <UserRound size={40} color={colors.textMuted} />
           <ThemedText color="muted" style={styles.centerCopy}>{copy.offline}</ThemedText>
@@ -113,20 +122,25 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <MagicBackdrop />
-      <Header title={copy.title} subtitle={copy.subtitle} onBack={() => router.back()} />
+      <Header
+        title={copy.title}
+        subtitle={copy.subtitle}
+        backLabel={language === 'tr' ? 'Geri' : 'Back'}
+        onBack={() => router.back()}
+      />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileCard}>
+        <View style={[styles.profileCard, viewportWidth < 420 && styles.profileCardCompact]}>
           <PlayerAvatar avatarId={avatarId} frameId={frameId} size={82} />
           <View style={styles.profileCopy}>
             <ThemedText variant="title" style={styles.playerName}>
               {player.displayName}
             </ThemedText>
-            <ThemedText variant="caption" color="muted" selectable>
+            <ThemedText variant="caption" style={styles.profileMeta} selectable>
               ID {player.id}
             </ThemedText>
             <View style={styles.inlineMeta}>
-              <CalendarDays size={15} color={colors.textMuted} />
-              <ThemedText variant="caption" color="muted">
+              <CalendarDays size={15} color="#C9E9E4" />
+              <ThemedText variant="caption" style={styles.profileMeta}>
                 {copy.created} {dateFormat.format(new Date(player.createdAt))}
               </ThemedText>
             </View>
@@ -138,9 +152,16 @@ export default function ProfileScreen() {
               void signOut();
               router.replace('/');
             }}
-            style={styles.signOutButton}
+            style={({ pressed }) => [
+              styles.signOutButton,
+              viewportWidth < 420 && styles.signOutButtonCompact,
+              pressed && styles.signOutPressed,
+            ]}
           >
             <LogOut size={18} color={colors.error} />
+            <ThemedText variant="label" style={styles.signOutLabel} numberOfLines={1}>
+              {copy.signOut}
+            </ThemedText>
           </Pressable>
         </View>
 
@@ -148,7 +169,7 @@ export default function ProfileScreen() {
           <RetryCard copy={copy.profileError} onRetry={() => profile.refetch()} />
         )}
 
-        <SectionCard icon={<Trophy size={21} color={colors.amber} />} title="Leaderboard">
+        <SectionCard icon={<Trophy size={21} color={colors.amber} />} title={copy.leaderboardTitle} featured>
           <View style={styles.statGrid}>
             <Stat label={copy.globalRank} value={leaderboard.globalRank ? `#${leaderboard.globalRank}` : '-'} />
             <Stat label={copy.totalScore} value={String(leaderboard.totalScore)} />
@@ -164,15 +185,35 @@ export default function ProfileScreen() {
             ) : ranking.data.entries.length === 0 ? (
               <ThemedText color="muted">{copy.emptyLeaderboard}</ThemedText>
             ) : ranking.data.entries.slice(0, 20).map((entry) => (
-              <LeaderboardRow key={entry.playerId} entry={entry} current={entry.playerId === user.id} />
+              <LeaderboardRow
+                key={entry.playerId}
+                entry={entry}
+                current={entry.playerId === user.id}
+                copy={copy}
+              />
             ))}
           </View>
         </SectionCard>
 
-        <SectionCard icon={<Medal size={21} color={colors.primary} />} title="Competitive">
+        <SectionCard
+          icon={<Medal size={21} color={colors.primary} />}
+          title={copy.competitiveTitle}
+          action={(
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copy.openRules}
+              accessibilityHint={copy.openRulesHint}
+              onPress={() => setRulesVisible(true)}
+              hitSlop={8}
+              style={({ pressed }) => [styles.helpButton, pressed && styles.pressed]}
+            >
+              <CircleHelp size={21} color={colors.primaryDark} />
+            </Pressable>
+          )}
+        >
           <View style={styles.competitiveTop}>
             <View>
-              <ThemedText variant="caption" color="muted">Season Rating</ThemedText>
+              <ThemedText variant="caption" color="muted">{copy.seasonRating}</ThemedText>
               <ThemedText variant="monoLarge" color="operator">
                 {competitive.seasonRating}
               </ThemedText>
@@ -186,23 +227,14 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statGrid}>
             <Stat label={copy.season} value={competitive.season} />
-            <Stat label="Win" value={String(competitive.results.wins)} tone="success" />
-            <Stat label="Lose" value={String(competitive.results.losses)} tone="error" />
-            <Stat label="Draw" value={String(competitive.results.draws)} />
-            <Stat label="Win Rate" value={`${competitive.winRate}%`} />
+            <Stat label={copy.wins} value={String(competitive.results.wins)} tone="success" />
+            <Stat label={copy.losses} value={String(competitive.results.losses)} tone="error" />
+            <Stat label={copy.draws} value={String(competitive.results.draws)} />
+            <Stat label={copy.winRate} value={`${competitive.winRate}%`} />
           </View>
         </SectionCard>
 
-        <SectionCard icon={<ShieldCheck size={21} color={colors.success} />} title="Competitive Rules">
-          {copy.rules.map((rule) => (
-            <View key={rule.title} style={styles.ruleRow}>
-              <ThemedText variant="label">{rule.title}</ThemedText>
-              <ThemedText variant="caption" color="secondary">{rule.body}</ThemedText>
-            </View>
-          ))}
-        </SectionCard>
-
-        <SectionCard icon={<ScrollText size={21} color={colors.primary} />} title="Recent Matches">
+        <SectionCard icon={<ScrollText size={21} color={colors.primary} />} title={copy.recentMatchesTitle}>
           {matches.isPending ? (
             <ThemedText color="muted">{copy.loadingMatches}</ThemedText>
           ) : matches.isError ? (
@@ -212,71 +244,169 @@ export default function ProfileScreen() {
           ) : (
             <View style={styles.matchList}>
               {matches.data.matches.map((match) => (
-                <MatchRow key={match.id} match={match} userId={user.id} language={language} />
+                <MatchRow key={match.id} match={match} userId={user.id} language={language} copy={copy} />
               ))}
             </View>
           )}
         </SectionCard>
       </ScrollView>
+      <RulesModal
+        visible={rulesVisible}
+        copy={copy}
+        onClose={() => setRulesVisible(false)}
+      />
     </SafeAreaView>
   );
 }
 
-function LeaderboardRow({ entry, current }: { entry: LeaderboardEntry; current: boolean }) {
+function LeaderboardRow({
+  entry,
+  current,
+  copy,
+}: {
+  entry: LeaderboardEntry;
+  current: boolean;
+  copy: ProfileCopy;
+}) {
+  const avatar = isPlayerAvatarId(entry.avatarId) ? entry.avatarId : 'sparkles';
+  const frame = isPlayerFrameId(entry.frameId) ? entry.frameId : 'default';
+  const podium = entry.rank <= 3;
   return (
     <View style={[styles.leaderboardRow, current && styles.leaderboardRowCurrent]}>
-      <ThemedText variant="mono" style={styles.rank}>#{entry.rank}</ThemedText>
-      <ThemedText variant="label" numberOfLines={1} style={styles.leaderboardName}>
-        {entry.displayName}
-      </ThemedText>
-      <ThemedText variant="caption" color="muted">{entry.wins}W · {entry.losses}L</ThemedText>
-      <ThemedText variant="label" color="operator">{entry.totalScore}</ThemedText>
+      <View style={[styles.rankBadge, podium && styles.rankBadgePodium]}>
+        <ThemedText variant="label" style={[styles.rank, podium && styles.rankPodium]}>
+          {entry.rank}
+        </ThemedText>
+      </View>
+      <PlayerAvatar avatarId={avatar} frameId={frame} size={40} />
+      <View style={styles.leaderboardPlayer}>
+        <View style={styles.leaderboardNameRow}>
+          <ThemedText variant="label" numberOfLines={1} style={styles.leaderboardName}>
+            {entry.displayName}
+          </ThemedText>
+          {current && <View style={styles.youDot} />}
+        </View>
+        <ThemedText variant="caption" color="muted">
+          {entry.wins}{copy.winShort} · {entry.losses}{copy.lossShort} · %{entry.winRate}
+        </ThemedText>
+      </View>
+      <View style={styles.scorePill}>
+        <ThemedText variant="label" color="operator">{entry.totalScore}</ThemedText>
+        <ThemedText variant="caption" color="muted">{copy.pointsShort}</ThemedText>
+      </View>
     </View>
+  );
+}
+
+function RulesModal({
+  visible,
+  copy,
+  onClose,
+}: {
+  visible: boolean;
+  copy: ProfileCopy;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalLayer}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.closeRules}
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View accessibilityViewIsModal style={styles.rulesModal}>
+          <View style={styles.rulesModalHeader}>
+            <View style={styles.rulesModalIcon}>
+              <Medal size={23} color={colors.actionAmber} />
+            </View>
+            <View style={styles.rulesModalCopy}>
+              <ThemedText variant="subtitle" style={styles.rulesTitle}>{copy.rulesTitle}</ThemedText>
+              <ThemedText variant="caption" style={styles.rulesSubtitle}>{copy.rulesSubtitle}</ThemedText>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copy.closeRules}
+              onPress={onClose}
+              style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}
+            >
+              <X size={20} color={colors.textPrimary} />
+            </Pressable>
+          </View>
+          <ScrollView
+            style={styles.rulesScroll}
+            contentContainerStyle={styles.rulesList}
+            showsVerticalScrollIndicator={false}
+          >
+            {copy.rules.map((rule, index) => (
+              <View key={rule.title} style={styles.ruleRow}>
+                <View style={styles.ruleNumber}>
+                  <ThemedText variant="caption" style={styles.ruleNumberText}>{index + 1}</ThemedText>
+                </View>
+                <View style={styles.ruleCopy}>
+                  <ThemedText variant="label">{rule.title}</ThemedText>
+                  <ThemedText variant="caption" color="secondary">{rule.body}</ThemedText>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
 function Header({
   title,
   subtitle,
+  backLabel,
   onBack,
 }: {
   title: string;
   subtitle: string;
+  backLabel: string;
   onBack: () => void;
 }) {
   return (
-    <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={onBack}
-        style={styles.backButton}
-      >
-        <ArrowLeft size={22} color={colors.textPrimary} />
-      </Pressable>
-      <View style={styles.headerCopy}>
-        <ThemedText variant="title" style={styles.title}>{title}</ThemedText>
-        <ThemedText variant="caption" color="muted">{subtitle}</ThemedText>
-      </View>
-      <UserRound size={24} color={colors.primary} />
-    </View>
+    <ScreenHeader
+      title={title}
+      subtitle={subtitle}
+      backLabel={backLabel}
+      onBack={onBack}
+      trailing={<UserRound size={24} color={colors.primary} />}
+      maxWidth={728}
+    />
   );
 }
 
 function SectionCard({
   icon,
   title,
+  action,
+  featured = false,
   children,
 }: {
   icon: React.ReactNode;
   title: string;
+  action?: React.ReactNode;
+  featured?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, featured && styles.cardFeatured]}>
       <View style={styles.cardHeader}>
-        {icon}
-        <ThemedText variant="subtitle" style={styles.cardTitle}>{title}</ThemedText>
+        <View style={styles.cardTitleGroup}>
+          {icon}
+          <ThemedText variant="subtitle" style={styles.cardTitle}>{title}</ThemedText>
+        </View>
+        {action}
       </View>
       {children}
     </View>
@@ -313,10 +443,12 @@ function MatchRow({
   match,
   userId,
   language,
+  copy,
 }: {
   match: MatchHistoryItem;
   userId: string;
   language: 'tr' | 'en';
+  copy: ProfileCopy;
 }) {
   const outcome = match.winnerPlayerId === null
     ? 'Draw'
@@ -332,7 +464,7 @@ function MatchRow({
       <View style={styles.matchMain}>
         <ThemedText variant="label">{match.opponentDisplayName}</ThemedText>
         <ThemedText variant="caption" color="muted">
-          {dateFormat.format(new Date(match.finishedAt))} · {durationMinutes} min
+          {dateFormat.format(new Date(match.finishedAt))} · {durationMinutes} {copy.minuteShort}
         </ThemedText>
       </View>
       <View style={styles.matchResult}>
@@ -343,7 +475,7 @@ function MatchRow({
             outcome === 'Lose' && { color: colors.error },
           ]}
         >
-          {outcome}
+          {outcome === 'Win' ? copy.matchWin : outcome === 'Lose' ? copy.matchLoss : copy.matchDraw}
         </ThemedText>
         <ThemedText variant="caption" color="operator">+{match.xpEarned}</ThemedText>
       </View>
@@ -377,12 +509,24 @@ type ProfileCopy = {
   offline: string;
   created: string;
   profileError: string;
+  leaderboardTitle: string;
+  competitiveTitle: string;
+  recentMatchesTitle: string;
   globalRank: string;
   totalScore: string;
   wins: string;
   losses: string;
   winRate: string;
   season: string;
+  seasonRating: string;
+  draws: string;
+  winShort: string;
+  lossShort: string;
+  pointsShort: string;
+  minuteShort: string;
+  matchWin: string;
+  matchLoss: string;
+  matchDraw: string;
   loadingMatches: string;
   matchError: string;
   emptyMatches: string;
@@ -390,6 +534,11 @@ type ProfileCopy = {
   leaderboardError: string;
   emptyLeaderboard: string;
   signOut: string;
+  openRules: string;
+  openRulesHint: string;
+  closeRules: string;
+  rulesTitle: string;
+  rulesSubtitle: string;
   rules: { title: string; body: string }[];
 };
 
@@ -399,12 +548,24 @@ const enCopy: ProfileCopy = {
   offline: 'Create a profile from the home screen to sync this page.',
   created: 'Created',
   profileError: 'Profile data could not be loaded. Showing placeholders.',
+  leaderboardTitle: 'Leaderboard',
+  competitiveTitle: 'Competitive',
+  recentMatchesTitle: 'Recent Matches',
   globalRank: 'Global Rank',
   totalScore: 'Total Score',
   wins: 'Wins',
   losses: 'Losses',
   winRate: 'Win Rate',
   season: 'Season',
+  seasonRating: 'Season Rating',
+  draws: 'Draws',
+  winShort: 'W',
+  lossShort: 'L',
+  pointsShort: 'PTS',
+  minuteShort: 'min',
+  matchWin: 'Win',
+  matchLoss: 'Loss',
+  matchDraw: 'Draw',
   loadingMatches: 'Loading matches...',
   matchError: 'Recent matches could not be loaded.',
   emptyMatches: 'Finish an online duel to start your match history.',
@@ -412,6 +573,11 @@ const enCopy: ProfileCopy = {
   leaderboardError: 'The global ranking could not be loaded.',
   emptyLeaderboard: 'The first ranked players will appear here.',
   signOut: 'Sign out',
+  openRules: 'Competitive rules',
+  openRulesHint: 'Opens the competitive rules dialog',
+  closeRules: 'Close competitive rules',
+  rulesTitle: 'Competitive Rules',
+  rulesSubtitle: 'How seasons, leagues, and verified scores work',
   rules: [
     { title: 'Season Rating', body: 'Players gain and lose rating throughout a season.' },
     { title: 'Leagues', body: 'Players promote through leagues based on their rating.' },
@@ -427,12 +593,24 @@ const trCopy: ProfileCopy = {
   offline: 'Bu sayfayı eşitlemek için ana sayfadan profilini oluştur.',
   created: 'Oluşturuldu',
   profileError: 'Profil verisi yüklenemedi. Yer tutucular gösteriliyor.',
+  leaderboardTitle: 'Liderlik Tablosu',
+  competitiveTitle: 'Rekabetçi',
+  recentMatchesTitle: 'Son Maçlar',
   globalRank: 'Global Sıralama',
   totalScore: 'Toplam Puan',
   wins: 'Kazanılan Maç',
   losses: 'Kaybedilen Maç',
   winRate: 'Kazanma Oranı',
   season: 'Sezon',
+  seasonRating: 'Sezon Puanı',
+  draws: 'Beraberlik',
+  winShort: 'G',
+  lossShort: 'M',
+  pointsShort: 'PUAN',
+  minuteShort: 'dk',
+  matchWin: 'Galibiyet',
+  matchLoss: 'Mağlubiyet',
+  matchDraw: 'Berabere',
   loadingMatches: 'Maçlar yükleniyor...',
   matchError: 'Son maçlar yüklenemedi.',
   emptyMatches: 'Maç geçmişini başlatmak için çevrimiçi bir düello tamamla.',
@@ -440,6 +618,11 @@ const trCopy: ProfileCopy = {
   leaderboardError: 'Global sıralama yüklenemedi.',
   emptyLeaderboard: 'İlk sıralamalı oyuncular burada görünecek.',
   signOut: 'Çıkış yap',
+  openRules: 'Rekabetçi kuralları',
+  openRulesHint: 'Rekabetçi kurallar penceresini açar',
+  closeRules: 'Rekabetçi kurallarını kapat',
+  rulesTitle: 'Rekabetçi Kuralları',
+  rulesSubtitle: 'Sezonların, liglerin ve doğrulanmış skorların işleyişi',
   rules: [
     { title: 'Sezonluk Puan Sistemi', body: 'Oyuncular sezon boyunca puan kazanır ve kaybeder.' },
     { title: 'Ligler', body: 'Oyuncular puanlarına göre liglere yükselir.' },
@@ -451,54 +634,48 @@ const trCopy: ProfileCopy = {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.backgroundDeep },
-  header: {
-    width: '100%',
-    maxWidth: 760,
-    alignSelf: 'center',
-    minHeight: 76,
-    paddingHorizontal: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCopy: { flex: 1 },
-  title: { fontSize: 24 },
   content: {
-    width: '100%',
-    maxWidth: 760,
+    width: '92%',
+    maxWidth: 728,
     alignSelf: 'center',
-    padding: spacing.lg,
+    paddingVertical: spacing.lg,
     gap: spacing.md,
   },
   profileCard: {
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
-    padding: spacing.lg,
+    minHeight: 126,
+    padding: spacing.xl,
     borderRadius: radius.xl,
-    borderWidth: 2,
-    borderTopColor: colors.metalLight,
-    borderRightColor: colors.border,
-    borderBottomColor: colors.borderDark,
-    borderLeftColor: colors.border,
-    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.cyanMuted,
+    backgroundColor: colors.primaryDark,
     ...shadows.md,
   },
   profileCopy: { flex: 1, gap: spacing.xs },
-  signOutButton: { width: 42, height: 42, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.error, alignItems: 'center', justifyContent: 'center' },
-  playerName: { color: colors.textPrimary },
+  profileCardCompact: { flexWrap: 'wrap', padding: spacing.lg },
+  signOutButton: {
+    minWidth: 104,
+    minHeight: 42,
+    flexShrink: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.error,
+    backgroundColor: '#FFF7F5',
+    ...shadows.sm,
+  },
+  signOutPressed: { opacity: 0.82, transform: [{ translateY: 2 }] },
+  signOutButtonCompact: { width: '100%', marginTop: spacing.xs },
+  signOutLabel: { color: colors.error, letterSpacing: 0.2 },
+  playerName: { color: '#FFFFFF' },
+  profileMeta: { color: '#C9E9E4' },
   inlineMeta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -514,12 +691,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadows.md,
   },
+  cardFeatured: { borderColor: colors.amber, backgroundColor: '#FFFCF6' },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
+  cardTitleGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   cardTitle: { fontSize: 20 },
+  helpButton: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: { opacity: 0.72, transform: [{ scale: 0.96 }] },
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -538,11 +729,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
   },
   statValue: { fontSize: 20, lineHeight: 25 },
-  leaderboardList: { gap: spacing.xs },
-  leaderboardRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.borderSubtle },
-  leaderboardRowCurrent: { borderColor: colors.primary, backgroundColor: colors.primaryContainer },
-  rank: { width: 42, color: colors.amberMuted },
+  leaderboardList: { gap: spacing.sm },
+  leaderboardRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle },
+  leaderboardRowCurrent: { borderWidth: 2, borderColor: colors.primary, backgroundColor: colors.primaryContainer },
+  rankBadge: { width: 30, height: 30, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border },
+  rankBadgePodium: { backgroundColor: colors.secondaryContainer, borderColor: colors.actionAmber },
+  rank: { color: colors.textSecondary },
+  rankPodium: { color: colors.actionAmberDark },
+  leaderboardPlayer: { flex: 1, minWidth: 0, gap: 2 },
+  leaderboardNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   leaderboardName: { flex: 1 },
+  youDot: { width: 7, height: 7, borderRadius: radius.pill, backgroundColor: colors.actionCyan },
+  scorePill: { minWidth: 50, alignItems: 'flex-end' },
   competitiveTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -562,12 +760,53 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary,
   },
   leagueText: { color: colors.textOnAccent },
-  ruleRow: {
-    gap: spacing.xs,
-    paddingBottom: spacing.sm,
+  modalLayer: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.lg,
+    backgroundColor: 'rgba(16, 27, 23, 0.62)',
+  },
+  rulesModal: {
+    width: '100%',
+    maxWidth: 540,
+    maxHeight: '82%',
+    alignSelf: 'center',
+    overflow: 'hidden',
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.cyanMuted,
+    backgroundColor: colors.background,
+    ...shadows.lg,
+  },
+  rulesModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSubtle,
+    backgroundColor: colors.primaryDark,
   },
+  rulesModalIcon: { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.secondaryContainer },
+  rulesModalCopy: { flex: 1, gap: 2 },
+  rulesTitle: { color: '#FFFFFF' },
+  rulesSubtitle: { color: '#C9E9E4' },
+  modalClose: { width: 40, height: 40, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  rulesScroll: { flexGrow: 0 },
+  rulesList: { padding: spacing.lg, gap: spacing.sm },
+  ruleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+  },
+  ruleNumber: { width: 28, height: 28, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.secondaryContainer, borderWidth: 1, borderColor: colors.actionAmber },
+  ruleNumberText: { color: colors.actionAmberDark, fontFamily: 'Quicksand-Bold' },
+  ruleCopy: { flex: 1, gap: spacing.xs },
   matchList: { gap: spacing.sm },
   matchRow: {
     minHeight: 64,
@@ -584,8 +823,8 @@ const styles = StyleSheet.create({
   matchMain: { flex: 1, gap: spacing.xs },
   matchResult: { alignItems: 'flex-end', gap: spacing.xs },
   centerState: {
-    width: '100%',
-    maxWidth: 680,
+    width: '92%',
+    maxWidth: 728,
     alignSelf: 'center',
     marginTop: spacing.xl,
     minHeight: 220,

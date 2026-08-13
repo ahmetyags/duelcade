@@ -32,6 +32,7 @@ import { ThemedButton } from '@/components/ui/ThemedButton';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
 import { GameHowToPlayModal } from '@/components/game/GameHowToPlayModal';
+import { GameBoardShell } from '@/components/game/GameBoardShell';
 import { PipeDirectionGlyph } from '@/components/game/PipeDirectionGlyph';
 import {
   CipherClashBoard,
@@ -777,14 +778,12 @@ export default function GameScreen() {
           </View>
         )}
 
-        <View style={[
-          styles.boardShell,
+        <GameBoardShell style={[
           compact && styles.boardShellCompact,
           match.mode === 'gateway_race' && styles.boardShellGateway,
           match.mode === 'cipher_clash' && styles.boardShellCipher,
           match.mode === 'resonance_dials' && styles.boardShellResonance,
         ]}>
-          <View style={styles.boardGlow} />
           <TurnBoardTransition roundId={match.roundId} reduceMotion={reduceMotion}>
             {match.mode === 'rune_grid' && (
               <RuneBoard match={match} disabled={disabled} onMove={handleMove} reduceMotion={reduceMotion} />
@@ -828,7 +827,7 @@ export default function GameScreen() {
               style={[styles.waitOverlay, { pointerEvents: 'none' }]}
             />
           )}
-        </View>
+        </GameBoardShell>
 
         {(
           match.mode === 'memory_pairs'
@@ -1097,12 +1096,10 @@ const styles = StyleSheet.create({
   reactionAvatar: { width: 32, height: 32, flexShrink: 0, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceElevated },
   reactionName: { flex: 1, color: colors.textPrimary },
   reactionText: { fontSize: 23, lineHeight: 28 },
-  boardShell: { width: '100%', maxWidth: 560, minHeight: 300, maxHeight: 560, aspectRatio: 1, alignSelf: 'center', position: 'relative', padding: spacing.md, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, overflow: 'hidden', ...shadows.md },
   boardShellCompact: { maxWidth: 430 },
   boardShellGateway: { aspectRatio: 0.86, maxHeight: 620 },
   boardShellCipher: { aspectRatio: 0.8, maxHeight: 620 },
   boardShellResonance: { aspectRatio: 0.6, maxHeight: 620 },
-  boardGlow: { position: 'absolute', width: '70%', height: '70%', left: '15%', top: '15%', borderRadius: 999, backgroundColor: colors.glow },
   waitOverlay: { position: 'absolute', inset: 0, zIndex: 8, backgroundColor: 'rgba(247,244,238,0.62)' },
   runeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
   runeCell: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: '#F8FFFD', alignItems: 'center', justifyContent: 'center' },
