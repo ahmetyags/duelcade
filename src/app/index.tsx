@@ -269,6 +269,7 @@ export default function HomeScreen() {
             >
               <UserRound size={20} color={colors.primary} strokeWidth={2.2} />
             </Pressable>
+            <View style={styles.topBarActionDivider} />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('common.settings')}
@@ -281,6 +282,8 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.hero}>
+          <View style={styles.heroAuraTeal} />
+          <View style={styles.heroAuraAmber} />
           <View style={styles.heroMark}>
             <PowerCoreMark size={104} />
           </View>
@@ -295,7 +298,7 @@ export default function HomeScreen() {
 
         {isAuthenticated && user && (
           <Panel variant="surface" style={styles.playerCard}>
-            <PlayerAvatar avatarId={avatarId} frameId={frameId} size={42} />
+            <PlayerAvatar avatarId={avatarId} frameId={frameId} size={48} />
             <View style={styles.playerCopy}>
               <ThemedText variant="body" style={styles.playerName}>
                 {displayName || user.displayName}
@@ -305,9 +308,10 @@ export default function HomeScreen() {
             {progressionData ? (
               <View style={styles.levelChip}>
                 <Award size={14} color={colors.amber} />
-                <ThemedText variant="label" style={styles.levelChipText}>
-                  {progressionData.level}
-                </ThemedText>
+                <View style={styles.levelChipCopy}>
+                  <ThemedText variant="caption" style={styles.levelChipCaption}>{t('progression.level')}</ThemedText>
+                  <ThemedText variant="label" style={styles.levelChipText}>{progressionData.level}</ThemedText>
+                </View>
               </View>
             ) : (
               <View style={styles.onlineDot} />
@@ -323,6 +327,7 @@ export default function HomeScreen() {
               onPress={handleQuickPlay}
               style={({ pressed }) => [styles.playButton, pressed && styles.playButtonPressed]}
             >
+              <View style={styles.playButtonHighlight} />
               <Play size={24} color={colors.textOnAccent} fill={colors.textOnAccent} strokeWidth={2.7} />
               <ThemedText variant="title" style={styles.playButtonLabel}>{t('home.play')}</ThemedText>
             </Pressable>
@@ -332,6 +337,7 @@ export default function HomeScreen() {
               onPress={() => setActiveActionModal('solo')}
               style={({ pressed }) => [styles.playSettingsButton, pressed && styles.playButtonPressed]}
             >
+              <View style={styles.playButtonHighlight} />
               <ChevronDown size={28} color={colors.textOnAccent} strokeWidth={3} />
             </Pressable>
           </View>
@@ -975,7 +981,7 @@ const styles = StyleSheet.create({
     maxWidth: 648,
     alignSelf: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 21,
+    paddingTop: 18,
     paddingBottom: spacing.xl,
     gap: spacing.lg,
   },
@@ -988,28 +994,34 @@ const styles = StyleSheet.create({
   topBarActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    padding: 3,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    ...shadows.sm,
   },
+  topBarActionDivider: { width: 1, height: 24, backgroundColor: colors.borderSubtle },
   settingsButton: {
     width: 44,
     height: 44,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.border,
-    ...shadows.sm,
+    backgroundColor: 'transparent',
   },
   pressed: {
     transform: [{ scale: 0.96 }],
     opacity: 0.8,
   },
   hero: {
+    position: 'relative',
     alignItems: 'center',
-    marginTop: 28,
-    paddingVertical: spacing.sm,
+    marginTop: 24,
+    paddingVertical: spacing.md,
   },
+  heroAuraTeal: { position: 'absolute', top: 16, width: 116, height: 90, borderRadius: radius.pill, backgroundColor: 'rgba(37,212,196,0.075)', transform: [{ rotate: '-18deg' }] },
+  heroAuraAmber: { position: 'absolute', top: 28, width: 88, height: 74, borderRadius: radius.pill, backgroundColor: 'rgba(245,166,58,0.065)', transform: [{ rotate: '20deg' }] },
   heroMark: {
     width: 108,
     height: 108,
@@ -1052,9 +1064,12 @@ const styles = StyleSheet.create({
   playerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    minHeight: 70,
+    paddingVertical: 11,
     paddingHorizontal: spacing.md,
-    borderColor: colors.primaryContainer,
+    borderColor: 'rgba(34,200,184,0.34)',
+    backgroundColor: '#F0FBF8',
+    ...shadows.sm,
   },
   playerCopy: {
     flex: 1,
@@ -1064,7 +1079,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   playerName: {
-    fontFamily: 'Quicksand-SemiBold',
+    fontFamily: 'Quicksand-Bold',
+    fontSize: 16,
   },
   onlineDot: {
     width: 10,
@@ -1075,18 +1091,20 @@ const styles = StyleSheet.create({
     borderColor: colors.surface,
   },
   levelChip: {
-    minWidth: 44,
-    height: 32,
+    minWidth: 70,
+    height: 38,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.secondaryContainer,
+    backgroundColor: '#FFF5E6',
     borderWidth: 1,
     borderColor: colors.amber,
   },
+  levelChipCopy: { alignItems: 'flex-start' },
+  levelChipCaption: { color: colors.amberMuted, fontSize: 8, lineHeight: 10, letterSpacing: 0.5 },
   levelChipText: { color: colors.amberMuted },
   profileAuthModal: {
     width: '92%',
@@ -1250,11 +1268,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     borderRadius: radius.xl,
-    borderWidth: 2,
-    borderBottomWidth: 5,
-    borderColor: colors.actionAmber,
-    borderBottomColor: colors.actionAmberDark,
-    backgroundColor: colors.secondary,
+    borderWidth: 1,
+    borderBottomWidth: 3,
+    borderColor: '#F0A03A',
+    borderBottomColor: '#C87519',
+    backgroundColor: '#F8A83D',
     ...shadows.md,
   },
   playButton: {
@@ -1266,15 +1284,18 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderRightWidth: 1,
     borderRightColor: 'rgba(121, 67, 12, 0.26)',
-    backgroundColor: colors.secondary,
+    overflow: 'hidden',
+    backgroundColor: '#F8A83D',
   },
   playSettingsButton: {
     width: 62,
     minHeight: 58,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.secondary,
+    overflow: 'hidden',
+    backgroundColor: '#F8A83D',
   },
+  playButtonHighlight: { position: 'absolute', top: 0, right: 0, left: 0, height: 2, pointerEvents: 'none', backgroundColor: 'rgba(255,255,255,0.58)' },
   playButtonPressed: {
     opacity: 0.9,
     transform: [{ translateY: 2 }],
@@ -1296,10 +1317,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 2,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
     borderColor: colors.primary,
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    ...shadows.sm,
   },
   onlineActionPressed: {
     backgroundColor: colors.surface,

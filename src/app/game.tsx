@@ -191,19 +191,29 @@ function PlayerCard({
   active,
   score,
   time,
+  refined = false,
 }: {
   player: Player | undefined;
   index: 0 | 1;
   active: boolean;
   score: number;
   time: number;
+  refined?: boolean;
 }) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const color = PLAYER_COLORS[index];
   const name = player?.displayName ?? [ui.player, index + 1].join(' ');
   return (
-    <View style={[styles.playerCard, active && { borderColor: color, backgroundColor: `${color}16` }]}>
+    <View style={[
+      styles.playerCard,
+      refined && styles.playerCardRefined,
+      refined && (index === 0 ? styles.playerCardTeal : styles.playerCardAmber),
+      active && {
+        borderColor: color,
+        backgroundColor: refined ? (index === 0 ? '#E3F8F4' : '#FFF1E1') : `${color}16`,
+      },
+    ]}>
       <PlayerAvatar
         avatarId={player?.avatarId}
         size={38}
@@ -652,6 +662,7 @@ export default function GameScreen() {
   }
 
   const modeCopy = getTurnModeCopy(language, match.mode);
+  const refinedConnectFour = match.mode === 'connect_four';
   const compact = height < 900;
   const latestCipherGuess = match.cipherHistory?.[match.cipherHistory.length - 1];
   const boardFeedbackColor = match.status === 'round_complete'
@@ -671,46 +682,53 @@ export default function GameScreen() {
         contentContainerStyle={[styles.page, compact && styles.pageCompact]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topbar}>
+        <View style={[styles.topbar, refinedConnectFour && styles.topbarRefined]}>
           <View>
             <ThemedText variant="caption" color="accent">
               {singlePlayer ? turnUi.soloHeader : turnUi.sharedHeader}
             </ThemedText>
-            <ThemedText variant="subtitle">{modeCopy.title}</ThemedText>
+            <ThemedText variant="subtitle" style={refinedConnectFour && styles.gameTitleRefined}>{modeCopy.title}</ThemedText>
           </View>
           <View style={styles.topbarActions}>
             <Pressable
               accessibilityLabel={turnUi.skipRound}
               disabled={match.status !== 'playing' && match.status !== 'resolving'}
               onPress={() => setShowSkipConfirm(true)}
-              style={[styles.iconButton, localSkipVoted && styles.skipButtonPending]}
+              style={[styles.iconButton, refinedConnectFour && styles.iconButtonRefined, localSkipVoted && styles.skipButtonPending]}
             >
               <SkipForward size={19} color={localSkipVoted ? colors.amberMuted : colors.primaryDark} />
             </Pressable>
-            <Pressable accessibilityLabel={turnUi.leaveGame} onPress={handleLeave} style={styles.iconButton}>
+            <Pressable accessibilityLabel={turnUi.leaveGame} onPress={handleLeave} style={[styles.iconButton, refinedConnectFour && styles.iconButtonRefined]}>
               <LogOut size={20} color={colors.error} />
             </Pressable>
           </View>
         </View>
 
-        <View style={styles.players}>
+        <View style={[styles.players, refinedConnectFour && styles.playersRefined]}>
           <PlayerCard
             player={players[0]}
             index={0}
             active={match.activePlayerIndex === 0 && match.status === 'playing'}
             score={match.scores[0]}
             time={match.playerTimeMs[0]}
+            refined={refinedConnectFour}
           />
+          {refinedConnectFour && (
+            <View style={styles.versusBadge}>
+              <ThemedText variant="caption" style={styles.versusText}>VS</ThemedText>
+            </View>
+          )}
           <PlayerCard
             player={players[1]}
             index={1}
             active={match.activePlayerIndex === 1 && match.status === 'playing'}
             score={match.scores[1]}
             time={match.playerTimeMs[1]}
+            refined={refinedConnectFour}
           />
         </View>
 
-        <View style={styles.turnRow}>
+        <View style={[styles.turnRow, refinedConnectFour && styles.turnRowRefined]}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={turnUi.howToFor(modeCopy.title)}
@@ -780,6 +798,7 @@ export default function GameScreen() {
 
         <GameBoardShell style={[
           compact && styles.boardShellCompact,
+          refinedConnectFour && styles.connectBoardShell,
           match.mode === 'gateway_race' && styles.boardShellGateway,
           match.mode === 'cipher_clash' && styles.boardShellCipher,
           match.mode === 'resonance_dials' && styles.boardShellResonance,
@@ -1079,15 +1098,25 @@ const styles = StyleSheet.create({
   page: { flexGrow: 1, width: '100%', maxWidth: 680, alignSelf: 'center', justifyContent: 'center', padding: spacing.xl, gap: 15 },
   pageCompact: { paddingVertical: spacing.sm, gap: 15 },
   topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  topbarRefined: { minHeight: 52 },
+  gameTitleRefined: { color: colors.textPrimary, fontFamily: 'Quicksand-Bold', fontSize: 25, lineHeight: 30, letterSpacing: -0.35 },
   topbarActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   iconButton: { width: 42, height: 42, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  iconButtonRefined: { width: 44, height: 44, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.88)', ...shadows.sm },
   skipButtonPending: { borderColor: colors.amber, backgroundColor: colors.secondaryContainer },
   players: { flexDirection: 'row', gap: 15 },
+  playersRefined: { position: 'relative', gap: 10 },
   playerCard: { flex: 1, minWidth: 0, minHeight: 68, padding: spacing.sm, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radius.lg, backgroundColor: colors.surfaceDark, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  playerCardRefined: { minHeight: 72, paddingHorizontal: 10, borderWidth: 1, ...shadows.sm },
+  playerCardTeal: { borderColor: 'rgba(34,200,184,0.48)', backgroundColor: '#EDFAF7' },
+  playerCardAmber: { borderColor: 'rgba(245,166,58,0.48)', backgroundColor: '#FFF7EC' },
+  versusBadge: { position: 'absolute', zIndex: 3, left: '50%', top: '50%', width: 28, height: 28, marginLeft: -14, marginTop: -14, pointerEvents: 'none', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.sm },
+  versusText: { color: colors.textMuted, fontFamily: 'Quicksand-Bold', fontSize: 9, lineHeight: 12 },
   playerCopy: { flex: 1, minWidth: 0 },
   playerName: { fontSize: 12, letterSpacing: 0.2 },
   playerTimer: { flexShrink: 0, fontSize: 16, letterSpacing: 0.6 },
   turnRow: { minHeight: 34, paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderSubtle, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 15 },
+  turnRowRefined: { minHeight: 40, borderRadius: radius.lg, borderColor: 'rgba(34,200,184,0.28)', backgroundColor: 'rgba(255,255,255,0.78)' },
   helpBubble: { width: 30, height: 30, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   gameDescription: { flex: 1, textAlign: 'center', color: colors.textSecondary },
   tutorialCoach: { width: '100%', padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primaryContainer, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -1097,6 +1126,7 @@ const styles = StyleSheet.create({
   reactionName: { flex: 1, color: colors.textPrimary },
   reactionText: { fontSize: 23, lineHeight: 28 },
   boardShellCompact: { maxWidth: 430 },
+  connectBoardShell: { padding: 10, borderColor: 'rgba(34,200,184,0.58)', backgroundColor: '#FFFEFA', ...shadows.md },
   boardShellGateway: { aspectRatio: 0.86, maxHeight: 620 },
   boardShellCipher: { aspectRatio: 0.8, maxHeight: 620 },
   boardShellResonance: { aspectRatio: 0.6, maxHeight: 620 },
@@ -1107,10 +1137,10 @@ const styles = StyleSheet.create({
   runeMark: { fontSize: 64, lineHeight: 72, fontWeight: '600' },
   winningCell: { borderWidth: 3, transform: [{ scale: 1.035 }], zIndex: 2, ...shadows.glow },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
-  connectBoard: { flex: 1, flexDirection: 'row', gap: 5, padding: spacing.sm, borderRadius: radius.xl, backgroundColor: colors.primaryDark, borderWidth: 1, borderColor: colors.cyanMuted },
+  connectBoard: { flex: 1, flexDirection: 'row', gap: 5, padding: spacing.sm, borderRadius: radius.xl, backgroundColor: '#DDF5F1', borderWidth: 1, borderColor: 'rgba(34,200,184,0.62)' },
   connectColumn: { flex: 1, gap: 5, justifyContent: 'space-around' },
-  columnPressed: { backgroundColor: 'rgba(255,255,255,0.06)' },
-  connectSlot: { width: '100%', aspectRatio: 1, maxWidth: 62, alignSelf: 'center', borderRadius: radius.pill, backgroundColor: colors.backgroundDeep, borderWidth: 1, borderColor: colors.borderSubtle, padding: 3 },
+  columnPressed: { backgroundColor: 'rgba(34,200,184,0.10)', borderRadius: radius.lg },
+  connectSlot: { width: '100%', aspectRatio: 1, maxWidth: 62, alignSelf: 'center', borderRadius: radius.pill, backgroundColor: '#FFFCF6', borderWidth: 1, borderColor: 'rgba(17,108,100,0.20)', padding: 3, ...shadows.sm },
   connectPiece: { width: '100%', height: '100%', borderRadius: radius.pill },
   winningConnectSlot: { borderWidth: 4, borderColor: '#FFFFFF', transform: [{ scale: 1.08 }], ...shadows.glow },
   memoryBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
