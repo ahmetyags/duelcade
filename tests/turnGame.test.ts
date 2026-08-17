@@ -116,6 +116,26 @@ test('medium core boards stay compact for a smoother first session', () => {
   assert.equal(memory.state.cells.length, 16);
 });
 
+test('rune grid win lengths remain approachable at every selectable difficulty', () => {
+  const expectedWinLengths = {
+    easy: 3,
+    medium: 3,
+    hard: 4,
+  } as const;
+
+  for (const [difficulty, winLength] of Object.entries(expectedWinLengths) as [Difficulty, number][]) {
+    const session = createTurnMatchSession(
+      `rune-win-length-${difficulty}`,
+      ['a', 'b'],
+      1,
+      difficulty,
+      5 * 60 * 1000,
+      ['rune_grid'],
+    );
+    assert.equal(session.state.winLength, winLength);
+  }
+});
+
 test('hard difficulty scales compact games to roughly thirty cells', () => {
   const session = createTurnMatchSession('hard-scale', ['a', 'b'], 10, 'hard');
   for (let index = 0; index < session.modeOrder.length; index += 1) {

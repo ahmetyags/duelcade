@@ -259,7 +259,7 @@ export default function HomeScreen() {
           <View style={styles.heroAuraTeal} />
           <View style={styles.heroAuraAmber} />
           <View style={styles.heroMark}>
-            <PowerCoreMark size={104} />
+            <PowerCoreMark size={128} />
           </View>
           <View style={styles.titleRow}>
             <ThemedText variant="title" style={styles.title}>Duel</ThemedText>
@@ -966,14 +966,14 @@ const styles = StyleSheet.create({
   hero: {
     position: 'relative',
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: spacing.xxxl + spacing.xl,
     paddingVertical: spacing.md,
   },
-  heroAuraTeal: { position: 'absolute', top: 16, width: 116, height: 90, borderRadius: radius.pill, backgroundColor: 'rgba(37,212,196,0.075)', transform: [{ rotate: '-18deg' }] },
-  heroAuraAmber: { position: 'absolute', top: 28, width: 88, height: 74, borderRadius: radius.pill, backgroundColor: 'rgba(245,166,58,0.065)', transform: [{ rotate: '20deg' }] },
+  heroAuraTeal: { position: 'absolute', top: 14, width: 144, height: 112, borderRadius: radius.pill, backgroundColor: 'rgba(37,212,196,0.075)', transform: [{ rotate: '-18deg' }] },
+  heroAuraAmber: { position: 'absolute', top: 29, width: 110, height: 92, borderRadius: radius.pill, backgroundColor: 'rgba(245,166,58,0.065)', transform: [{ rotate: '20deg' }] },
   heroMark: {
-    width: 108,
-    height: 108,
+    width: 132,
+    height: 132,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
@@ -984,21 +984,21 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   title: {
-    fontSize: 34,
-    lineHeight: 39,
+    fontSize: 40,
+    lineHeight: 46,
     color: colors.textPrimary,
   },
   titleAccent: {
-    fontSize: 34,
-    lineHeight: 39,
+    fontSize: 40,
+    lineHeight: 46,
     color: colors.amber,
   },
   subtitle: {
-    maxWidth: 280,
+    maxWidth: 320,
     marginTop: spacing.xs,
     textAlign: 'center',
-    fontSize: 17,
-    lineHeight: 23,
+    fontSize: 19,
+    lineHeight: 26,
   },
   featureLine: {
     marginTop: spacing.sm,
@@ -1013,6 +1013,7 @@ const styles = StyleSheet.create({
   playerCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: spacing.xxxl + spacing.lg,
     minHeight: 70,
     paddingVertical: 11,
     paddingHorizontal: spacing.md,

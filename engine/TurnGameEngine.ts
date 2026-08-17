@@ -60,8 +60,8 @@ function boardConfig(mode: TurnGameMode, difficulty: Difficulty): BoardConfig {
   if (mode === 'rune_grid') {
     return [
       { rows: 3, columns: 3, winLength: 3 },
-      { rows: 4, columns: 4, winLength: 4 },
-      { rows: 5, columns: 6, winLength: 5 },
+      { rows: 4, columns: 4, winLength: 3 },
+      { rows: 5, columns: 6, winLength: 4 },
       { rows: 6, columns: 7, winLength: 5 },
     ][level];
   }

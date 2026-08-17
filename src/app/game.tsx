@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   Platform,
   Pressable,
   Modal,
@@ -281,10 +282,87 @@ function RuneBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   );
 }
 
+function FallingConnectPiece({
+  color,
+  dropDistance,
+  reduceMotion,
+}: {
+  color: string;
+  dropDistance: number;
+  reduceMotion: boolean;
+}) {
+  const [translateY] = useState(() => new Animated.Value(reduceMotion ? 0 : -dropDistance));
+  const [opacity] = useState(() => new Animated.Value(reduceMotion ? 1 : 0.72));
+  const [scale] = useState(() => new Animated.Value(reduceMotion ? 1 : 0.9));
+
+  useEffect(() => {
+    if (reduceMotion) {
+      translateY.setValue(0);
+      opacity.setValue(1);
+      scale.setValue(1);
+      return;
+    }
+
+    const useNativeDriver = Platform.OS !== 'web';
+    const fallDuration = Math.min(440, 125 + dropDistance * 2.15);
+    translateY.setValue(-dropDistance);
+    opacity.setValue(0.72);
+    scale.setValue(0.9);
+
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(translateY, {
+          toValue: 4,
+          duration: fallDuration,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver,
+        }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          damping: 9,
+          stiffness: 360,
+          mass: 0.45,
+          useNativeDriver,
+        }),
+      ]),
+      Animated.timing(opacity, { toValue: 1, duration: 90, useNativeDriver }),
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.04, duration: fallDuration, useNativeDriver }),
+        Animated.spring(scale, {
+          toValue: 1,
+          damping: 10,
+          stiffness: 300,
+          mass: 0.42,
+          useNativeDriver,
+        }),
+      ]),
+    ]).start();
+  }, [dropDistance, opacity, reduceMotion, scale, translateY]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.connectPiece,
+        turnPieceGlow(color, 'strong'),
+        {
+          backgroundColor: color,
+          opacity,
+          transform: [{ translateY }, { scale }],
+        },
+      ]}
+    >
+      <View style={styles.connectPieceHighlight} />
+      <View style={[styles.connectPieceShade, { backgroundColor: `${color}55` }]} />
+    </Animated.View>
+  );
+}
+
 function ConnectBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const winnerCells = winningCells(match);
+  const viewport = useWindowDimensions();
+  const slotSize = turnBoardCellSize(viewport.width, viewport.height, match.boardColumns);
   return (
     <View style={styles.connectBoard}>
       {Array.from({ length: match.boardColumns }, (_, column) => (
@@ -303,20 +381,15 @@ function ConnectBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
                 key={row}
                 style={[
                   styles.connectSlot,
+                  value !== null && styles.filledConnectSlot,
                   winnerCells.has(index) && styles.winningConnectSlot,
                 ]}
               >
                 {value !== null && (
-                  <AnimatedTurnPiece
-                    identity={`${value}-${winnerCells.has(index)}`}
+                  <FallingConnectPiece
                     color={PLAYER_COLORS[value]}
-                    glow
-                    completed={winnerCells.has(index)}
                     reduceMotion={reduceMotion}
-                    style={[
-                      styles.connectPiece,
-                      { backgroundColor: PLAYER_COLORS[value] },
-                    ]}
+                    dropDistance={(row + 1) * (slotSize + 5)}
                   />
                 )}
               </View>
@@ -1144,8 +1217,11 @@ const styles = StyleSheet.create({
   connectBoard: { flex: 1, flexDirection: 'row', gap: 5, padding: spacing.sm, borderRadius: radius.xl, backgroundColor: '#DDF5F1', borderWidth: 1, borderColor: 'rgba(34,200,184,0.62)' },
   connectColumn: { flex: 1, gap: 5, justifyContent: 'space-around' },
   columnPressed: { backgroundColor: 'rgba(34,200,184,0.10)', borderRadius: radius.lg },
-  connectSlot: { width: '100%', aspectRatio: 1, maxWidth: 62, alignSelf: 'center', borderRadius: radius.pill, backgroundColor: '#FFFCF6', borderWidth: 1, borderColor: 'rgba(17,108,100,0.20)', padding: 3, ...shadows.sm },
-  connectPiece: { width: '100%', height: '100%', borderRadius: radius.pill },
+  connectSlot: { width: '100%', aspectRatio: 1, maxWidth: 62, alignSelf: 'center', overflow: 'visible', borderRadius: radius.pill, backgroundColor: '#FFFCF6', borderWidth: 1, borderColor: 'rgba(17,108,100,0.20)', padding: 3, ...shadows.sm },
+  filledConnectSlot: { zIndex: 2 },
+  connectPiece: { width: '100%', height: '100%', overflow: 'hidden', borderRadius: radius.pill },
+  connectPieceHighlight: { position: 'absolute', top: '11%', left: '16%', width: '34%', height: '24%', borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.38)' },
+  connectPieceShade: { position: 'absolute', right: 3, bottom: 3, left: 3, height: '27%', borderRadius: radius.pill },
   winningConnectSlot: { borderWidth: 4, borderColor: '#FFFFFF', transform: [{ scale: 1.08 }], ...shadows.glow },
   memoryBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
   memoryCard: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: '#F8FFFD', alignItems: 'center', justifyContent: 'center' },
