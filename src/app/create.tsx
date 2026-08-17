@@ -13,6 +13,7 @@ import { ThemedButton } from '@/components/ui/ThemedButton';
 import { DurationSlider } from '@/components/ui/DurationSlider';
 import { PlayerProfileEditor } from '@/components/ui/PlayerProfileEditor';
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -24,7 +25,7 @@ import {
   warmUpGameServer,
   type GameServerStatus,
 } from '@/services/GameServerAvailability';
-import { ChevronLeft, Clock3, Gauge, RefreshCw, WifiOff } from 'lucide-react-native';
+import { Clock3, Gauge, RefreshCw, WifiOff } from 'lucide-react-native';
 import { useTranslation } from '@/src/i18n';
 import type { Difficulty } from '@/types/game';
 
@@ -109,12 +110,7 @@ export default function CreateRoomScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <MagicBackdrop />
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={24} color={colors.textSecondary} strokeWidth={2} />
-        </Pressable>
-        <ThemedText variant="subtitle">{t('create.title')}</ThemedText>
-      </View>
+      <ScreenHeader title={t('create.title')} backLabel={t('common.back')} onBack={() => router.back()} maxWidth={680} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <PlayerProfileEditor
@@ -244,28 +240,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  header: {
-    width: '100%',
-    maxWidth: 680,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.border,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceDark,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   pressed: {
     transform: [{ scale: 0.96 }],

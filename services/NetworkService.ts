@@ -142,7 +142,13 @@ export class NetworkService {
 
   /** Send a client event to the server. */
   send(event: ClientEvent): void {
-    if (!this.transport || this.state !== 'connected') {
+    // Colyseus queues messages while its room is reconnecting. Allowing sends
+    // here is essential for room.sync: it is delivered as soon as the socket
+    // is restored instead of being discarded during the brief retry window.
+    if (
+      !this.transport
+      || (this.state !== 'connected' && this.state !== 'connecting' && this.state !== 'reconnecting')
+    ) {
       console.warn('[NetworkService] Cannot send: not connected');
       return;
     }

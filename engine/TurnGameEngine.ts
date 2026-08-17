@@ -664,10 +664,15 @@ export function applyTurnMove(
       return { accepted: false, reason: 'invalid_cell' };
     }
     state.cells[dial] = ((state.cells[dial] ?? 0) + direction + 5) % 5;
-    state.cellOwners[dial] = state.cells[dial] === session.solution[dial] ? player : null;
+    const matched = state.cells[dial] === session.solution[dial];
+    state.cellOwners[dial] = matched ? player : null;
+    if (matched) state.roundPoints[player] += 1;
     state.moveNumber += 1;
     if (state.cells.every((value, index) => value === session.solution[index])) {
-      finishRound(state, player);
+      const winner = state.roundPoints[0] === state.roundPoints[1]
+        ? null
+        : state.roundPoints[0] > state.roundPoints[1] ? 0 : 1;
+      finishRound(state, winner);
       return { accepted: true, roundEnded: true };
     }
     state.activePlayerIndex = (1 - player) as 0 | 1;

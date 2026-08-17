@@ -21,7 +21,6 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import {
-  Award,
   Bot,
   Check,
   ChevronDown,
@@ -38,6 +37,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
+import { IconButton } from '@/components/ui/IconButton';
 import { Panel } from '@/components/ui/Panel';
 import { ThemedButton } from '@/components/ui/ThemedButton';
 import { ThemedText } from '@/components/ui/ThemedText';
@@ -209,33 +209,12 @@ export default function HomeScreen() {
       return;
     }
 
-    const roomReady = new Promise<boolean>((resolve) => {
-      let settled = false;
-      const unsubscribe = useRoomStore.subscribe((state) => {
-        if (!settled && state.room?.code === lastRoomCode) {
-          settled = true;
-          unsubscribe();
-          resolve(true);
-        } else if (!settled && state.error) {
-          settled = true;
-          unsubscribe();
-          resolve(false);
-        }
-      });
-      setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        unsubscribe();
-        resolve(false);
-      }, 5000);
-    });
-
     const reconnected = await resumeRoom(
       lastRoomCode,
       lastRoomPlayerId,
       lastRoomReconnectToken,
     );
-    if (!reconnected || !await roomReady) return;
+    if (!reconnected) return;
     const room = useRoomStore.getState().room;
     if (room) openRoom(room.status);
   };
@@ -261,23 +240,18 @@ export default function HomeScreen() {
             viewRewardsLabel={t('home.viewRewards')}
           />
           <View style={styles.topBarActions}>
-            <Pressable
-              accessibilityRole="button"
+            <IconButton
               accessibilityLabel="Profile"
               onPress={openProfile}
-              style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}
-            >
-              <UserRound size={20} color={colors.primary} strokeWidth={2.2} />
-            </Pressable>
-            <View style={styles.topBarActionDivider} />
-            <Pressable
-              accessibilityRole="button"
+              tone="primary"
+              icon={<UserRound size={20} color={colors.primaryDark} strokeWidth={2.2} />}
+            />
+            <IconButton
               accessibilityLabel={t('common.settings')}
               onPress={() => router.push('/settings')}
-              style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}
-            >
-              <Settings size={20} color={colors.primary} strokeWidth={2.2} />
-            </Pressable>
+              tone="primary"
+              icon={<Settings size={20} color={colors.primaryDark} strokeWidth={2.2} />}
+            />
           </View>
         </View>
 
@@ -305,17 +279,6 @@ export default function HomeScreen() {
               </ThemedText>
               <ThemedText variant="caption" color="muted">{t('home.ready')}</ThemedText>
             </View>
-            {progressionData ? (
-              <View style={styles.levelChip}>
-                <Award size={14} color={colors.amber} />
-                <View style={styles.levelChipCopy}>
-                  <ThemedText variant="caption" style={styles.levelChipCaption}>{t('progression.level')}</ThemedText>
-                  <ThemedText variant="label" style={styles.levelChipText}>{progressionData.level}</ThemedText>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.onlineDot} />
-            )}
           </Panel>
         )}
 
@@ -994,21 +957,7 @@ const styles = StyleSheet.create({
   topBarActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 3,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: 'rgba(255,255,255,0.88)',
-    ...shadows.sm,
-  },
-  topBarActionDivider: { width: 1, height: 24, backgroundColor: colors.borderSubtle },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
+    gap: spacing.sm,
   },
   pressed: {
     transform: [{ scale: 0.96 }],
@@ -1082,30 +1031,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Quicksand-Bold',
     fontSize: 16,
   },
-  onlineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.emerald,
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  levelChip: {
-    minWidth: 70,
-    height: 38,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    backgroundColor: '#FFF5E6',
-    borderWidth: 1,
-    borderColor: colors.amber,
-  },
-  levelChipCopy: { alignItems: 'flex-start' },
-  levelChipCaption: { color: colors.amberMuted, fontSize: 8, lineHeight: 10, letterSpacing: 0.5 },
-  levelChipText: { color: colors.amberMuted },
   profileAuthModal: {
     width: '92%',
     maxWidth: 420,
@@ -1252,8 +1177,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
     textAlign: 'center',
-    paddingLeft: spacing.md,
-    paddingRight: spacing.xs,
     ...Platform.select({
       web: { textShadow: `0 1px 1px ${colors.surface}` } as unknown as TextStyle,
       default: {

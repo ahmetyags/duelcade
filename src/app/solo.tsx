@@ -2,13 +2,14 @@ import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bot, ChevronLeft, Clock3, Gauge } from 'lucide-react-native';
+import { Bot, Clock3, Gauge } from 'lucide-react-native';
 
 import { DurationSlider } from '@/components/ui/DurationSlider';
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
 import { PlayerProfileEditor } from '@/components/ui/PlayerProfileEditor';
 import { ThemedButton } from '@/components/ui/ThemedButton';
 import { ThemedText } from '@/components/ui/ThemedText';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { startSinglePlayer } from '@/services/SinglePlayerService';
 import { triggerHaptic } from '@/services/HapticsService';
 import { useAuthStore } from '@/store/authStore';
@@ -43,12 +44,7 @@ export default function SoloSetupScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <MagicBackdrop />
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={24} color={colors.textSecondary} strokeWidth={2} />
-        </Pressable>
-        <ThemedText variant="subtitle">{t('solo.title')}</ThemedText>
-      </View>
+      <ScreenHeader title={t('solo.title')} backLabel={t('common.back')} onBack={() => router.back()} maxWidth={680} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <PlayerProfileEditor
@@ -139,28 +135,6 @@ export default function SoloSetupScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    width: '100%',
-    maxWidth: 680,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.border,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: {
     flexGrow: 1,
     width: '100%',

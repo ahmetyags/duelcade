@@ -11,10 +11,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { Panel } from '@/components/ui/Panel';
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useSettingsStore, type AppLanguage } from '@/store/settingsStore';
 import { triggerHaptic } from '@/services/HapticsService';
-import { BarChart3, Bell, Bug, Check, ChevronLeft, Eye, Globe2, Hand, MessageSquareText, ShieldCheck, TriangleAlert, Type, Vibrate, Volume2, Zap } from 'lucide-react-native';
+import { BarChart3, Bell, Bug, Check, Eye, Globe2, Hand, MessageSquareText, ShieldCheck, TriangleAlert, Type, Vibrate, Volume2, Zap } from 'lucide-react-native';
 import { useTranslation } from '@/src/i18n';
 import { audioService } from '@/services/AudioService';
 import { clearAnalyticsQueue, flushAnalyticsEvents } from '@/services/AnalyticsService';
@@ -33,19 +34,12 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <MagicBackdrop />
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          onPress={() => router.back()}
-          style={styles.backBtn}
-        >
-          <ChevronLeft size={24} color={colors.textSecondary} strokeWidth={2} />
-        </Pressable>
-        <ThemedText variant="subtitle">{t('settings.title')}</ThemedText>
-        <View style={{ width: 28 }} />
-      </View>
+      <ScreenHeader
+        title={t('settings.title')}
+        backLabel={t('common.back')}
+        onBack={() => router.back()}
+        maxWidth={680}
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
@@ -314,11 +308,11 @@ function LanguageOption({ language, label, selected, onSelect }: {
     >
       <ThemedText
         variant="body"
-        style={{ color: selected ? colors.textOnPrimary : colors.textSecondary, fontWeight: '700' }}
+        style={{ color: selected ? colors.primaryDark : colors.textSecondary, fontWeight: '700' }}
       >
         {label}
       </ThemedText>
-      {selected && <Check size={17} color={colors.textOnPrimary} strokeWidth={3} />}
+      {selected && <Check size={17} color={colors.primaryDark} strokeWidth={3} />}
     </Pressable>
   );
 }
@@ -416,28 +410,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    width: '100%',
-    maxWidth: 680,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.border,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: {
     width: '100%',
     maxWidth: 680,
@@ -472,8 +444,8 @@ const styles = StyleSheet.create({
   },
   languageCard: {
     gap: spacing.md,
-    borderColor: colors.cyanMuted,
-    backgroundColor: colors.surfaceDark,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
   languageHeader: {
     flexDirection: 'row',
@@ -483,12 +455,12 @@ const styles = StyleSheet.create({
   languageIcon: {
     width: 44,
     height: 44,
-    borderRadius: radius.sm,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.operatorContainer,
-    borderWidth: 2,
-    borderColor: colors.sapphire,
+    backgroundColor: colors.primaryContainer,
+    borderWidth: 1,
+    borderColor: 'rgba(34,200,184,0.48)',
   },
   languageCopy: {
     flex: 1,
@@ -504,16 +476,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    borderRadius: radius.sm,
-    borderWidth: 2,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   languageOptionSelected: {
     borderColor: colors.primary,
-    backgroundColor: colors.primary,
-    borderBottomWidth: 5,
-    borderBottomColor: colors.primaryDark,
+    backgroundColor: colors.primaryContainer,
   },
   toggleGroup: {
     padding: 0,

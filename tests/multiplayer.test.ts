@@ -3,6 +3,7 @@ import test from 'node:test';
 import { Client, type Room } from '@colyseus/sdk';
 
 import { createGameServer } from '../server/app';
+import { listenOnAvailablePort } from './serverTestUtils';
 import { PROTOCOL_VERSION, type ServerMessage } from '../types/network';
 import type { TurnMatchState } from '../types/turnGame';
 
@@ -34,8 +35,7 @@ function turnState(message: ServerMessage): TurnMatchState | null {
 
 test('two clients share one authoritative board and can only play in turn', async () => {
   const server = createGameServer();
-  const port = 31000 + Math.floor(Math.random() * 1000);
-  await server.listen(port, '127.0.0.1');
+  const port = await listenOnAvailablePort(server);
 
   const endpoint = `http://127.0.0.1:${port}`;
   const hostClient = new Client(endpoint);
@@ -213,8 +213,7 @@ test('two clients share one authoritative board and can only play in turn', asyn
 
 test('manual reconnect replays the room snapshot after a full client reload', async () => {
   const server = createGameServer();
-  const port = 32000 + Math.floor(Math.random() * 1000);
-  await server.listen(port, '127.0.0.1');
+  const port = await listenOnAvailablePort(server);
 
   const endpoint = `http://127.0.0.1:${port}`;
   const client = new Client(endpoint);
@@ -240,9 +239,7 @@ test('manual reconnect replays the room snapshot after a full client reload', as
     await createdPromise;
     const reconnectionToken = room.reconnectionToken;
     room.reconnection.maxRetries = 0;
-    (room as unknown as {
-      connection: { transport: { ws: { close: () => void } } };
-    }).connection.transport.ws.close();
+    room.connection.close(4010, 'page_reloading');
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     restored = await new Client(endpoint).reconnect(reconnectionToken);

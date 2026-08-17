@@ -10,13 +10,14 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCircle2, ChevronLeft, Star } from 'lucide-react-native';
+import { CheckCircle2, Star } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
 import { Panel } from '@/components/ui/Panel';
 import { ThemedButton } from '@/components/ui/ThemedButton';
 import { ThemedText } from '@/components/ui/ThemedText';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import {
   sendPlayerFeedback,
   type FeedbackDraft,
@@ -115,21 +116,13 @@ export default function FeedbackScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <ChevronLeft size={24} color={colors.textSecondary} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <ThemedText variant="subtitle">{t('feedback.title')}</ThemedText>
-            <ThemedText variant="caption" color="muted">{t('feedback.subtitle')}</ThemedText>
-          </View>
-          <View style={styles.headerSpacer} />
-        </View>
+        <ScreenHeader
+          title={t('feedback.title')}
+          subtitle={t('feedback.subtitle')}
+          backLabel={t('common.back')}
+          onBack={() => router.back()}
+          maxWidth={680}
+        />
 
         <ScrollView
           contentContainerStyle={[
@@ -274,31 +267,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundDeep,
-  },
-  header: {
-    minHeight: 76,
-    paddingHorizontal: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCopy: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerSpacer: {
-    width: 44,
   },
   content: {
     alignSelf: 'center',

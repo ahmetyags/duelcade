@@ -87,7 +87,7 @@ export const ThemedButton = React.memo<ThemedButtonProps>(function ThemedButton(
           backgroundColor: variantColors.bg,
           borderRadius: radius.lg,
           borderWidth: variant === 'ghost' ? 0 : highContrast ? 3 : 1,
-          borderBottomWidth: variant === 'ghost' ? 0 : highContrast ? 3 : primaryAction ? 4 : 2,
+          borderBottomWidth: variant === 'ghost' ? 0 : highContrast ? 3 : primaryAction ? 2 : 1,
           borderColor: variantColors.border,
           borderBottomColor: variantColors.base,
           minHeight: size === 'lg' ? 52 : size === 'md' ? 48 : 44,

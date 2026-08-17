@@ -1,9 +1,11 @@
 import { ArrowLeft } from 'lucide-react-native';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { IconButton } from '@/components/ui/IconButton';
+import type { IconButtonTone } from '@/components/ui/IconButton';
 import { ThemedText } from '@/components/ui/ThemedText';
-import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { colors, spacing } from '@/theme/tokens';
 
 interface ScreenHeaderProps {
   readonly title: string;
@@ -11,6 +13,8 @@ interface ScreenHeaderProps {
   readonly backLabel: string;
   readonly onBack: () => void;
   readonly trailing?: React.ReactNode;
+  readonly leadingIcon?: React.ReactNode;
+  readonly leadingTone?: IconButtonTone;
   readonly maxWidth?: number;
 }
 
@@ -21,19 +25,18 @@ export const ScreenHeader = React.memo<ScreenHeaderProps>(function ScreenHeader(
   backLabel,
   onBack,
   trailing,
+  leadingIcon,
+  leadingTone = 'neutral',
   maxWidth = 648,
 }) {
   return (
     <View style={[styles.header, { maxWidth }]}>
-      <Pressable
-        accessibilityRole="button"
+      <IconButton
         accessibilityLabel={backLabel}
-        hitSlop={6}
         onPress={onBack}
-        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-      >
-        <ArrowLeft size={22} color={colors.textPrimary} strokeWidth={2.4} />
-      </Pressable>
+        tone={leadingTone}
+        icon={leadingIcon ?? <ArrowLeft size={21} color={colors.primaryDark} strokeWidth={2.4} />}
+      />
       <View style={styles.copy}>
         <ThemedText variant="title" style={styles.title} numberOfLines={2}>{title}</ThemedText>
         {subtitle ? (
@@ -56,17 +59,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSubtle,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.overlayLight,
-    ...shadows.sm,
-  },
   copy: { flex: 1, minWidth: 0 },
   title: { fontSize: 24, lineHeight: 29 },
   trailing: {
@@ -75,5 +67,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.76, transform: [{ translateY: 1 }] },
 });

@@ -1,6 +1,6 @@
 /* global Buffer */
 
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 
 const CDP_URL = process.env.CDP_URL ?? 'http://127.0.0.1:9222';
 const APP_URL = process.env.APP_URL ?? 'http://127.0.0.1:3001';
@@ -87,6 +87,8 @@ async function createPage(cdp) {
     cdp.send('Page.enable', {}, page.sessionId),
     cdp.send('Runtime.enable', {}, page.sessionId),
     cdp.send('Log.enable', {}, page.sessionId),
+    cdp.send('Network.enable', {}, page.sessionId),
+    cdp.send('Network.setCacheDisabled', { cacheDisabled: true }, page.sessionId),
   ]);
   await cdp.send('Emulation.setDeviceMetricsOverride', {
     width: VIEWPORT_WIDTH,
@@ -114,6 +116,18 @@ async function waitUntil(cdp, page, expression, timeoutMs = 10_000) {
 
 function bodyText(cdp, page) {
   return evaluate(cdp, page, 'document.body?.innerText ?? ""');
+}
+
+function isExpectedAuthFallbackLog(event) {
+  const entry = event.method === 'Log.entryAdded' ? event.params.entry : null;
+  return entry?.source === 'network'
+    && entry.level === 'error'
+    && (
+      entry.text.includes('status of 401')
+      || entry.text.includes('status of 404')
+      || entry.text.includes('status of 429')
+    )
+    && entry.url?.includes('/v1/auth/');
 }
 
 async function waitForText(cdp, page, text, timeoutMs = 10_000) {
@@ -154,31 +168,6 @@ async function clickText(cdp, page, ...labels) {
       .map((node) => node.getAttribute('aria-label')).filter(Boolean)`);
     throw new Error(`Button not found: ${labels.join(' / ')}\nAvailable: ${JSON.stringify(available)}`);
   }
-  await sleep(180);
-}
-
-async function clickTextPhysical(cdp, page, ...labels) {
-  const point = await evaluate(cdp, page, `(() => {
-    const labels = ${JSON.stringify(labels)};
-    const nodes = [...document.querySelectorAll(
-      '[role="button"], [role="radio"], [role="switch"], [role="tab"], [aria-label], button, a, [tabindex="0"]',
-    )];
-    const node = labels.flatMap((label) => nodes
-      .filter((candidate) => {
-        const text = (candidate.getAttribute('aria-label') || candidate.innerText || '').trim();
-        return text === label || text.includes(label);
-      })
-      .sort((left, right) => (left.innerText?.length ?? 0) - (right.innerText?.length ?? 0)))[0];
-    const rect = node?.getBoundingClientRect();
-    return rect && { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  })()`);
-  if (!point) throw new Error(`Button not found for physical click: ${labels.join(' / ')}`);
-  await cdp.send('Input.dispatchMouseEvent', {
-    type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1,
-  }, page.sessionId);
-  await cdp.send('Input.dispatchMouseEvent', {
-    type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1,
-  }, page.sessionId);
   await sleep(180);
 }
 
@@ -788,6 +777,7 @@ async function solveCurrentFieldPuzzle(cdp, host, guest) {
 }
 
 const version = await fetch(`${CDP_URL}/json/version`).then((response) => response.json());
+await mkdir(ARTIFACT_DIR, { recursive: true });
 const cdp = new CdpConnection(version.webSocketDebuggerUrl);
 await cdp.open();
 
@@ -899,16 +889,12 @@ try {
     );
     await cdp.send('Page.reload', {}, guest.sessionId);
     await waitUntil(cdp, guest, `document.readyState === 'complete'`, 20_000);
-    await waitForText(cdp, guest, `${roomCode} koduyla devam et`, 15_000);
-    await waitUntil(cdp, guest, `(() => {
-      const label = ${JSON.stringify(`${roomCode} koduyla devam et`)};
-      const node = [...document.querySelectorAll('[role="button"],button')]
-        .find((candidate) => (candidate.getAttribute('aria-label') || candidate.innerText || '').includes(label));
-      return Boolean(node && Object.keys(node).some((key) => key.startsWith('__reactProps$')));
-    })()`, 20_000);
-    await clickTextPhysical(cdp, guest, `${roomCode} koduyla devam et`, `Continue with ${roomCode}`);
-    await waitForText(cdp, guest, 'Maç Lobisi', 15_000);
+    await waitForText(cdp, guest, 'Maç Lobisi', 20_000);
     await waitForText(cdp, guest, 'OYUNCULAR (2/2)', 10_000);
+    const restoredPath = await evaluate(cdp, guest, 'location.pathname');
+    if (restoredPath !== '/lobby') {
+      throw new Error(`Reloaded lobby restored to the wrong route: ${restoredPath}`);
+    }
   }
 
   await Promise.all([
@@ -973,8 +959,8 @@ try {
   }
   if (!registeredIdentity) {
     await Promise.all([
-      clickText(cdp, host, 'Tekrar Oyna', 'Play Again'),
-      clickText(cdp, guest, 'Tekrar Oyna', 'Play Again'),
+      clickText(cdp, host, 'Tekrar oyna', 'Play Again'),
+      clickText(cdp, guest, 'Tekrar oyna', 'Play Again'),
     ]);
     await Promise.all([
       waitForText(cdp, host, 'Maç Lobisi', 15_000),
@@ -987,8 +973,10 @@ try {
   }
 
   const browserErrors = cdp.events.filter((event) =>
-    event.method === 'Runtime.exceptionThrown' ||
-    (event.method === 'Log.entryAdded' && event.params.entry.level === 'error'),
+    !isExpectedAuthFallbackLog(event) && (
+      event.method === 'Runtime.exceptionThrown' ||
+      (event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
+    ),
   );
   if (browserErrors.length > 0) {
     throw new Error(`Browser errors detected: ${JSON.stringify(browserErrors.slice(0, 5))}`);

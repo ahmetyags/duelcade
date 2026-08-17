@@ -346,25 +346,24 @@ export class DuelcadeRoom extends Room {
     const terminalServerClose = Object.values(SERVER_CLOSE_CODE).includes(
       code as (typeof SERVER_CLOSE_CODE)[keyof typeof SERVER_CLOSE_CODE],
     );
-    if (!client.userData?.registered || terminalServerClose) return;
+    if (terminalServerClose) return;
 
     const player = this.findPlayer(client);
-    if (player) {
-      player.connected = false;
-      player.lastSeenAt = Date.now();
-      if (this.game.status === 'playing' && this.pausedAt === null) {
-        this.pausedAt = Date.now();
-      }
-      this.broadcastSnapshots(false);
-      this.broadcastEvent({
-        event: 'connection.warning',
-        payload: {
-          quality: 'critical',
-          pingMs: 0,
-          message: 'Partner disconnected. The timer is paused for 60 seconds.',
-        },
-      });
+    if (!player) return;
+    player.connected = false;
+    player.lastSeenAt = Date.now();
+    if (this.game.status === 'playing' && this.pausedAt === null) {
+      this.pausedAt = Date.now();
     }
+    this.broadcastSnapshots(false);
+    this.broadcastEvent({
+      event: 'connection.warning',
+      payload: {
+        quality: 'critical',
+        pingMs: 0,
+        message: 'Partner disconnected. The timer is paused for 60 seconds.',
+      },
+    });
 
     try {
       await this.allowReconnection(client, RECONNECT_GRACE_SECONDS);
@@ -416,10 +415,17 @@ export class DuelcadeRoom extends Room {
     }
   }
 
-  async onLeave(client: EscapeClient): Promise<void> {
-    if (!client.userData?.registered) return;
+  async onLeave(client: EscapeClient, code?: number): Promise<void> {
     const player = this.findPlayer(client);
     if (!player) return;
+    const recoverableClose = code === 1001 || code === 1005 || code === 1006 || code === 4010;
+    // Colyseus normally routes these codes through onDrop. During a full page
+    // replacement it can reach onLeave before the client lifecycle settles;
+    // preserve a still-connected seat instead of treating refresh as forfeit.
+    if (player.connected && recoverableClose) {
+      await this.onDrop(client, code);
+      return;
+    }
     this.game.players = this.game.players.filter((item) => item.id !== player.id);
     this.broadcastEvent({
       event: 'player.left',

@@ -18,6 +18,7 @@ import { triggerHaptic } from '@/services/HapticsService';
 import { trackAnalyticsEvent } from '@/services/AnalyticsService';
 
 let initialized = false;
+let initializationPromise: Promise<void> | null = null;
 
 function handleServerMessage(message: ServerMessage): void {
   const event = message.payload;
@@ -177,15 +178,55 @@ function updateConnectionInfo(): void {
 
 export async function initNetwork(): Promise<void> {
   if (initialized) return;
+  if (initializationPromise) return initializationPromise;
 
-  const { ColyseusTransport } = await import('@/services/ColyseusTransport');
-  const transport: NetworkTransport = new ColyseusTransport();
+  initializationPromise = (async () => {
+    const { ColyseusTransport } = await import('@/services/ColyseusTransport');
+    const transport: NetworkTransport = new ColyseusTransport();
 
-  networkService.setTransport(transport);
-  networkService.addListener(handleServerMessage);
-  networkService.onConnectionChange(updateConnectionInfo);
-  networkService.onPingUpdate(updateConnectionInfo);
-  initialized = true;
+    networkService.setTransport(transport);
+    networkService.addListener(handleServerMessage);
+    networkService.onConnectionChange(updateConnectionInfo);
+    networkService.onPingUpdate(updateConnectionInfo);
+    initialized = true;
+  })();
+
+  try {
+    await initializationPromise;
+  } finally {
+    if (!initialized) initializationPromise = null;
+  }
+}
+
+function waitForRoomSnapshot(roomCode: string, timeoutMs = 10_000): {
+  promise: Promise<boolean>;
+  cancel: () => void;
+} {
+  let unsubscribe = () => {};
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let settled = false;
+
+  const cancel = () => {
+    if (settled) return;
+    settled = true;
+    if (timer) clearTimeout(timer);
+    unsubscribe();
+  };
+
+  const promise = new Promise<boolean>((resolve) => {
+    const finish = (restored: boolean) => {
+      if (settled) return;
+      cancel();
+      resolve(restored);
+    };
+    unsubscribe = useRoomStore.subscribe((state) => {
+      if (state.room?.code === roomCode) finish(true);
+      else if (state.error) finish(false);
+    });
+    timer = setTimeout(() => finish(false), timeoutMs);
+  });
+
+  return { promise, cancel };
 }
 
 async function connect(roomCode: string): Promise<void> {
@@ -276,15 +317,36 @@ export async function resumeRoom(
   const roomStore = useRoomStore.getState();
   roomStore.setLoading(true);
   roomStore.setError(null);
+  roomStore.clearRoom();
+  roomStore.setLoading(true);
+  useGameStore.getState().resetGame();
+  const restore = waitForRoomSnapshot(normalizedCode);
+  let syncTimer: ReturnType<typeof setInterval> | null = null;
 
   try {
     await initNetwork();
+    // A full page refresh can mount the new app before the server has observed
+    // the old WebSocket's close frame and opened its reconnection reservation.
+    await new Promise<void>((resolve) => setTimeout(resolve, 1_500));
     await networkService.reconnect(normalizedCode, playerId, reconnectToken);
+    // Request a replay only after NetworkService has entered the connected
+    // state. The transport also requests one as soon as its listeners attach;
+    // this second request makes full-page reload recovery deterministic.
+    networkService.send({ event: 'room.sync', payload: {} });
+    syncTimer = setInterval(() => {
+      networkService.send({ event: 'room.sync', payload: {} });
+    }, 500);
+    if (!await restore.promise) throw new Error('Room snapshot was not restored');
+    clearInterval(syncTimer);
+    syncTimer = null;
     const session = networkService.getSession();
     if (session) useSettingsStore.getState().setLastRoomSession(session);
     roomStore.setLoading(false);
     return true;
   } catch {
+    if (syncTimer) clearInterval(syncTimer);
+    restore.cancel();
+    networkService.disconnect();
     roomStore.setError('error.reconnect_expired');
     roomStore.setLoading(false);
     useSettingsStore.getState().clearLastRoomSession();

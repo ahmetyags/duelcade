@@ -126,6 +126,11 @@ export default function ResultsScreen() {
     ? room.players.find((player) => player.id === result.forfeitedPlayerId)
     : null;
   const localForfeited = result.forfeitedPlayerId === localPlayerId;
+  const rematchLabel = localRequestedRematch
+    ? copy.waiting
+    : opponentRequestedRematch
+      ? copy.acceptRematch
+      : copy.playAgain;
   const title = localForfeited
     ? copy.leftTitle
     : result.failReason === 'player_left'
@@ -175,6 +180,8 @@ export default function ResultsScreen() {
 
         <View style={styles.actions}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={rematchLabel}
             disabled={localRequestedRematch}
             onPress={() => {
               if (singlePlayer) {
@@ -199,11 +206,7 @@ export default function ResultsScreen() {
           >
             <RotateCw size={21} color={colors.textOnPrimary} />
             <ThemedText variant="label" color="onPrimary">
-              {localRequestedRematch
-                ? copy.waiting
-                : opponentRequestedRematch
-                  ? copy.acceptRematch
-                  : copy.playAgain}
+              {rematchLabel}
             </ThemedText>
           </Pressable>
           <Pressable
@@ -218,7 +221,12 @@ export default function ResultsScreen() {
             <MessageSquareText size={21} color={colors.primaryDark} />
             <ThemedText variant="label">{t('feedback.resultAction')}</ThemedText>
           </Pressable>
-          <Pressable onPress={handleHome} style={styles.action}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.home}
+            onPress={handleHome}
+            style={styles.action}
+          >
             <Home size={21} color={colors.textPrimary} />
             <ThemedText variant="label">{copy.home}</ThemedText>
           </Pressable>

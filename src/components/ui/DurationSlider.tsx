@@ -47,10 +47,15 @@ export function DurationSlider({
         <ThemedText variant="label" color="muted">{copy.minutes}</ThemedText>
       </View>
       <View
+        testID="duration-slider"
         accessible
         accessibilityRole="adjustable"
         accessibilityLabel={copy.playerTime}
         accessibilityValue={{ min, max, now: value, text: copy.value(value) }}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-valuetext={copy.value(value)}
         accessibilityActions={[
           { name: 'increment', label: copy.increase },
           { name: 'decrement', label: copy.decrease },

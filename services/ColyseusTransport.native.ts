@@ -49,7 +49,6 @@ export class ColyseusTransport implements NetworkTransport {
     this.client.auth.token = await getAccessTokenForNetwork() ?? '';
     const room = await this.client.reconnect(reconnectionToken);
     this.attachRoom(room);
-    await new Promise<void>((resolve) => setTimeout(resolve, 250));
     room.send('event', { event: 'room.sync', payload: {} });
     this.emitConnection('connected');
   }
@@ -96,7 +95,7 @@ export class ColyseusTransport implements NetworkTransport {
   private attachRoom(room: Room): void {
     this.room = room;
     room.reconnection.maxRetries = 20;
-    room.reconnection.minUptime = 1000;
+    room.reconnection.minUptime = 0;
     room.reconnection.maxDelay = 5000;
     room.reconnection.maxEnqueuedMessages = 20;
 

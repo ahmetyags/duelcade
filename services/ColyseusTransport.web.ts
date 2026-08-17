@@ -15,9 +15,26 @@ export class ColyseusTransport implements NetworkTransport {
   private pingListeners = new Set<(pingMs: number) => void>();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private consentedDisconnect = false;
+  private pageIsHiding = false;
+  private readonly handlePageHide = () => {
+    // The next document will perform a manual reconnect with the persisted
+    // token. Prevent this dying page from racing it and consuming that token
+    // through the SDK's automatic retry loop.
+    const activeRoom = this.room;
+    if (!activeRoom || this.pageIsHiding) return;
+    this.pageIsHiding = true;
+    activeRoom.reconnection.maxRetries = 0;
+    if (activeRoom.connection.isOpen) {
+      activeRoom.connection.close(4010, 'page_reloading');
+    }
+  };
 
   constructor(endpoint = GAME_SERVER_URL) {
     this.client = new Client(endpoint);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', this.handlePageHide);
+      window.addEventListener('pagehide', this.handlePageHide);
+    }
   }
 
   async connect(roomCode: string, playerId: string): Promise<void> {
@@ -37,7 +54,6 @@ export class ColyseusTransport implements NetworkTransport {
     this.client.auth.token = await getAccessTokenForNetwork() ?? '';
     const room = await this.client.reconnect(reconnectionToken);
     this.attachRoom(room);
-    await new Promise<void>((resolve) => setTimeout(resolve, 250));
     room.send('event', { event: 'room.sync', payload: {} });
     this.emitConnection('connected');
   }
@@ -81,7 +97,9 @@ export class ColyseusTransport implements NetworkTransport {
   private attachRoom(room: Room): void {
     this.room = room;
     room.reconnection.maxRetries = 20;
-    room.reconnection.minUptime = 1000;
+    // A freshly restored web page can briefly replace its socket during
+    // hydration. Treat that connection as eligible for retry immediately.
+    room.reconnection.minUptime = 0;
     room.reconnection.maxDelay = 5000;
     room.reconnection.maxEnqueuedMessages = 20;
 

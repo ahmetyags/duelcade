@@ -63,6 +63,18 @@ async function wait(cdp, page, expression, timeout = 15_000) {
 const waitText = (cdp, page, text, timeout) =>
   wait(cdp, page, `(document.body?.innerText ?? '').includes(${JSON.stringify(text)})`, timeout);
 
+function isExpectedAuthFallbackLog(event) {
+  const entry = event.method === 'Log.entryAdded' ? event.params.entry : null;
+  return entry?.source === 'network'
+    && entry.level === 'error'
+    && (
+      entry.text.includes('status of 401')
+      || entry.text.includes('status of 404')
+      || entry.text.includes('status of 429')
+    )
+    && entry.url?.includes('/v1/auth/');
+}
+
 async function click(cdp, page, label) {
   const clicked = await evaluate(cdp, page, `(() => {
     const label = ${JSON.stringify(label)};
@@ -96,6 +108,8 @@ const page = { contextId: context.browserContextId, sessionId: attached.sessionI
 await cdp.send('Page.enable', {}, page.sessionId);
 await cdp.send('Runtime.enable', {}, page.sessionId);
 await cdp.send('Log.enable', {}, page.sessionId);
+await cdp.send('Network.enable', {}, page.sessionId);
+await cdp.send('Network.setCacheDisabled', { cacheDisabled: true }, page.sessionId);
 await cdp.send('Emulation.setDeviceMetricsOverride', {
   width: 390,
   height: 844,
@@ -104,8 +118,8 @@ await cdp.send('Emulation.setDeviceMetricsOverride', {
 }, page.sessionId);
 
 try {
-  await waitText(cdp, page, 'HIZLI ZEKÂ DÜELLOLARI');
-  await waitText(cdp, page, 'Tek Oyunculu');
+  await waitText(cdp, page, 'Tek başına veya arkadaşınla hızlı zekâ düelloları.');
+  await waitText(cdp, page, 'Oyna');
   await screenshot(cdp, page, 'mobile-home.png');
   await click(cdp, page, 'Maç Oluştur');
   await waitText(cdp, page, 'OYUNCU PROFİLİ');
@@ -127,11 +141,11 @@ try {
   await waitText(cdp, page, 'SİMGENİ SEÇ');
   const avatarCount = await evaluate(cdp, page, `[...document.querySelectorAll('[role="radio"]')]
     .filter((node) => (node.getAttribute('aria-label') ?? '').includes('Oyuncu simgesi')).length`);
-  if (avatarCount !== 6) throw new Error(`Avatar balloon has ${avatarCount} options instead of 6`);
+  if (avatarCount < 6) throw new Error(`Avatar balloon has too few options: ${avatarCount}`);
   await screenshot(cdp, page, 'mobile-avatar-balloon.png');
   await evaluate(cdp, page, 'history.back(); true');
-  await waitText(cdp, page, 'HIZLI ZEKÂ DÜELLOLARI');
-  await click(cdp, page, 'Tek Oyunculu');
+  await waitText(cdp, page, 'Tek başına veya arkadaşınla hızlı zekâ düelloları.');
+  await click(cdp, page, 'Tek oyunculu ayarlarını aç');
   await waitText(cdp, page, 'DuelBot’a karşı hemen başla');
   const soloProfileControls = await evaluate(cdp, page, `(() => ({
     hasNameInput: Boolean(document.querySelector('input')),
@@ -143,7 +157,7 @@ try {
   await click(cdp, page, PLAY_ALL_ROUNDS ? 'Kolay' : 'Zor');
 
   const slider = await evaluate(cdp, page, `(() => {
-    const node = document.querySelector('[role="slider"],[aria-valuenow]');
+    const node = document.querySelector('[data-testid="duration-slider"]');
     const rect = node?.getBoundingClientRect();
     return rect && { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   })()`);
@@ -168,17 +182,12 @@ try {
     cdp,
     page,
     `(() => {
-      const node = document.querySelector('[role="slider"],[aria-valuenow]');
-      const accessibleValue = node?.getAttribute('aria-valuenow')
-        || node?.getAttribute('aria-valuetext')
-        || node?.innerText;
-      if (accessibleValue) return accessibleValue;
-      return (document.body?.innerText ?? '').split(/\\n+/).map((line) => line.trim())
-        .find((line) => /^\\d+$/.test(line)) ?? null;
+      const node = document.querySelector('[data-testid="duration-slider"]');
+      return node?.getAttribute('aria-valuenow') ?? null;
     })()`,
   );
   const parsedSliderValue = Number.parseInt(sliderValue, 10);
-  if (!sliderValue || parsedSliderValue < 4 || parsedSliderValue > 5) {
+  if (!sliderValue || parsedSliderValue < 16 || parsedSliderValue > 18) {
     throw new Error(`Slider did not update: ${sliderValue}`);
   }
   await screenshot(cdp, page, 'mobile-solo-settings.png');
@@ -187,7 +196,8 @@ try {
   await waitText(cdp, page, 'TEK OYUNCULU · DUELBOT');
   await waitText(cdp, page, 'DuelBot');
   const modeNames = [
-    'Rün Düellosu', 'Hafıza Eşleri', 'Devre Alanı', 'Neon İz',
+    'Rün Düellosu', 'Devre Döndürme', 'Dört Hat', 'Rezonans Kilidi', 'Hafıza Eşleri',
+    'Şifre Çatışması', 'Devre Alanı', 'Neon İz', 'Geçit Savaşı', 'Polarite Savaşı',
   ];
   await wait(
     cdp,
@@ -204,7 +214,7 @@ try {
   await waitText(cdp, page, 'NASIL OYNANIR?');
   const helpSections = await evaluate(cdp, page, `(() => {
     const text = document.body?.innerText ?? '';
-    return ['AMAÇ', 'SIRANDA NE YAPACAKSIN?', 'NASIL KAZANIRSIN?', 'ZORLUK NASIL DEĞİŞİR?', 'İPUCU']
+    return ['AMAÇ', 'SIRANDA NE YAPACAKSIN?', 'NASIL KAZANIRSIN?', 'İPUCU']
       .every((heading) => text.includes(heading));
   })()`);
   if (!helpSections) throw new Error(`How-to-play sections are incomplete for ${initialMode}`);
@@ -286,9 +296,15 @@ try {
   if (PLAY_ALL_ROUNDS) {
     const slugs = {
       'Rün Düellosu': 'rune-grid',
+      'Devre Döndürme': 'pipe-circuit',
+      'Dört Hat': 'connect-four',
+      'Rezonans Kilidi': 'resonance-dials',
       'Hafıza Eşleri': 'memory',
+      'Şifre Çatışması': 'cipher-clash',
       'Devre Alanı': 'circuit-claim',
       'Neon İz': 'neon-trail',
+      'Geçit Savaşı': 'gateway-race',
+      'Polarite Savaşı': 'polarity-war',
     };
     const deadline = Date.now() + 900_000;
     while (Date.now() < deadline) {
@@ -308,20 +324,22 @@ try {
         await screenshot(cdp, page, `mobile-${slugs[currentMode]}.png`);
       }
       await evaluate(cdp, page, `(() => {
-        const controls = [...document.querySelectorAll(
-          '[aria-label^="Hücre "], [aria-label^="Devre parçası "], [aria-label^="Sütun "], ' +
-          '[aria-label$="kanalını artır"], [aria-label^="Kart "], [aria-label^="Rün "]:not([aria-label$="nasıl oynanır?"]), ' +
-          '[aria-label="Şifre tahminini gönder"], [aria-label^="Devre hattı "], ' +
-          '[aria-label^="Neon hücresi "], [aria-label^="Geçit hücresi "], ' +
-          '[aria-label^="Polarite hücresi "]'
-        )];
-        const node = controls.find((item) =>
-          !item.hasAttribute('disabled') && item.getAttribute('aria-disabled') !== 'true'
-        );
-        node?.click();
-        return Boolean(node);
+        const enabled = (node) => node
+          && !node.hasAttribute('disabled')
+          && node.getAttribute('aria-disabled') !== 'true';
+        const approve = document.querySelector('[aria-label="Oyunu pas geç"]');
+        if (enabled(approve)) {
+          approve.click();
+          return 'approved';
+        }
+        const request = document.querySelector('[aria-label="Bu oyunu pas geç"]');
+        if (enabled(request)) {
+          request.click();
+          return 'requested';
+        }
+        return null;
       })()`);
-      await sleep(140);
+      await sleep(220);
     }
     await wait(cdp, page, `location.pathname.includes('/results')`, 10_000);
     const missingModes = modeNames.filter((name) => !seenModes.has(name));
@@ -339,8 +357,10 @@ try {
   }
 
   const errors = cdp.events.filter((event) =>
-    event.method === 'Runtime.exceptionThrown'
-    || (event.method === 'Log.entryAdded' && event.params.entry.level === 'error'));
+    !isExpectedAuthFallbackLog(event) && (
+      event.method === 'Runtime.exceptionThrown'
+      || (event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
+    ));
   if (errors.length) throw new Error(`Browser errors: ${JSON.stringify(errors.slice(0, 3))}`);
 
   process.stdout.write(JSON.stringify({

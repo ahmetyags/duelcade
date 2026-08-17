@@ -5,6 +5,7 @@ import {
   NetworkService,
   type NetworkTransport,
 } from '../services/NetworkService';
+import type { ClientEvent, ConnectionState } from '../types/network';
 
 test('action ids are epoch-seeded and monotonic for authoritative movement', () => {
   const before = Date.now() * 1000;
@@ -80,4 +81,33 @@ test('intentional disconnect cannot schedule a reconnect to the room being left'
   assert.equal(service.getConnectionState(), 'disconnected');
   assert.equal(service.getSession(), null);
   assert.equal(internal.reconnectTimer, null);
+});
+
+test('messages are queued through the transport while its room is reconnecting', async () => {
+  const service = new NetworkService();
+  const sent: ClientEvent[] = [];
+  let connectionListener: ((state: ConnectionState) => void) | null = null;
+  const transport: NetworkTransport = {
+    connect: async () => {},
+    reconnect: async () => {},
+    disconnect: () => {},
+    getSession: () => ({ roomCode: 'SYNC12', reconnectionToken: 'SYNC12:token' }),
+    send: (event) => sent.push(event),
+    onEvent: () => () => {},
+    onConnectionChange: (listener) => {
+      connectionListener = listener;
+      return () => {
+        connectionListener = null;
+      };
+    },
+    onPingUpdate: () => () => {},
+  };
+  service.setTransport(transport);
+  await service.connect('SYNC12', 'player-one');
+
+  connectionListener?.('reconnecting');
+  const sync: ClientEvent = { event: 'room.sync', payload: {} };
+  service.send(sync);
+
+  assert.deepEqual(sent, [sync]);
 });

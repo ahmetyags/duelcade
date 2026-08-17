@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
+import { IconButton } from '@/components/ui/IconButton';
 import { ThemedButton } from '@/components/ui/ThemedButton';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
@@ -93,12 +94,12 @@ function formatClock(value: number): string {
 function winningCells(match: TurnMatchState): ReadonlySet<number> {
   const winner = match.winnerIndex;
   if (winner === null || match.status !== 'round_complete') return new Set();
-  if (match.mode === 'memory_pairs') {
+  if (match.mode === 'memory_pairs' || match.mode === 'resonance_dials') {
     return new Set(match.cellOwners
       .map((owner, index) => owner === winner ? index : -1)
       .filter((index) => index >= 0));
   }
-  if (match.mode === 'pipe_circuit' || match.mode === 'resonance_dials') {
+  if (match.mode === 'pipe_circuit') {
     return new Set(match.cells.map((_, index) => index));
   }
   if (match.mode === 'neon_trail' || match.mode === 'polarity_war') {
@@ -508,7 +509,7 @@ function ResonanceBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
             <Minus size={20} color={colors.textSecondary} />
           </Pressable>
           <AnimatedTurnPiece
-            identity={`${value}-${value === match.targets?.[dial]}`}
+            identity={`${dial}-${value === match.targets?.[dial]}`}
             color={dial % 2 ? colors.actionAmber : colors.actionCyan}
             completed={value === match.targets?.[dial]}
             reduceMotion={reduceMotion}
@@ -690,17 +691,22 @@ export default function GameScreen() {
             <ThemedText variant="subtitle" style={refinedConnectFour && styles.gameTitleRefined}>{modeCopy.title}</ThemedText>
           </View>
           <View style={styles.topbarActions}>
-            <Pressable
+            <IconButton
               accessibilityLabel={turnUi.skipRound}
               disabled={match.status !== 'playing' && match.status !== 'resolving'}
               onPress={() => setShowSkipConfirm(true)}
-              style={[styles.iconButton, refinedConnectFour && styles.iconButtonRefined, localSkipVoted && styles.skipButtonPending]}
-            >
-              <SkipForward size={19} color={localSkipVoted ? colors.amberMuted : colors.primaryDark} />
-            </Pressable>
-            <Pressable accessibilityLabel={turnUi.leaveGame} onPress={handleLeave} style={[styles.iconButton, refinedConnectFour && styles.iconButtonRefined]}>
-              <LogOut size={20} color={colors.error} />
-            </Pressable>
+              tone={localSkipVoted ? 'accent' : 'neutral'}
+              shape="pill"
+              selected={localSkipVoted}
+              icon={<SkipForward size={19} color={localSkipVoted ? colors.amberMuted : colors.primaryDark} />}
+            />
+            <IconButton
+              accessibilityLabel={turnUi.leaveGame}
+              onPress={handleLeave}
+              tone="danger"
+              shape="pill"
+              icon={<LogOut size={20} color={colors.error} />}
+            />
           </View>
         </View>
 
@@ -853,12 +859,13 @@ export default function GameScreen() {
           || match.mode === 'circuit_claim'
           || match.mode === 'polarity_war'
           || match.mode === 'cipher_clash'
+          || match.mode === 'resonance_dials'
         ) && (
           <View style={styles.roundScore}>
             <ThemedText style={{ color: colors.cyan }}>
               {match.mode === 'memory_pairs'
                 ? [turnUi.pairs, match.roundPoints[0]].join(' ')
-                : match.mode === 'cipher_clash'
+                : match.mode === 'cipher_clash' || match.mode === 'resonance_dials'
                   ? [turnUi.fullMatches, match.roundPoints[0]].join(' ')
                   : [turnUi.area, match.roundPoints[0]].join(' ')}
             </ThemedText>
@@ -866,7 +873,7 @@ export default function GameScreen() {
             <ThemedText style={{ color: colors.amber }}>
               {match.mode === 'memory_pairs'
                 ? [match.roundPoints[1], turnUi.pairs].join(' ')
-                : match.mode === 'cipher_clash'
+                : match.mode === 'cipher_clash' || match.mode === 'resonance_dials'
                   ? [match.roundPoints[1], turnUi.fullMatches].join(' ')
                   : [match.roundPoints[1], turnUi.area].join(' ')}
             </ThemedText>
@@ -1101,9 +1108,6 @@ const styles = StyleSheet.create({
   topbarRefined: { minHeight: 52 },
   gameTitleRefined: { color: colors.textPrimary, fontFamily: 'Quicksand-Bold', fontSize: 25, lineHeight: 30, letterSpacing: -0.35 },
   topbarActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  iconButton: { width: 42, height: 42, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  iconButtonRefined: { width: 44, height: 44, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.88)', ...shadows.sm },
-  skipButtonPending: { borderColor: colors.amber, backgroundColor: colors.secondaryContainer },
   players: { flexDirection: 'row', gap: 15 },
   playersRefined: { position: 'relative', gap: 10 },
   playerCard: { flex: 1, minWidth: 0, minHeight: 68, padding: spacing.sm, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radius.lg, backgroundColor: colors.surfaceDark, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },

@@ -160,18 +160,39 @@ test('all arrow pipe tiles use four visually distinct directions', () => {
   assert.equal(session.state.cells[0], 0);
 });
 
-test('resonance dials rotate both ways and award the finishing move', () => {
+test('resonance dials rotate both ways and award the player with the most locked channels', () => {
   const session = createTurnMatchSession('resonance-test', ['a', 'b'], 5);
   session.state.mode = 'resonance_dials';
   session.state.activePlayerIndex = 0;
   session.solution = [2, 1, 4, 0];
   session.state.targets = [...session.solution];
   session.state.cells = [1, 1, 4, 0];
+  session.state.cellOwners = [null, 1, 1, 1];
+  session.state.roundPoints = [0, 3];
   const result = applyTurnMove(session, 'a', 1, 0);
   assert.equal(result.roundEnded, true);
   assert.equal(session.state.cells[0], 2);
-  assert.equal(session.state.winnerIndex, 0);
+  assert.equal(session.state.winnerIndex, 1);
   assert.equal(session.state.cellOwners[0], 0);
+  assert.deepEqual(session.state.roundPoints, [1, 3]);
+});
+
+test('resonance dials end in a draw when both players lock the same number of channels', () => {
+  const session = createTurnMatchSession('resonance-draw-test', ['a', 'b'], 5);
+  session.state.mode = 'resonance_dials';
+  session.state.activePlayerIndex = 1;
+  session.solution = [2, 1, 4, 0];
+  session.state.targets = [...session.solution];
+  session.state.cells = [2, 1, 4, 4];
+  session.state.cellOwners = [0, 0, 1, null];
+  session.state.roundPoints = [2, 1];
+
+  const result = applyTurnMove(session, 'b', 7, 0);
+
+  assert.equal(result.roundEnded, true);
+  assert.equal(session.state.winnerIndex, null);
+  assert.deepEqual(session.state.roundPoints, [2, 2]);
+  assert.deepEqual(session.state.scores, [0, 0]);
 });
 
 test('every resonance target is reachable, labelled and locks exactly once', () => {
@@ -201,6 +222,15 @@ test('every resonance target is reachable, labelled and locks exactly once', () 
     });
 
     assert.equal(session.state.status, 'round_complete');
+    assert.equal(session.state.roundPoints[0] + session.state.roundPoints[1], session.state.cells.length);
+    assert.equal(
+      session.state.roundPoints[0],
+      session.state.cellOwners.filter((owner) => owner === 0).length,
+    );
+    assert.equal(
+      session.state.roundPoints[1],
+      session.state.cellOwners.filter((owner) => owner === 1).length,
+    );
   }
 });
 

@@ -4,6 +4,7 @@ import { Client, type Room } from '@colyseus/sdk';
 
 import { createGameServer } from '../server/app';
 import { ROOM_REGISTRATION_TIMEOUT_MS } from '../server/DuelcadeRoom';
+import { listenOnAvailablePort } from './serverTestUtils';
 import {
   PROTOCOL_VERSION,
   SERVER_CLOSE_CODE,
@@ -63,8 +64,7 @@ function joinPayload(roomCode: string, displayName: string) {
 
 test('room registration rejects duplicate identities and evicts idle seat reservations', async () => {
   const server = createGameServer();
-  const port = 32_000 + Math.floor(Math.random() * 1_000);
-  await server.listen(port, '127.0.0.1');
+  const port = await listenOnAvailablePort(server);
 
   const endpoint = `http://127.0.0.1:${port}`;
   const hostClient = new Client(endpoint);

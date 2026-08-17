@@ -68,11 +68,11 @@ const EN_MODES: Record<TurnGameMode, TurnModeCopy> = {
   resonance_dials: {
     title: 'Resonance Lock',
     description: 'Tune every channel to its target frequency and unlock the system.',
-    winReason: 'Locked the final frequency onto its target',
+    winReason: 'Locked the most channels onto their target frequencies',
     help: {
       goal: 'Tune every channel to the target frequency shown above it.',
       turn: 'Use minus or plus to change one frequency step. A matching channel locks.',
-      win: 'The player who tunes the final frequency correctly wins.',
+      win: 'The player who locks the most channels wins. Equal channel counts end in a draw.',
       difficulty: 'Higher difficulty increases the simultaneous channels from three to six.',
       tip: 'Choose the shortest direction between the current and target values; frequencies wrap around.',
     },
@@ -191,11 +191,11 @@ const TR_MODES: Record<TurnGameMode, TurnModeCopy> = {
   resonance_dials: {
     title: 'Rezonans Kilidi',
     description: 'Kanalları hedef frekanslara getirip kilidi çöz.',
-    winReason: 'Son frekansı hedefe kilitledi',
+    winReason: 'En çok kanalı hedef frekansına kilitledi',
     help: {
       goal: 'Her kanalı üstteki hedef frekansına ayarla.',
       turn: 'Kanalın yanındaki eksi veya artı düğmesiyle frekansı bir kademe değiştir. Eşleşen kanal kilitlenir.',
-      win: 'Son frekansı doğru değere getiren oyuncu turu kazanır.',
+      win: 'En çok kanalı hedefe kilitleyen oyuncu turu kazanır. Kanal sayıları eşitse tur berabere biter.',
       difficulty: 'Zorluk arttıkça aynı anda yönetilen kanal sayısı üçten altıya çıkar.',
       tip: 'Mevcut değer ile hedef arasındaki en kısa yönü seç; frekanslar döngüsel ilerler.',
     },

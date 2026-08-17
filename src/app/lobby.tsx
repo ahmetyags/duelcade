@@ -4,8 +4,8 @@
  * role preference, room code copy/share, host starts when both ready.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Share as RNShare } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { ActivityIndicator, View, StyleSheet, Pressable, Share as RNShare } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -16,10 +16,12 @@ import { Panel } from '@/components/ui/Panel';
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
 import { ConnectionIndicator } from '@/components/ui/ConnectionIndicator';
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoomStore } from '@/store/roomStore';
 import { useGameStore } from '@/store/gameStore';
-import { setPlayerReady, leaveRoom } from '@/services/NetworkBridge';
+import { useSettingsStore } from '@/store/settingsStore';
+import { setPlayerReady, leaveRoom, resumeRoom } from '@/services/NetworkBridge';
 import { triggerHaptic } from '@/services/HapticsService';
 import { Clock3, Copy, Gauge, Share as ShareIcon, LogOut, Check, Users } from 'lucide-react-native';
 import { useTranslation } from '@/src/i18n';
@@ -37,12 +39,25 @@ export default function LobbyScreen() {
   const allReady = useRoomStore((s) => s.allReady());
   const setPhase = useGameStore((s) => s.setPhase);
   const gamePhase = useGameStore((s) => s.phase);
+  const settingsLoaded = useSettingsStore((s) => s.isLoaded);
+  const lastRoomCode = useSettingsStore((s) => s.lastRoomCode);
+  const lastRoomPlayerId = useSettingsStore((s) => s.lastRoomPlayerId);
+  const lastRoomReconnectToken = useSettingsStore((s) => s.lastRoomReconnectToken);
+  const recoveryAttempted = useRef(false);
 
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!room) {
-      router.replace('/');
+      if (!settingsLoaded || recoveryAttempted.current) return;
+      recoveryAttempted.current = true;
+      if (!lastRoomCode || !lastRoomPlayerId || !lastRoomReconnectToken) {
+        router.replace('/');
+        return;
+      }
+      void resumeRoom(lastRoomCode, lastRoomPlayerId, lastRoomReconnectToken).then((restored) => {
+        if (!restored) router.replace('/');
+      });
       return;
     }
     setPhase('lobby');
@@ -51,7 +66,15 @@ export default function LobbyScreen() {
     if (!useRoomStore.getState().roomCode && room.code) {
       useRoomStore.getState().setRoomCode(room.code);
     }
-  }, [room, setPhase, router]);
+  }, [
+    lastRoomCode,
+    lastRoomPlayerId,
+    lastRoomReconnectToken,
+    room,
+    router,
+    setPhase,
+    settingsLoaded,
+  ]);
 
   useEffect(() => {
     if (gamePhase === 'loading_level' || gamePhase === 'playing') {
@@ -94,7 +117,19 @@ export default function LobbyScreen() {
     router.replace('/');
   }, [router]);
 
-  if (!room) return null;
+  if (!room) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <MagicBackdrop />
+        <View style={styles.recoveryState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <ThemedText variant="body" color="muted">
+            {t('lobby.awaitingConnection')}
+          </ThemedText>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const displayCode = room.code ?? roomCode ?? '------';
   const bothPlayersPresent = room.players.length === 2;
@@ -104,14 +139,14 @@ export default function LobbyScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <MagicBackdrop />
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={handleLeave} style={styles.backBtn}>
-          <LogOut size={20} color={colors.textSecondary} strokeWidth={2} />
-        </Pressable>
-        <ThemedText variant="subtitle">{t('lobby.title')}</ThemedText>
-        <View style={{ width: 28 }} />
-      </View>
+      <ScreenHeader
+        title={t('lobby.title')}
+        backLabel={language === 'tr' ? 'Lobiden ayrıl' : 'Leave lobby'}
+        onBack={handleLeave}
+        leadingTone="danger"
+        leadingIcon={<LogOut size={20} color={colors.error} strokeWidth={2} />}
+        maxWidth={680}
+      />
 
       {/* Room code card */}
       <View style={styles.content}>
@@ -296,27 +331,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    width: '100%',
-    maxWidth: 680,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceDark,
+  recoveryState: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.md,
   },
   content: {
     flex: 1,

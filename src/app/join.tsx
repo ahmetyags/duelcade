@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, StyleSheet, TextInput, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ui/ThemedText';
@@ -12,6 +12,7 @@ import { ThemedButton } from '@/components/ui/ThemedButton';
 import { PlayerProfileEditor } from '@/components/ui/PlayerProfileEditor';
 import { Panel } from '@/components/ui/Panel';
 import { MagicBackdrop } from '@/components/ui/MagicBackdrop';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useAuthStore } from '@/store/authStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -19,7 +20,7 @@ import { useRoomStore } from '@/store/roomStore';
 import { joinRoom } from '@/services/NetworkBridge';
 import { getErrorMessage } from '@/services/ErrorMessages';
 import { triggerHaptic } from '@/services/HapticsService';
-import { ChevronLeft, LogIn } from 'lucide-react-native';
+import { LogIn } from 'lucide-react-native';
 import { useTranslation } from '@/src/i18n';
 
 export default function JoinRoomScreen() {
@@ -76,12 +77,7 @@ export default function JoinRoomScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <MagicBackdrop />
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={24} color={colors.textSecondary} strokeWidth={2} />
-        </Pressable>
-        <ThemedText variant="subtitle">{t('join.title')}</ThemedText>
-      </View>
+      <ScreenHeader title={t('join.title')} backLabel={t('common.back')} onBack={() => router.back()} maxWidth={680} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Room code input */}
@@ -143,28 +139,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  header: {
-    width: '100%',
-    maxWidth: 680,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.border,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceDark,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   content: {
     flexGrow: 1,
