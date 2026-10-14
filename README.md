@@ -1,214 +1,130 @@
 # Duelcade
 
-Tek başına veya bir arkadaşla oynanan 2–5 dakikalık hızlı zekâ düellolarıdır.
-Uygulama Expo Router, React Native, TypeScript ve Zustand ile iOS, Android ve
-web için hazırlanmıştır.
+Duelcade, tek başına veya bir arkadaşla oynanabilen 2–5 dakikalık hızlı zekâ
+oyunları koleksiyonudur. Expo, React Native ve TypeScript ile iOS, Android ve
+web için geliştirilir.
 
-Başlangıç sürümünün dört çekirdek modu Rün Düellosu, Hafıza Eşleri, Devre
-Alanı ve Neon İz'dir. Diğer tamamlanmış modlar ileride sezonluk içerik ve
-canlı etkinlik havuzu olarak korunur.
+Başlangıç sürümündeki dört oyun modu Rün Düellosu, Hafıza Eşleri, Devre Alanı
+ve Neon İz'dir. Çevrimiçi maçlar sunucu otoritelidir; sonuçlar ve ilerleme
+backend üzerinden yönetilir. Oyuncular maç geçmişini, seviye ve mod ustalığını
+görebilir; kozmetik ödüller rekabet avantajı sağlamaz.
 
-Anonim oyuncu kimliği backend tarafından üretilir. Android ve iOS'ta yenileme
-tokenı Expo SecureStore içinde, kısa ömürlü erişim tokenı yalnızca bellekte
-tutulur. Çevrimiçi maç sonuçları PostgreSQL'e yazılır ve ana ekrandaki Maç
-Geçmişi bölümünden görüntülenir.
+## Teknoloji
 
-Çevrimiçi maçlar sunucu tarafından tek seferlik XP ile ödüllendirilir. Seviye,
-dört çekirdek mod ustalığı, isteğe bağlı günlük görevler ve rekabet avantajı
-vermeyen avatar/çerçeve/masa teması koleksiyonu Seviye ve Ödüller ekranında
-sunulur.
+- Expo SDK 57, Expo Router ve React Native 0.86
+- React 19 ve TypeScript 6
+- Zustand ile istemci durumu
+- Colyseus ile çevrimiçi maçlar
+- Firebase Authentication ve Expo SecureStore ile kimlik doğrulama
 
-Gizlilik öncelikli ürün analitiği Ayarlar ekranından açık rıza ile etkinleşir.
-İzinli olaylar yalnızca kendi backend'imize gönderilir; oda kodu, oyuncu adı,
-mesaj, reklam/cihaz kimliği ve ham IP analitik tablosunda tutulmaz. Çökme
-raporlaması da varsayılan olarak kapalıdır ve yalnızca
-`EXPO_PUBLIC_SENTRY_DSN` tanımlıysa çalışır.
-
-Kapalı test katılımcıları Ayarlar veya maç sonucu ekranından yapılandırılmış
-geri bildirim gönderebilir. Bu kayıt kategori, 1–5 deneyim puanı, en fazla
-1000 karakterlik açıklama, ekran, platform ve uygulama sürümünü içerir.
-Oda kodu, reklam/cihaz kimliği ve ham IP kaydedilmez; oyunculardan ad,
-e-posta veya başka kişisel bilgi yazmamaları açıkça istenir.
+Expo SDK 57'nin sürümlenmiş başvuru belgesi:
+[docs.expo.dev/versions/v57.0.0](https://docs.expo.dev/versions/v57.0.0/)
 
 ## Gereksinimler
 
-- Node.js 22.13.1 veya daha yeni bir 22.x sürümü
-- npm 10 veya daha yeni
-- Mobil test için Expo Go ya da bir Expo development build
+- Node.js 22.13.1 (`.nvmrc` ile)
+- npm 10 veya üzeri
+- iOS/Android cihazı veya simülatörü, ya da web tarayıcısı
+- Çevrimiçi özellikleri yerelde kullanmak için `duelcade-backend`
 
-Projede `.nvmrc` bulunduğu için nvm kullananlar doğru sürüme şu komutla geçebilir:
+`nvm` kullanıyorsanız proje kökünde `nvm use` komutuyla Node sürümünü seçin.
+
+## Hızlı başlangıç
+
+Proje bağımlılıklarını yükleyin ve ortam dosyasını oluşturun:
 
 ```bash
-nvm use
+npm ci
+cp .env.example .env
 ```
 
-## Kurulum
+`.env` içindeki `EXPO_PUBLIC_GAME_SERVER_URL` değerini backend adresinize
+ayarlayın. Bilgisayardaki simulator ve web için varsayılan adres
+`http://localhost:2567`'dir. Backend'i ayrı terminalde başlatın:
 
 ```bash
-npm install
-cp .env.example .env
 cd ../duelcade-backend
 npm install
 npm run dev
 ```
 
-Başka bir terminalde mobil proje dizininden:
+Ardından bu projeye dönüp Expo'yu başlatın:
 
 ```bash
+cd ../duelcade
 npm start
 ```
 
-Expo terminali açıldıktan sonra:
+Expo menüsünden Android için `a`, iOS Simulator için `i`, web için `w`
+tuşlarına basabilirsiniz. Platformu doğrudan başlatmak için
+`npm run android`, `npm run ios` veya `npm run web` komutlarını kullanın.
 
-- Android için `a`
-- iOS Simulator için `i`
-- Web için `w`
+Fiziksel cihazda `localhost` telefonun kendisini gösterir. `.env` içinde
+bilgisayarınızın yerel ağ IP adresini kullanın:
+
+```dotenv
+EXPO_PUBLIC_GAME_SERVER_URL=http://192.168.1.50:2567
+```
+
+## Geliştirme komutları
+
+| Komut | Açıklama |
+| --- | --- |
+| `npm start` | Expo geliştirme sunucusu |
+| `npm run android` / `npm run ios` / `npm run web` | Belirtilen platformda başlatır |
+| `npm run typecheck` | İstemci TypeScript denetimi |
+| `npm run server:typecheck` | Depodaki sunucu kodunun TypeScript denetimi |
+| `npm run lint` | Expo ESLint denetimi |
+| `npm test` | Testleri çalıştırır |
+| `npm run verify` | İstemci ve sunucu tip denetimi, lint ve testleri çalıştırır |
+| `npm run doctor` | Expo proje yapılandırmasını denetler |
+| `npx expo export --platform all` | iOS, Android ve web çıktısını üretir |
 
 Linux'ta Metro `ENOSPC: System limit for number of file watchers reached`
-hatası verirse işletim sistemi izleyici limitini yükseltin:
+hatası verirse dosya izleyici sınırını artırın:
 
 ```bash
 sudo sysctl -w fs.inotify.max_user_watches=524288
 sudo sysctl -w fs.inotify.max_user_instances=1024
 ```
 
-Bu ayarın kalıcı olması için dağıtımınızın `/etc/sysctl.d/` yapılandırmasına
-aynı değerleri ekleyin.
-
-Alternatif olarak platform komutları doğrudan çalıştırılabilir:
-
-```bash
-npm run android
-npm run ios
-npm run web
-```
-
-## Doğrulama
-
-```bash
-npm run typecheck
-npm run lint
-npm run doctor
-npm test
-npm run verify
-```
-
-Üç platformun üretim bundle'ını kontrol etmek için:
-
-```bash
-npx expo export --platform all
-```
-
 ## Proje yapısı
 
 ```text
-src/app/          Expo Router ekranları
-src/components/   Arayüz, oyun ve efekt bileşenleri
+src/app/          Expo Router ekranları ve gezinme
+src/components/   Arayüz ve oyun bileşenleri
 engine/           Bulmaca üretimi ve oyun kuralları
-services/         Ses, haptics ve ağ katmanı
-store/            Zustand uygulama durumları
-theme/            Renk, tipografi ve ölçü token'ları
-types/            Oyun ve ağ tipleri
-assets/           Uygulama ikonları ve görseller
+services/         Kimlik, ağ, ses ve haptics servisleri
+store/            Zustand durum yönetimi
+types/            Paylaşılan oyun ve ağ tipleri
+server/           Geriye dönük uyumluluk için tutulan sunucu kodu
+assets/           Görsel, ses, font ve oyun varlıkları
 ```
 
-## Ağ modeli
+## Backend ve çevre değişkenleri
 
-Uygulama `services/ColyseusTransport.ts` üzerinden gerçek Colyseus sunucusuna
-bağlanır. Oda, süre, roller, puzzle çözümleri, hareket ve etkileşim doğrulaması
-ayrı [`duelcade-backend`](../duelcade-backend/README.md) projesinde sunucu
-otoritesindedir. Bu depodaki `server/` kopyası, istemci geçişi tamamlanana kadar
-test uyumluluğu için geçici olarak korunmaktadır.
+Uygulama çevrimiçi maçlar için `services/ColyseusTransport.ts` üzerinden
+bağımsız [`duelcade-backend`](../duelcade-backend/README.md) projesine bağlanır.
+Oda, süre, roller, bulmaca çözümleri ve hamle doğrulaması sunucu tarafından
+yönetilir. Bu depodaki `server/` dizini istemci geçişi tamamlanana kadar test
+uyumluluğu için korunmaktadır.
 
-Yerel simulator veya web için `.env`:
-
-```dotenv
-EXPO_PUBLIC_GAME_SERVER_URL=http://localhost:2567
-```
-
-Fiziksel telefonlarda `localhost` telefonun kendisini ifade eder. Geliştirme
-bilgisayarının yerel ağ IP adresini kullanın:
-
-```dotenv
-EXPO_PUBLIC_GAME_SERVER_URL=http://192.168.1.50:2567
-```
-
-Üretimde HTTPS/WSS destekli bir sunucu adresi zorunludur.
-
-### Firebase Authentication
-
-Uygulama e-posta/şifre ile Google, Facebook ve GitHub kimliklerini Firebase JS
-SDK üzerinden doğrular. Firebase Console'daki web uygulamasının herkese açık
-ayarlarını `.env.example` içinde belgelenen `EXPO_PUBLIC_FIREBASE_*`
-değişkenlerine ekleyin. GitHub web girişi Firebase popup akışını kullanır;
-Android/iOS GitHub girişi ise OAuth client secret uygulamaya gömülmesin diye
-backend üzerinden tamamlanır.
-
-GitHub'ın tek OAuth App için tek callback host kısıtı nedeniyle iki ayrı GitHub
-OAuth App kullanılır:
-
-- Web/Firebase: `https://FIREBASE_PROJECT_ID.firebaseapp.com/__/auth/handler`
-- Android/iOS/backend: `https://duelcade-game-server.onrender.com/v1/auth/oauth/github/callback`
-
-İkinci uygulamanın `GITHUB_CLIENT_ID` ve `GITHUB_CLIENT_SECRET` değerleri yalnızca
-Render ortamında tutulur. `FIREBASE_PROJECT_ID` ile birlikte backend yeniden
-deploy edildiğinde `/v1/auth/providers` yanıtında hem `firebase` hem de
-`oauth.github` alanları `true` olmalıdır.
-
-Firebase ID token backend ile değiştirilir; oyuncu UUID'si, oyun oturumu,
-ilerleme ve leaderboard üzerindeki otorite mevcut Duelcade backend'inde kalır.
-Firebase değişkenleri henüz yoksa geçiş süresince eski Duelcade giriş akışı
-çalışmaya devam eder.
-
-Production web dağıtımında `.env.production` içindeki sunucu adresinin eski
-Metro önbelleğinden etkilenmemesi için export komutu önbelleği temizler:
-
-```bash
-npm run export:web:production
-npx eas-cli deploy --prod --export-dir dist
-```
-
-Sentry projesi hazırlandıktan sonra runtime DSN'i ve source map yükleme
-değişkenlerini EAS ortamına ekleyin:
-
-```dotenv
-EXPO_PUBLIC_SENTRY_DSN=https://examplePublicKey@o0.ingest.sentry.io/0
-SENTRY_ORG=organization-slug
-SENTRY_PROJECT=project-slug
-SENTRY_AUTH_TOKEN=secret-build-token
-```
-
-`SENTRY_AUTH_TOKEN` uygulama içine veya git'e yazılmaz; yalnızca EAS Build
-içindeki gizli ortam değişkeni olarak tutulur.
-
-Ayrıntılı ürünleştirme sırası için
-[`PRODUCTION_ROADMAP.md`](./PRODUCTION_ROADMAP.md) dosyasını izleyin.
-Kapalı test daveti, senaryoları, ölçüm planı ve çıkış kapıları
-[`CLOSED_TESTING.md`](./CLOSED_TESTING.md) dosyasındadır.
-
-## Backend geliştirme ve dağıtım
-
-Bağımsız backend, bu projeyle aynı üst dizindedir:
+Backend geliştirme sunucusu:
 
 ```bash
 cd ../duelcade-backend
 npm run dev
 ```
 
-Docker ile:
+Docker ile başlatmak için:
 
 ```bash
 cd ../duelcade-backend
 docker compose up --build
 ```
 
-Sağlık kontrolü `GET /health` adresindedir. Colyseus odaları 6 karakterli
-davet kodu kullanır ve geçici bağlantı kesilmelerinde 60 saniye yeniden
-bağlanma hakkı verir. Ayrıştırmanın kalan adımları backend projesindeki
-[`MIGRATION.md`](../duelcade-backend/MIGRATION.md) dosyasında tutulur.
-
-Backend geliştirmede PostgreSQL bağlantısı, en az 32 baytlık token sırrı ve
-geçiş bayrağı gerekir:
+Backend sağlık kontrolü `GET /health` adresindedir. Yerel backend için
+PostgreSQL bağlantısı ve en az 32 baytlık bir token sırrı gerekir:
 
 ```dotenv
 DATABASE_URL=postgresql://duelcade:duelcade@localhost:5432/duelcade
@@ -216,24 +132,63 @@ AUTH_TOKEN_SECRET=replace-with-at-least-32-random-bytes
 ALLOW_LEGACY_PLAYER_IDS=true
 ```
 
-## Mağaza derlemeleri
+`.env.example` uygulamanın çevre değişkenlerini ve örnek değerleri içerir.
+Üretim sunucusu HTTPS kullanmalıdır; istemci bağlantıyı güvenli WebSocket'e
+yükseltir.
 
-`eas.json` development, preview ve production profillerini içerir. Android
-package ve iOS bundle identifier değeri `com.duelcade.game` olarak
-tanımlanmıştır. İlk mağaza derlemesinden önce bu kimliğin geliştirici
-hesaplarında kullanılabilir olduğunu doğrulayın.
+## Kimlik doğrulama ve gizlilik
+
+E-posta/şifre ve Google, Facebook, GitHub girişleri Firebase Authentication
+üzerinden yapılandırılır. Firebase Console'daki web uygulamasının herkese açık
+değerlerini `.env` içindeki `EXPO_PUBLIC_FIREBASE_*` alanlarına ekleyin. GitHub
+web girişi Firebase popup akışını, yerel uygulamalar ise OAuth sırrını istemciye
+koymamak için backend akışını kullanır.
+
+GitHub'ın tek OAuth App için tek callback host kısıtı nedeniyle iki ayrı
+GitHub OAuth App gerekir:
+
+- Web/Firebase: `https://FIREBASE_PROJECT_ID.firebaseapp.com/__/auth/handler`
+- Android/iOS/backend: `https://duelcade-game-server.onrender.com/v1/auth/oauth/github/callback`
+
+İkinci uygulamanın `GITHUB_CLIENT_ID` ve `GITHUB_CLIENT_SECRET` değerlerini
+yalnızca backend ortamında tutun. Firebase ID token backend'e gönderilir;
+oyuncu UUID'si, oyun oturumu, ilerleme ve liderlik tablosu backend tarafından
+yönetilir. Firebase değişkenleri ayarlanana kadar eski Duelcade giriş akışı
+çalışmaya devam eder.
+
+Anonim oyuncu kimliği backend'de oluşturulur. Android ve iOS'ta yenileme tokenı
+Expo SecureStore'da, kısa ömürlü erişim tokenı bellekte saklanır. Analitik,
+Ayarlar ekranından açık rıza verilince etkinleşir ve yalnızca Duelcade
+backend'ine gönderilir. Çökme raporlaması varsayılan olarak kapalıdır; DSN
+tanımlanması ve oyuncunun Ayarlar'dan izin vermesi gerekir. Kapalı test geri
+bildirimleri kategori, puan, açıklama ve teknik bağlamı içerir; katılımcılardan
+kişisel bilgi paylaşmamaları istenir.
+
+## Web ve mağaza dağıtımı
+
+Web üretim çıktısı ve dağıtımı:
+
+```bash
+npm run export:web:production
+npx eas-cli deploy --prod --export-dir dist
+```
+
+`eas.json` development, preview ve production profillerini tanımlar. Android
+paket adı ve iOS bundle identifier `com.duelcade.game`'dir.
 
 ```bash
 npx eas-cli build --profile production --platform android
 npx eas-cli build --profile production --platform ios
 ```
 
-## Kullanılan temel sürümler
+Sentry entegrasyonu için `EXPO_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`,
+`SENTRY_PROJECT` ve `SENTRY_AUTH_TOKEN` kullanılır. `SENTRY_AUTH_TOKEN` yalnızca
+EAS Build ortamında gizli değişken olarak tutulmalı, uygulamaya veya git'e
+eklenmemelidir.
 
-- Expo SDK 57
-- React Native 0.86
-- React 19.2
-- TypeScript 6
+## Ek belgeler
 
-Expo SDK 57 sürüm referansı:
-https://docs.expo.dev/versions/v57.0.0/
+- [Üretim yol haritası](./PRODUCTION_ROADMAP.md)
+- [Kapalı test planı](./CLOSED_TESTING.md)
+- [Mağaza ön kontrol listesi](./docs/play-store-prelaunch-checklist.md)
+- [Üçüncü taraf varlık lisansları](./THIRD_PARTY_ASSETS.md)
