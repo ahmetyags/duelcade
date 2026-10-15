@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process';
 
-// These image-size advisories currently affect every published version. Metro
-// only processes repository-owned assets during builds, so keep them visible
-// while allowing CI to reject every other high or critical advisory.
+// These advisories have no compatible upstream fix and are limited to Expo's
+// build tooling (Metro glob parsing and signing certificate helpers). Keep
+// their exact IDs visible here so new or runtime advisories still fail CI.
 const allowedAdvisories = new Set([
-  'GHSA-w3rx-r6r6-pgpr',
-  'GHSA-5p2g-fcmc-qvqq',
+  'GHSA-vfj7-8cjw-p6xm',
+  'GHSA-86w9-cpqp-85rv',
 ]);
 
 const audit = spawnSync('npm', ['audit', '--json'], {
