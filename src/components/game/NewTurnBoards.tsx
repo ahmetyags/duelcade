@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import {
   Check,
@@ -30,6 +30,33 @@ interface BoardProps {
   disabled: boolean;
   onMove: (cell: number) => void;
   reduceMotion: boolean;
+}
+
+function usePlayerEntryMotion(match: TurnMatchState) {
+  const [boardWidth, setBoardWidth] = useState(0);
+  const previousPositions = useRef(match.playerPositions);
+
+  useEffect(() => {
+    previousPositions.current = match.playerPositions;
+  }, [match.playerPositions]);
+
+  const onBoardLayout = (event: { nativeEvent: { layout: { width: number } } }) => {
+    const nextWidth = event.nativeEvent.layout.width;
+    setBoardWidth((current) => Math.abs(current - nextWidth) < 1 ? current : nextWidth);
+  };
+
+  const entryOffset = (player: number, destination: number) => {
+    if (player < 0 || boardWidth <= 0 || destination < 0) return undefined;
+    const origin = previousPositions.current?.[player];
+    if (origin === undefined || origin === destination) return undefined;
+    const cellSize = boardWidth / match.boardColumns;
+    return {
+      x: ((origin % match.boardColumns) - (destination % match.boardColumns)) * cellSize,
+      y: (Math.floor(origin / match.boardColumns) - Math.floor(destination / match.boardColumns)) * cellSize,
+    };
+  };
+
+  return { onBoardLayout, entryOffset };
 }
 
 export function CipherClashBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
@@ -241,7 +268,16 @@ export function CircuitClaimBoard({ match, disabled, onMove, reduceMotion }: Boa
                       ...turnPieceGlow(PLAYER_COLORS[edgeOwner]),
                     },
                   ]}
-                />
+                >
+                  {edgeOwner !== null && (
+                    <AnimatedTurnPiece
+                      identity={edgeOwner}
+                      color={PLAYER_COLORS[edgeOwner]}
+                      reduceMotion={reduceMotion}
+                      style={[styles.circuitEdgeFill, { backgroundColor: PLAYER_COLORS[edgeOwner] }]}
+                    />
+                  )}
+                </Pressable>
               );
             })}
           </View>
@@ -268,10 +304,12 @@ export function NeonTrailBoard({ match, disabled, onMove, reduceMotion }: BoardP
   const width = `${100 / match.boardColumns}%` as `${number}%`;
   const activePosition = match.playerPositions?.[match.activePlayerIndex] ?? -1;
   const legal = new Set(neighbors(activePosition, match.boardRows, match.boardColumns));
+  const motion = usePlayerEntryMotion(match);
   return (
-    <View style={styles.gridBoard}>
+    <View style={styles.gridBoard} onLayout={motion.onBoardLayout}>
       {match.cells.map((owner, index) => {
-        const head = match.playerPositions?.includes(index);
+        const player = match.playerPositions?.indexOf(index) ?? -1;
+        const head = player >= 0;
         return (
           <Pressable
             key={index}
@@ -292,11 +330,12 @@ export function NeonTrailBoard({ match, disabled, onMove, reduceMotion }: BoardP
             {head && (
               <AnimatedTurnPiece
                 identity={`${owner}-${index}`}
-                color={PLAYER_COLORS[owner!]}
+                color={PLAYER_COLORS[player]}
                 completed
+                entryOffset={motion.entryOffset(player, index)}
                 reduceMotion={reduceMotion}
               >
-                <Zap size={20} color={PLAYER_COLORS[owner!]} fill={PLAYER_COLORS[owner!]} />
+                <Zap size={20} color={PLAYER_COLORS[player]} fill={PLAYER_COLORS[player]} />
               </AnimatedTurnPiece>
             )}
           </Pressable>
@@ -320,6 +359,7 @@ export function GatewayRaceBoard({ match, disabled, onMove, reduceMotion }: Boar
   );
   const barriersLeft = match.wallsRemaining?.[active] ?? 0;
   const barrierMode = placingBarrier && barriersLeft > 0;
+  const motion = usePlayerEntryMotion(match);
 
   return (
     <View style={styles.gatewayWrap}>
@@ -346,7 +386,7 @@ export function GatewayRaceBoard({ match, disabled, onMove, reduceMotion }: Boar
           <ThemedText variant="caption">{ui.barrier} {barriersLeft}</ThemedText>
         </Pressable>
       </View>
-      <View style={styles.gridBoard}>
+      <View style={styles.gridBoard} onLayout={motion.onBoardLayout}>
         {match.cells.map((value, index) => {
           const player = match.playerPositions?.indexOf(index) ?? -1;
           const blocked = value === 2;
@@ -373,6 +413,7 @@ export function GatewayRaceBoard({ match, disabled, onMove, reduceMotion }: Boar
                   identity={`${player}-${index}`}
                   color={PLAYER_COLORS[player]}
                   glow
+                  entryOffset={motion.entryOffset(player, index)}
                   reduceMotion={reduceMotion}
                   style={[styles.runner, { backgroundColor: PLAYER_COLORS[player] }]}
                 >
@@ -443,6 +484,7 @@ export function PolarityWarBoard({ match, disabled, onMove, reduceMotion }: Boar
                 identity={owner}
                 color={PLAYER_COLORS[owner]}
                 glow
+                motion="flip"
                 completed={match.status === 'round_complete' && owner === match.winnerIndex}
                 reduceMotion={reduceMotion}
                 style={[
@@ -564,6 +606,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1FBF8',
   },
   circuitEdge: { position: 'absolute', zIndex: 2, backgroundColor: colors.border },
+  circuitEdgeFill: { width: '100%', height: '100%', borderRadius: radius.pill },
   edgeTop: { top: -5, left: 4, right: 4, height: 10, borderRadius: radius.pill },
   edgeBottom: { bottom: -5, left: 4, right: 4, height: 10, borderRadius: radius.pill },
   edgeLeft: { left: -5, top: 4, bottom: 4, width: 10, borderRadius: radius.pill },

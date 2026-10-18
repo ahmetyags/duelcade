@@ -43,5 +43,8 @@ export const gameAssets = {
   audio: {
     uiTap: require('../../assets/audio/kenney-ui/ui-tap.ogg'),
     uiConfirm: require('../../assets/audio/kenney-ui/ui-confirm.ogg'),
+    puzzleRotate: require('../../assets/audio/kenney-ui/puzzle-rotate.ogg'),
+    puzzleError: require('../../assets/audio/kenney-ui/puzzle-error.ogg'),
+    puzzleSuccess: require('../../assets/audio/kenney-ui/puzzle-success.ogg'),
   },
 } as const;

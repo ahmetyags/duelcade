@@ -5,6 +5,10 @@ import { mkdir, writeFile } from 'node:fs/promises';
 const CDP_URL = process.env.CDP_URL ?? 'http://127.0.0.1:9222';
 const APP_URL = process.env.APP_URL ?? 'http://127.0.0.1:3001';
 const OUT = process.env.ARTIFACT_DIR ?? '/tmp/duelcade-turn-e2e';
+const MOBILE_WIDTH = Number(process.env.MOBILE_WIDTH ?? 390);
+const MOBILE_HEIGHT = Number(process.env.MOBILE_HEIGHT ?? 844);
+const DESKTOP_WIDTH = Number(process.env.DESKTOP_WIDTH ?? 1280);
+const DESKTOP_HEIGHT = Number(process.env.DESKTOP_HEIGHT ?? 800);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 class CDP {
@@ -155,12 +159,45 @@ async function screenshot(cdp, page, name) {
   await writeFile(`${OUT}/${name}`, Buffer.from(shot.data, 'base64'));
 }
 
+async function boardSignature(cdp, page) {
+  return evaluate(cdp, page, `(() => {
+    const board = document.querySelector('[data-testid="turn-game-board"]');
+    if (!board) return null;
+    return JSON.stringify([...board.querySelectorAll('[aria-label]')].map((node) => {
+      const paint = [node, ...node.querySelectorAll('*')].map((item) => {
+        const style = getComputedStyle(item);
+        return [style.backgroundColor, style.borderColor];
+      }).filter(([background, border]) =>
+        background !== 'rgba(0, 0, 0, 0)' || border !== 'rgba(0, 0, 0, 0)'
+      );
+      return [node.getAttribute('aria-label'), node.textContent?.trim() ?? '', paint];
+    }));
+  })()`);
+}
+
+async function waitForSharedBoard(cdp, host, guest, previousSignature) {
+  const started = Date.now();
+  let latest = null;
+  while (Date.now() - started < 8_000) {
+    const [hostSignature, guestSignature] = await Promise.all([
+      boardSignature(cdp, host),
+      boardSignature(cdp, guest),
+    ]);
+    latest = { hostSignature, guestSignature };
+    if (hostSignature && hostSignature === guestSignature && hostSignature !== previousSignature) {
+      return latest;
+    }
+    await sleep(100);
+  }
+  throw new Error(`Game board did not sync visually between clients: ${JSON.stringify(latest)}`);
+}
+
 const version = await fetch(`${CDP_URL}/json/version`).then((response) => response.json());
 await mkdir(OUT, { recursive: true });
 const cdp = new CDP(version.webSocketDebuggerUrl);
 await cdp.open();
-const host = await page(cdp, 390, 844);
-const guest = await page(cdp, 1280, 800);
+const host = await page(cdp, MOBILE_WIDTH, MOBILE_HEIGHT);
+const guest = await page(cdp, DESKTOP_WIDTH, DESKTOP_HEIGHT);
 
 try {
   await Promise.all([waitText(cdp, host, 'Oyna'), waitText(cdp, guest, 'Oyna')]);
@@ -241,6 +278,14 @@ try {
   if (!hostLayout || hostLayout.left < 0 || hostLayout.right > hostLayout.vw + 1) {
     throw new Error(`Mobile board overflow: ${JSON.stringify(hostLayout)}`);
   }
+  const desktopLayout = await evaluate(cdp, guest, `(() => {
+    const board = document.querySelector('[data-testid="turn-game-board"]');
+    const rect = board?.getBoundingClientRect();
+    return rect && { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, vw: innerWidth, vh: innerHeight };
+  })()`);
+  if (!desktopLayout || desktopLayout.left < 0 || desktopLayout.right > desktopLayout.vw + 1) {
+    throw new Error(`Desktop board overflow: ${JSON.stringify(desktopLayout)}`);
+  }
   await screenshot(cdp, host, 'mobile-turn-board.png');
   await screenshot(cdp, guest, 'desktop-turn-board.png');
   const controlCount = await evaluate(cdp, host, `(() => {
@@ -268,6 +313,13 @@ try {
     if (targetMappingCount !== controlCount) {
       throw new Error(`Resonance targets are not mapped to every channel: ${targetMappingCount}/${controlCount}`);
     }
+  }
+  const [hostBeforeMove, guestBeforeMove] = await Promise.all([
+    boardSignature(cdp, host),
+    boardSignature(cdp, guest),
+  ]);
+  if (!hostBeforeMove || hostBeforeMove !== guestBeforeMove) {
+    throw new Error('The two clients do not show the same initial board state');
   }
   await click(cdp, host, 'Bu oyunu pas geç');
   await waitText(cdp, host, 'Bu oyun pas geçilsin mi?');
@@ -317,6 +369,7 @@ try {
     if (!moved) throw new Error(`No playable control for ${nextMode}`);
   }
   await sleep(400);
+  const synchronizedBoard = await waitForSharedBoard(cdp, host, guest, hostBeforeMove);
   await screenshot(cdp, guest, 'desktop-synced-move.png');
   await click(cdp, host, 'Oyundan çık');
   await waitText(cdp, host, 'Maçtan çıkmak istediğine emin misin?');
@@ -343,7 +396,7 @@ try {
       || (event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
     ));
   if (errors.length) throw new Error(`Browser errors: ${JSON.stringify(errors.slice(0, 3))}`);
-  process.stdout.write(JSON.stringify({ ok: true, oldCode: code, code: freshCode, activeMode, nextMode, controlCount, hostLayout }, null, 2));
+  process.stdout.write(JSON.stringify({ ok: true, oldCode: code, code: freshCode, activeMode, nextMode, controlCount, hostLayout, desktopLayout, synchronizedBoard }, null, 2));
 } finally {
   await Promise.allSettled([
     cdp.send('Target.disposeBrowserContext', { browserContextId: host.contextId }),

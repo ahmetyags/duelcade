@@ -816,7 +816,7 @@ try {
   ];
   for (const label of enabledSwitches) await clickText(cdp, host, label);
   await clickText(cdp, host, 'Vibration');
-  await clickText(cdp, host, 'Decrease Button Sound');
+  await clickText(cdp, host, 'Decrease Game & interface sounds');
 
   await cdp.send('Page.reload', {}, host.sessionId);
   await waitForText(cdp, host, 'ACCESSIBILITY', 15_000);
@@ -833,7 +833,7 @@ try {
   await waitUntil(
     cdp,
     host,
-    `Boolean(document.querySelector('[aria-label="Button Sound is at 50 percent"]'))`,
+    `Boolean(document.querySelector('[aria-label="Game & interface sounds is at 50 percent"]'))`,
     10_000,
   );
   await screenshot(cdp, host, 'settings-persisted.png');

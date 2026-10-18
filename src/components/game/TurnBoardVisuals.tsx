@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
+  Easing,
   Platform,
   StyleSheet,
   type StyleProp,
@@ -102,6 +103,9 @@ export function AnimatedTurnPiece({
   color,
   glow = false,
   completed = false,
+  motion = 'pop',
+  rotation,
+  entryOffset,
   reduceMotion,
   style,
   children,
@@ -110,22 +114,39 @@ export function AnimatedTurnPiece({
   color: string;
   glow?: boolean;
   completed?: boolean;
+  motion?: 'pop' | 'flip';
+  rotation?: number;
+  entryOffset?: { x: number; y: number };
   reduceMotion: boolean;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }) {
   const [opacity] = useState(() => new Animated.Value(1));
   const [scale] = useState(() => new Animated.Value(1));
+  const [flipProgress] = useState(() => new Animated.Value(1));
+  const [rotationDegrees] = useState(() => new Animated.Value((rotation ?? 0) * 90));
+  const [translateX] = useState(() => new Animated.Value(entryOffset?.x ?? 0));
+  const [translateY] = useState(() => new Animated.Value(entryOffset?.y ?? 0));
+  const entryOffsetRef = React.useRef(entryOffset);
+  const previousRotation = React.useRef(rotation ?? 0);
+  const unwrappedRotation = React.useRef((rotation ?? 0) * 90);
+
+  useEffect(() => {
+    entryOffsetRef.current = entryOffset;
+  }, [entryOffset]);
 
   useEffect(() => {
     if (reduceMotion) {
       opacity.setValue(1);
       scale.setValue(1);
+      flipProgress.setValue(1);
+      translateX.setValue(0);
+      translateY.setValue(0);
       return;
     }
     opacity.setValue(0.38);
     scale.setValue(0.82);
-    Animated.parallel([
+    const animations = [
       Animated.timing(opacity, { toValue: 1, duration: 160, useNativeDriver }),
       Animated.spring(scale, {
         toValue: completed ? 1.04 : 1,
@@ -134,8 +155,58 @@ export function AnimatedTurnPiece({
         mass: 0.55,
         useNativeDriver,
       }),
-    ]).start();
-  }, [completed, identity, opacity, reduceMotion, scale]);
+    ];
+    if (motion === 'flip') {
+      flipProgress.setValue(0);
+      animations.push(Animated.timing(flipProgress, {
+        toValue: 1,
+        duration: 230,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver,
+      }));
+    }
+    if (entryOffsetRef.current) {
+      translateX.setValue(entryOffsetRef.current.x);
+      translateY.setValue(entryOffsetRef.current.y);
+      animations.push(
+        Animated.timing(translateX, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver }),
+        Animated.timing(translateY, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver }),
+      );
+    } else {
+      translateX.setValue(0);
+      translateY.setValue(0);
+    }
+    Animated.parallel(animations).start();
+  }, [completed, flipProgress, identity, motion, opacity, reduceMotion, scale, translateX, translateY]);
+
+  useEffect(() => {
+    if (rotation === undefined) return;
+    const delta = (rotation - previousRotation.current + 4) % 4;
+    previousRotation.current = rotation;
+    if (reduceMotion) {
+      unwrappedRotation.current = rotation * 90;
+      rotationDegrees.setValue(unwrappedRotation.current);
+      return;
+    }
+    if (delta === 0) return;
+    unwrappedRotation.current += delta * 90;
+    Animated.timing(rotationDegrees, {
+      toValue: unwrappedRotation.current,
+      duration: 190,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver,
+    }).start();
+  }, [reduceMotion, rotation, rotationDegrees]);
+
+  const flipY = flipProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['90deg', '0deg'],
+  });
+  const rotate = rotationDegrees.interpolate({
+    inputRange: [0, 360],
+    outputRange: ['0deg', '360deg'],
+    extrapolate: 'extend',
+  });
 
   return (
     <Animated.View
@@ -143,7 +214,16 @@ export function AnimatedTurnPiece({
         styles.piece,
         glow && turnPieceGlow(color, completed ? 'strong' : 'soft'),
         style,
-        { opacity, transform: [{ scale }] },
+        {
+          opacity,
+          transform: [
+            ...(motion === 'flip' ? [{ perspective: 700 }, { rotateY: flipY }] : []),
+            ...(rotation !== undefined ? [{ rotate }] : []),
+            { translateX },
+            { translateY },
+            { scale },
+          ],
+        },
       ]}
     >
       {children}

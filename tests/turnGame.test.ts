@@ -161,6 +161,28 @@ test('the player completing the old pipe puzzle wins the round', () => {
   assert.equal(session.state.cellOwners[4], 0);
 });
 
+test('pipe pieces advance through four quarter turns before marking the solved tile', () => {
+  const session = sessionForMode('pipe_circuit');
+  session.state.mode = 'pipe_circuit';
+  session.state.tileKinds = ['corner', 'straight'];
+  session.state.cells = [0, 1];
+  session.state.cellOwners = [null, null];
+  session.state.targets = [3, 0];
+  session.solution = [3, 0];
+
+  const players = ['a', 'b'] as const;
+  for (let turn = 0; turn < 3; turn += 1) {
+    const player = players[session.state.activePlayerIndex];
+    const result = applyTurnMove(session, player, 0, session.state.moveNumber);
+    assert.equal(result.accepted, true);
+    assert.equal(session.state.cells[0], turn + 1);
+    assert.equal(session.state.cellOwners[0], turn === 2 ? 0 : null);
+  }
+  assert.equal(session.state.cells[0], 3);
+  assert.equal(session.state.cellOwners[0], 0);
+  assert.equal(session.state.status, 'playing');
+});
+
 test('all arrow pipe tiles use four visually distinct directions', () => {
   const session = sessionForMode('pipe_circuit', 'hard');
   session.state.tileKinds?.forEach((_, index) => {

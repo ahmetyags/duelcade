@@ -44,6 +44,7 @@ import {
   PolarityWarBoard,
 } from '@/components/game/NewTurnBoards';
 import { triggerHaptic } from '@/services/HapticsService';
+import { audioService } from '@/services/AudioService';
 import {
   forfeitMatch,
   playTurn,
@@ -193,27 +194,55 @@ function PlayerCard({
   active,
   score,
   time,
-  refined = false,
+  reduceMotion,
 }: {
   player: Player | undefined;
   index: 0 | 1;
   active: boolean;
   score: number;
   time: number;
-  refined?: boolean;
+  reduceMotion: boolean;
 }) {
   const { language } = useTranslation();
   const ui = TURN_UI[language];
   const color = PLAYER_COLORS[index];
   const name = player?.displayName ?? [ui.player, index + 1].join(' ');
+  const [activeScale] = useState(() => new Animated.Value(1));
+  const wasActive = useRef(active);
+
+  useEffect(() => {
+    if (active && !wasActive.current && !reduceMotion) {
+      Animated.sequence([
+        Animated.spring(activeScale, {
+          toValue: 1.035,
+          damping: 10,
+          stiffness: 260,
+          mass: 0.45,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.spring(activeScale, {
+          toValue: 1,
+          damping: 12,
+          stiffness: 240,
+          mass: 0.5,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ]).start();
+    } else if (reduceMotion) {
+      activeScale.setValue(1);
+    }
+    wasActive.current = active;
+  }, [active, activeScale, reduceMotion]);
+
   return (
-    <View style={[
+    <Animated.View style={[
       styles.playerCard,
-      refined && styles.playerCardRefined,
-      refined && (index === 0 ? styles.playerCardTeal : styles.playerCardAmber),
+      styles.playerCardRefined,
+      index === 0 ? styles.playerCardTeal : styles.playerCardAmber,
+      { transform: [{ scale: activeScale }] },
       active && {
         borderColor: color,
-        backgroundColor: refined ? (index === 0 ? '#E3F8F4' : '#FFF1E1') : `${color}16`,
+        backgroundColor: index === 0 ? '#E3F8F4' : '#FFF1E1',
       },
     ]}>
       <PlayerAvatar
@@ -230,6 +259,96 @@ function PlayerCard({
         </ThemedText>
       </View>
       <ThemedText variant="mono" style={[styles.playerTimer, { color }]}>{formatClock(time)}</ThemedText>
+    </Animated.View>
+  );
+}
+
+function ActivePlayerTimeBar({
+  match,
+  totalTimeMs,
+  playerName,
+  tickDurationMs,
+  reduceMotion,
+}: {
+  match: TurnMatchState;
+  totalTimeMs: number;
+  playerName: string;
+  tickDurationMs: number;
+  reduceMotion: boolean;
+}) {
+  const { language } = useTranslation();
+  const ui = TURN_UI[language];
+  const playerIndex = match.activePlayerIndex;
+  const color = PLAYER_COLORS[playerIndex];
+  const remainingTimeMs = match.playerTimeMs[playerIndex];
+  const progress = totalTimeMs > 0
+    ? Math.max(0, Math.min(100, (remainingTimeMs / totalTimeMs) * 100))
+    : 0;
+  const [progressValue] = useState(() => new Animated.Value(progress));
+  const [pulseOpacity] = useState(() => new Animated.Value(1));
+  const previousPlayerIndex = useRef(playerIndex);
+  const isLowTime = !reduceMotion && match.status === 'playing' && progress <= 15;
+
+  useEffect(() => {
+    const playerChanged = previousPlayerIndex.current !== playerIndex;
+    previousPlayerIndex.current = playerIndex;
+
+    if (playerChanged || reduceMotion) {
+      progressValue.stopAnimation();
+      progressValue.setValue(progress);
+      return;
+    }
+
+    progressValue.stopAnimation();
+    Animated.timing(progressValue, {
+      toValue: progress,
+      duration: tickDurationMs,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
+  }, [playerIndex, progress, progressValue, reduceMotion, tickDurationMs]);
+
+  useEffect(() => {
+    pulseOpacity.stopAnimation();
+    pulseOpacity.setValue(1);
+    if (!isLowTime) return;
+
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(pulseOpacity, {
+        toValue: 0.58,
+        duration: 520,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseOpacity, {
+        toValue: 1,
+        duration: 520,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]));
+    pulse.start();
+    return () => pulse.stop();
+  }, [isLowTime, pulseOpacity]);
+
+  const animatedWidth = progressValue.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
+
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={ui.timeRemainingFor(playerName)}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(progress) }}
+      style={styles.turnClockTrack}
+    >
+      <Animated.View
+        style={[
+          styles.turnClockFill,
+          { width: animatedWidth, backgroundColor: color, opacity: pulseOpacity },
+        ]}
+      />
     </View>
   );
 }
@@ -441,6 +560,7 @@ function MemoryBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
                   ? PLAYER_COLORS[value % 2]
                   : PLAYER_COLORS[owner]}
                 completed={matched}
+              motion="flip"
                 reduceMotion={reduceMotion}
               >
                 <ThemedText style={[
@@ -498,11 +618,14 @@ function PipeBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
                 ? colors.actionAmber
                 : colors.actionCyan}
               completed={owner !== null}
+              rotation={rotation ?? 0}
               reduceMotion={reduceMotion}
             >
               <PipeDirectionGlyph
                 kind={kind}
-                rotation={rotation ?? 0}
+                // The surrounding AnimatedTurnPiece owns the live rotation.
+                // Applying the same rotation here made every press turn twice.
+                rotation={0}
                 size={glyphSize}
                 color={index === 0 || index === match.cells.length - 1
                   ? colors.actionAmber
@@ -582,7 +705,7 @@ function ResonanceBoard({ match, disabled, onMove, reduceMotion }: BoardProps) {
             <Minus size={20} color={colors.textSecondary} />
           </Pressable>
           <AnimatedTurnPiece
-            identity={`${dial}-${value === match.targets?.[dial]}`}
+            identity={`${dial}-${value}-${value === match.targets?.[dial]}`}
             color={dial % 2 ? colors.actionAmber : colors.actionCyan}
             completed={value === match.targets?.[dial]}
             reduceMotion={reduceMotion}
@@ -629,7 +752,8 @@ export default function GameScreen() {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [reactionToast, setReactionToast] = useState<ChatMessage | null>(null);
   const lastReactionId = useRef<string | null>(null);
-  const celebratedRoundId = useRef<string | null>(null);
+  const celebratedResultKey = useRef<string | null>(null);
+  const previousTurnState = useRef<TurnMatchState | null>(null);
   const pageRef = useRef<ScrollView>(null);
   const recoveryAttempted = useRef(false);
   const firstMoveTracked = useRef(false);
@@ -645,6 +769,25 @@ export default function GameScreen() {
   const lastRoomReconnectToken = useSettingsStore((state) => state.lastRoomReconnectToken);
   const singlePlayer = room?.sessionMode === 'single_player';
   const firstDuel = room?.code === FIRST_DUEL_ROOM_CODE;
+
+  useEffect(() => {
+    if (!match) {
+      previousTurnState.current = null;
+      return;
+    }
+    const previous = previousTurnState.current;
+    previousTurnState.current = match;
+    if (!previous || previous.roundId !== match.roundId) return;
+    if (
+      match.moveNumber > previous.moveNumber
+      && match.status !== 'round_complete'
+      && match.status !== 'match_complete'
+    ) {
+      void audioService.playGameMove(match.mode);
+      const movedPlayerId = previous.playerIds[previous.activePlayerIndex];
+      if (movedPlayerId !== localPlayerId) triggerHaptic('light');
+    }
+  }, [localPlayerId, match]);
 
   useEffect(() => {
     if (phase === 'completed' || phase === 'failed') router.replace('/results');
@@ -673,13 +816,17 @@ export default function GameScreen() {
 
   useEffect(() => {
     if (
-      match?.status !== 'round_complete' ||
-      celebratedRoundId.current === match.roundId
+      !match
+      || (match.status !== 'round_complete' && match.status !== 'match_complete')
     ) return;
-    celebratedRoundId.current = match.roundId;
+    const resultKey = `${match.roundId}:${match.status}`;
+    if (celebratedResultKey.current === resultKey) return;
+    celebratedResultKey.current = resultKey;
     const winnerId = match.winnerIndex === null ? null : match.playerIds[match.winnerIndex];
-    triggerHaptic(winnerId === localPlayerId ? 'success' : winnerId ? 'medium' : 'light');
-  }, [localPlayerId, match?.playerIds, match?.roundId, match?.status, match?.winnerIndex]);
+    const localResult = winnerId === null ? null : winnerId === localPlayerId;
+    triggerHaptic(localResult === true ? 'success' : localResult === false ? 'medium' : 'light');
+    void audioService.playGameRoundResult(localResult);
+  }, [localPlayerId, match]);
 
   useEffect(() => {
     pageRef.current?.scrollTo({ y: 0, animated: false });
@@ -736,7 +883,6 @@ export default function GameScreen() {
   }
 
   const modeCopy = getTurnModeCopy(language, match.mode);
-  const refinedConnectFour = match.mode === 'connect_four';
   const compact = height < 900;
   const latestCipherGuess = match.cipherHistory?.[match.cipherHistory.length - 1];
   const boardFeedbackColor = match.status === 'round_complete'
@@ -756,12 +902,12 @@ export default function GameScreen() {
         contentContainerStyle={[styles.page, compact && styles.pageCompact]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.topbar, refinedConnectFour && styles.topbarRefined]}>
+        <View style={[styles.topbar, styles.topbarRefined]}>
           <View>
             <ThemedText variant="caption" color="accent">
               {singlePlayer ? turnUi.soloHeader : turnUi.sharedHeader}
             </ThemedText>
-            <ThemedText variant="subtitle" style={refinedConnectFour && styles.gameTitleRefined}>{modeCopy.title}</ThemedText>
+            <ThemedText variant="subtitle" style={styles.gameTitleRefined}>{modeCopy.title}</ThemedText>
           </View>
           <View style={styles.topbarActions}>
             <IconButton
@@ -783,31 +929,37 @@ export default function GameScreen() {
           </View>
         </View>
 
-        <View style={[styles.players, refinedConnectFour && styles.playersRefined]}>
+        <View style={[styles.players, styles.playersRefined]}>
           <PlayerCard
             player={players[0]}
             index={0}
             active={match.activePlayerIndex === 0 && match.status === 'playing'}
             score={match.scores[0]}
             time={match.playerTimeMs[0]}
-            refined={refinedConnectFour}
+            reduceMotion={reduceMotion}
           />
-          {refinedConnectFour && (
-            <View style={styles.versusBadge}>
-              <ThemedText variant="caption" style={styles.versusText}>VS</ThemedText>
-            </View>
-          )}
+          <View style={styles.versusBadge}>
+            <ThemedText variant="caption" style={styles.versusText}>VS</ThemedText>
+          </View>
           <PlayerCard
             player={players[1]}
             index={1}
             active={match.activePlayerIndex === 1 && match.status === 'playing'}
             score={match.scores[1]}
             time={match.playerTimeMs[1]}
-            refined={refinedConnectFour}
+            reduceMotion={reduceMotion}
           />
         </View>
 
-        <View style={[styles.turnRow, refinedConnectFour && styles.turnRowRefined]}>
+        <ActivePlayerTimeBar
+          match={match}
+          totalTimeMs={(room?.matchDurationMinutes ?? 0) * 60_000}
+          playerName={players[match.activePlayerIndex]?.displayName ?? turnUi.player}
+          tickDurationMs={singlePlayer ? 250 : 1000}
+          reduceMotion={reduceMotion}
+        />
+
+        <View style={[styles.turnRow, styles.turnRowRefined]}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={turnUi.howToFor(modeCopy.title)}
@@ -875,9 +1027,8 @@ export default function GameScreen() {
           </View>
         )}
 
-        <GameBoardShell style={[
+        <GameBoardShell testID="turn-game-board" style={[
           compact && styles.boardShellCompact,
-          refinedConnectFour && styles.connectBoardShell,
           match.mode === 'gateway_race' && styles.boardShellGateway,
           match.mode === 'cipher_clash' && styles.boardShellCipher,
           match.mode === 'resonance_dials' && styles.boardShellResonance,
@@ -1183,6 +1334,8 @@ const styles = StyleSheet.create({
   topbarActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   players: { flexDirection: 'row', gap: 15 },
   playersRefined: { position: 'relative', gap: 10 },
+  turnClockTrack: { height: 4, marginTop: -7, marginBottom: -7, overflow: 'hidden', borderRadius: radius.pill, backgroundColor: 'rgba(65,83,76,0.14)' },
+  turnClockFill: { height: '100%', borderRadius: radius.pill },
   playerCard: { flex: 1, minWidth: 0, minHeight: 68, padding: spacing.sm, borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radius.lg, backgroundColor: colors.surfaceDark, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   playerCardRefined: { minHeight: 72, paddingHorizontal: 10, borderWidth: 1, ...shadows.sm },
   playerCardTeal: { borderColor: 'rgba(34,200,184,0.48)', backgroundColor: '#EDFAF7' },
@@ -1203,7 +1356,6 @@ const styles = StyleSheet.create({
   reactionName: { flex: 1, color: colors.textPrimary },
   reactionText: { fontSize: 23, lineHeight: 28 },
   boardShellCompact: { maxWidth: 430 },
-  connectBoardShell: { padding: 10, borderColor: 'rgba(34,200,184,0.58)', backgroundColor: '#FFFEFA', ...shadows.md },
   boardShellGateway: { aspectRatio: 0.86, maxHeight: 620 },
   boardShellCipher: { aspectRatio: 0.8, maxHeight: 620 },
   boardShellResonance: { aspectRatio: 0.6, maxHeight: 620 },

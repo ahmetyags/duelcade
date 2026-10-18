@@ -10,15 +10,18 @@ import { Platform } from 'react-native';
 import { gameAssets } from '@/src/assets/gameAssets';
 import { useSettingsStore } from '@/store/settingsStore';
 
-type ButtonSoundKey = 'ui_tap' | 'ui_confirm';
+type SoundKey = 'ui_tap' | 'ui_confirm' | 'puzzle_rotate' | 'puzzle_error' | 'puzzle_success';
 
-const BUTTON_SOUNDS: Record<ButtonSoundKey, number> = {
+const SOUND_ASSETS: Record<SoundKey, number> = {
   ui_tap: gameAssets.audio.uiTap,
   ui_confirm: gameAssets.audio.uiConfirm,
+  puzzle_rotate: gameAssets.audio.puzzleRotate,
+  puzzle_error: gameAssets.audio.puzzleError,
+  puzzle_success: gameAssets.audio.puzzleSuccess,
 };
 
 class AudioServiceClass {
-  private players = new Map<ButtonSoundKey, AudioPlayer>();
+  private players = new Map<SoundKey, AudioPlayer>();
   private initialized = false;
 
   async init(): Promise<void> {
@@ -30,7 +33,7 @@ class AudioServiceClass {
         shouldPlayInBackground: false,
         interruptionMode: 'duckOthers',
       });
-      for (const [key, source] of Object.entries(BUTTON_SOUNDS) as [ButtonSoundKey, number][]) {
+      for (const [key, source] of Object.entries(SOUND_ASSETS) as [SoundKey, number][]) {
         this.players.set(key, createAudioPlayer(source, {
           keepAudioSessionActive: false,
           updateInterval: 500,
@@ -42,7 +45,7 @@ class AudioServiceClass {
     }
   }
 
-  private async playButtonSound(key: ButtonSoundKey): Promise<void> {
+  private async playSound(key: SoundKey): Promise<void> {
     const volume = useSettingsStore.getState().buttonVolume;
     if (volume <= 0) return;
     if (
@@ -63,11 +66,19 @@ class AudioServiceClass {
   }
 
   async playUiTap(): Promise<void> {
-    await this.playButtonSound('ui_tap');
+    await this.playSound('ui_tap');
   }
 
   async playUiConfirm(): Promise<void> {
-    await this.playButtonSound('ui_confirm');
+    await this.playSound('ui_confirm');
+  }
+
+  async playGameMove(mode?: string): Promise<void> {
+    await this.playSound(mode === 'pipe_circuit' ? 'puzzle_rotate' : 'ui_tap');
+  }
+
+  async playGameRoundResult(won: boolean | null): Promise<void> {
+    await this.playSound(won === null ? 'ui_confirm' : won ? 'puzzle_success' : 'puzzle_error');
   }
 
   async previewButtonSound(): Promise<void> {

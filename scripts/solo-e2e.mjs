@@ -193,7 +193,6 @@ try {
   await screenshot(cdp, page, 'mobile-solo-settings.png');
 
   await click(cdp, page, 'Hemen Başla');
-  await waitText(cdp, page, 'TEK OYUNCULU · DUELBOT');
   await waitText(cdp, page, 'DuelBot');
   const modeNames = [
     'Rün Düellosu', 'Devre Döndürme', 'Dört Hat', 'Rezonans Kilidi', 'Hafıza Eşleri',

@@ -6,12 +6,13 @@ import { colors, radius, shadows, spacing } from '@/theme/tokens';
 interface GameBoardShellProps {
   readonly children: React.ReactNode;
   readonly style?: StyleProp<ViewStyle>;
+  readonly testID?: string;
 }
 
 /** Shared board focus surface; game dimensions and interactions remain owned by each board. */
-export const GameBoardShell = React.memo<GameBoardShellProps>(function GameBoardShell({ children, style }) {
+export const GameBoardShell = React.memo<GameBoardShellProps>(function GameBoardShell({ children, style, testID }) {
   return (
-    <View style={[styles.shell, style]}>
+    <View testID={testID} style={[styles.shell, style]}>
       {children}
     </View>
   );
