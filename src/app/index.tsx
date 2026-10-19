@@ -99,6 +99,9 @@ export default function HomeScreen() {
   const [activeActionModal, setActiveActionModal] = useState<ActionModalKind | null>(null);
   const [profileAuthVisible, setProfileAuthVisible] = useState(false);
   const [profileAuthLoading, setProfileAuthLoading] = useState(false);
+  const [fallbackName] = useState(() =>
+    t('common.playerFallback', { number: Math.floor(Math.random() * 999) }),
+  );
   const displayedProgression = progressionData ?? {
     level: 1,
     totalXp: 0,
@@ -136,9 +139,9 @@ export default function HomeScreen() {
     if (!useRoomStore.getState().room) setPhase('home');
   }, [setPhase]);
 
-  const ensureAuth = async (): Promise<void> => {
+  const ensureAuth = async (preferredName?: string): Promise<void> => {
     if (!isAuthenticated) {
-      const name = displayName || t('common.adventurerFallback', { number: Math.floor(Math.random() * 999) });
+      const name = preferredName || displayName || t('common.adventurerFallback', { number: Math.floor(Math.random() * 999) });
       await signInAsGuest(name);
       if (!displayName) setDisplayName(name);
     }
@@ -167,17 +170,21 @@ export default function HomeScreen() {
     }
   };
 
-  const handleQuickPlay = async () => {
+  const handleQuickPlay = () => {
     triggerHaptic('medium');
-    await ensureAuth();
     const name = useSettingsStore.getState().displayName
-      || t('common.playerFallback', { number: Math.floor(Math.random() * 999) });
+      || user?.displayName
+      || fallbackName;
+    if (!useSettingsStore.getState().displayName) setDisplayName(name);
     const difficulties: Difficulty[] = ['easy', 'medium', 'hard'];
     const durations = [2, 3, 4, 5];
     const difficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
     const durationMinutes = durations[Math.floor(Math.random() * durations.length)];
     startSinglePlayer(name, difficulty, durationMinutes);
     router.replace('/game');
+    // A solo match is local. Create the guest session in the background so
+    // first play does not wait for the game server to respond.
+    void ensureAuth(name);
   };
 
   const openRoom = (status: NonNullable<typeof activeRoom>['status']) => {
@@ -270,17 +277,15 @@ export default function HomeScreen() {
           </ThemedText>
         </View>
 
-        {isAuthenticated && user && (
-          <Panel variant="surface" style={styles.playerCard}>
-            <PlayerAvatar avatarId={avatarId} frameId={frameId} size={48} />
-            <View style={styles.playerCopy}>
-              <ThemedText variant="body" style={styles.playerName}>
-                {displayName || user.displayName}
-              </ThemedText>
-              <ThemedText variant="caption" color="muted">{t('home.ready')}</ThemedText>
-            </View>
-          </Panel>
-        )}
+        <Panel variant="surface" style={styles.playerCard}>
+          <PlayerAvatar avatarId={avatarId} frameId={frameId} size={48} />
+          <View style={styles.playerCopy}>
+            <ThemedText variant="body" style={styles.playerName}>
+              {displayName || user?.displayName || fallbackName}
+            </ThemedText>
+            <ThemedText variant="caption" color="muted">{t('home.ready')}</ThemedText>
+          </View>
+        </Panel>
 
         <View style={styles.actions}>
           <View style={styles.playControl}>
