@@ -250,14 +250,14 @@ export default function HomeScreen() {
             <IconButton
               accessibilityLabel="Profile"
               onPress={openProfile}
-              tone="primary"
-              icon={<UserRound size={20} color={colors.primaryDark} strokeWidth={2.2} />}
+              tone="neutral"
+              icon={<UserRound size={20} color={colors.textSecondary} strokeWidth={2.2} />}
             />
             <IconButton
               accessibilityLabel={t('common.settings')}
               onPress={() => router.push('/settings')}
-              tone="primary"
-              icon={<Settings size={20} color={colors.primaryDark} strokeWidth={2.2} />}
+              tone="neutral"
+              icon={<Settings size={20} color={colors.textSecondary} strokeWidth={2.2} />}
             />
           </View>
         </View>
@@ -278,7 +278,14 @@ export default function HomeScreen() {
         </View>
 
         <Panel variant="surface" style={styles.playerCard}>
-          <PlayerAvatar avatarId={avatarId} frameId={frameId} size={48} />
+          <PlayerAvatar
+            avatarId={avatarId}
+            frameId={frameId}
+            size={48}
+            color={colors.textSecondary}
+            backgroundColor={colors.surfaceMuted}
+            borderColor={colors.borderSubtle}
+          />
           <View style={styles.playerCopy}>
             <ThemedText variant="body" style={styles.playerName}>
               {displayName || user?.displayName || fallbackName}
@@ -577,6 +584,7 @@ function ProfileAuthModal({
             label={emailMode === 'register'
               ? language === 'tr' ? 'Email ile hesap oluştur' : 'Create account with email'
               : language === 'tr' ? 'Email ile giriş yap' : 'Sign in with email'}
+            variant="action"
             fullWidth
             loading={loading}
             disabled={
@@ -796,7 +804,7 @@ function HomeActionModal({
             {error && <ThemedText variant="caption" color="error" style={styles.modalError}>{getErrorMessage(error, language)}</ThemedText>}
             <ThemedButton
               label={kind === 'solo' ? t('solo.action') : kind === 'create' ? t('create.action') : t('join.action')}
-              variant={kind === 'create' ? 'explorer' : 'primary'}
+              variant="action"
               size="lg"
               fullWidth
               loading={kind !== 'solo' && isLoading}
@@ -903,21 +911,21 @@ function HomeProgressionHud({
             <Defs>
               <LinearGradient id="levelBadgeFill" x1="0%" y1="0%" x2="0%" y2="100%">
                 <Stop offset="0" stopColor={colors.amberStrong} />
-                <Stop offset="0.5" stopColor={colors.secondary} />
+                <Stop offset="0.5" stopColor={colors.actionAmber} />
                 <Stop offset="1" stopColor={colors.amber} />
               </LinearGradient>
             </Defs>
             <Polygon
               points="26,2 31.4,5.7 38,5.2 40.9,11.1 46.8,14 46.3,20.6 50,26 46.3,31.4 46.8,38 40.9,40.9 38,46.8 31.4,46.3 26,50 20.6,46.3 14,46.8 11.1,40.9 5.2,38 5.7,31.4 2,26 5.7,20.6 5.2,14 11.1,11.1 14,5.2 20.6,5.7"
               fill={colors.actionAmber}
-              stroke={colors.actionAmberDark}
+              stroke={colors.amberMuted}
               strokeWidth="2.5"
               strokeLinejoin="round"
             />
             <Polygon
               points="26,7 30.4,9.6 35.5,9.5 38,14 42.5,16.5 42.4,21.6 45,26 42.4,30.4 42.5,35.5 38,38 35.5,42.5 30.4,42.4 26,45 21.6,42.4 16.5,42.5 14,38 9.5,35.5 9.6,30.4 7,26 9.6,21.6 9.5,16.5 14,14 16.5,9.5 21.6,9.6"
               fill="url(#levelBadgeFill)"
-              stroke={colors.secondaryContainer}
+              stroke={colors.amberStrong}
               strokeWidth="1.4"
               strokeLinejoin="round"
             />
@@ -1022,8 +1030,8 @@ const styles = StyleSheet.create({
     minHeight: 70,
     paddingVertical: 11,
     paddingHorizontal: spacing.md,
-    borderColor: 'rgba(34,200,184,0.34)',
-    backgroundColor: '#F0FBF8',
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
     ...shadows.sm,
   },
   playerCopy: {
@@ -1042,11 +1050,8 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     maxHeight: '86%',
     borderRadius: radius.xl,
-    borderWidth: 2,
-    borderTopColor: colors.metalLight,
-    borderRightColor: colors.border,
-    borderBottomColor: colors.borderDark,
-    borderLeftColor: colors.border,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
     ...shadows.lg,
   },
@@ -1061,12 +1066,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     borderRadius: radius.lg,
-    borderWidth: 2,
-    borderBottomWidth: 4,
-    borderColor: colors.primary,
-    borderBottomColor: colors.primaryDark,
-    backgroundColor: colors.primaryContainer,
-    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
   disabledAuthMethod: {
     opacity: 0.58,
@@ -1082,7 +1084,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   providerGrid: { flexDirection: 'row', gap: spacing.sm },
-  providerButton: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.primaryContainer },
+  providerButton: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface },
   authDivider: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   authDividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   authInput: { minHeight: 52, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, color: colors.textPrimary, paddingHorizontal: spacing.md, fontFamily: 'Quicksand-Medium', fontSize: 15 },
@@ -1145,12 +1147,10 @@ const styles = StyleSheet.create({
     bottom: 8,
     left: 34,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderBottomWidth: 3,
-    borderColor: colors.primary,
-    borderBottomColor: colors.primaryDark,
-    borderRadius: radius.sm,
-    backgroundColor: colors.primaryContainer,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
   },
   progressionHeaderFill: {
     height: '100%',
@@ -1198,10 +1198,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderBottomWidth: 3,
-    borderColor: '#F0A03A',
-    borderBottomColor: '#C87519',
-    backgroundColor: '#F8A83D',
+    borderBottomWidth: 2,
+    borderColor: colors.amberStrong,
+    borderBottomColor: colors.amberMuted,
+    backgroundColor: colors.actionAmber,
     ...shadows.md,
   },
   playButton: {
@@ -1212,9 +1212,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
     borderRightWidth: 1,
-    borderRightColor: 'rgba(121, 67, 12, 0.26)',
+    borderRightColor: colors.amberMuted,
     overflow: 'hidden',
-    backgroundColor: '#F8A83D',
+    backgroundColor: colors.actionAmber,
   },
   playSettingsButton: {
     width: 62,
@@ -1222,7 +1222,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    backgroundColor: '#F8A83D',
+    backgroundColor: colors.actionAmber,
   },
   playButtonHighlight: { position: 'absolute', top: 0, right: 0, left: 0, height: 2, pointerEvents: 'none', backgroundColor: 'rgba(255,255,255,0.58)' },
   playButtonPressed: {
@@ -1246,10 +1246,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
     ...shadows.sm,
   },
   onlineActionPressed: {
@@ -1267,7 +1267,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.lg,
-    backgroundColor: 'rgba(23, 35, 31, 0.48)',
+    backgroundColor: colors.modalScrim,
   },
   actionModal: {
     width: '100%',
@@ -1275,9 +1275,9 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     overflow: 'hidden',
     borderRadius: radius.xl,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.backgroundDeep,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
     ...shadows.lg,
   },
   actionModalHeader: {
@@ -1306,7 +1306,7 @@ const styles = StyleSheet.create({
     height: 58,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.cyanMuted,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
     color: colors.primary,
     fontFamily: 'Quicksand-Bold',
@@ -1322,7 +1322,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.primaryContainer,
+    borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
   },
   modalIntroText: { flex: 1 },
@@ -1341,7 +1341,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   modalDifficultyOptionSelected: {
-    borderColor: colors.primary,
+    borderColor: colors.borderFocused,
     backgroundColor: colors.primaryContainer,
   },
   serverStatus: {
@@ -1352,7 +1352,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.primaryContainer,
+    borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
   },
   serverStatusError: { borderColor: colors.error },
@@ -1370,9 +1370,10 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.sm,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
   modalError: { textAlign: 'center' },
   actions: {

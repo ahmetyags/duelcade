@@ -180,7 +180,6 @@ export default function ProgressionScreen() {
         ) : (
           <>
             <View style={styles.levelCard}>
-              <View pointerEvents="none" style={styles.levelGlow} />
               <View style={styles.levelBadge}>
                 <View style={styles.levelBadgeInner}>
                   <View style={styles.levelBadgeContent}>
@@ -231,34 +230,51 @@ export default function ProgressionScreen() {
             <View style={styles.stack}>
               {data.dailyQuests.map((quest) => {
                 const complete = quest.progress >= quest.target;
+                const canClaim = complete && !quest.claimed;
                 return (
                   <View key={quest.key} style={styles.questCard}>
-                    <View style={styles.flex}>
+                    <View style={styles.questCopy}>
                       <ThemedText variant="body" style={styles.cardTitle}>
                         {t(`progression.quest.${quest.key}`)}
                       </ThemedText>
-                      <ThemedText variant="caption" color="muted">
-                        {quest.progress}/{quest.target} · +{quest.rewardXp} XP
-                      </ThemedText>
+                      <View style={styles.questMetaRow}>
+                        <View style={styles.questProgressLabel}>
+                          <Target size={13} color={colors.textMuted} />
+                          <ThemedText variant="caption" color="muted">
+                            {quest.progress}/{quest.target}
+                          </ThemedText>
+                        </View>
+                        <View style={styles.questReward}>
+                          <Sparkles size={12} color={colors.amberMuted} />
+                          <ThemedText variant="caption" style={styles.questRewardText}>
+                            +{quest.rewardXp} XP
+                          </ThemedText>
+                        </View>
+                      </View>
                       <ProgressBar value={quest.progress} target={quest.target} />
                     </View>
                     <Pressable
                       accessibilityRole="button"
-                      disabled={!complete || quest.claimed || claim.isPending}
+                      disabled={!canClaim || claim.isPending}
                       onPress={() => claim.mutate(quest.key)}
                       style={[
                         styles.claimButton,
-                        (!complete || quest.claimed) && styles.disabled,
+                        !canClaim && styles.claimUnavailable,
+                        quest.claimed && styles.claimedButton,
                       ]}
                     >
                       {quest.claimed ? (
                         <Check size={17} color={colors.success} />
                       ) : (
-                        <Gift size={17} color={colors.textOnPrimary} />
+                        <Gift size={17} color={canClaim ? colors.textOnAccent : colors.textMuted} />
                       )}
                       <ThemedText
                         variant="caption"
-                        style={{ color: quest.claimed ? colors.success : colors.textOnPrimary }}
+                        style={[
+                          styles.claimLabel,
+                          canClaim && styles.claimLabelActive,
+                          quest.claimed && styles.claimedLabel,
+                        ]}
                       >
                         {quest.claimed
                           ? t('progression.claimed')
@@ -464,7 +480,7 @@ function ProgressBar({
 }) {
   const ratio = target <= 0 ? 0 : Math.min(1, Math.max(0, value / target));
   return (
-    <View style={[styles.progressTrack, accent === 'amber' && styles.progressTrackOnDark]}>
+    <View style={[styles.progressTrack, accent === 'amber' && styles.progressTrackAmber]}>
       <View style={[
         styles.progressFill,
         accent === 'amber' && styles.progressFillAmber,
@@ -503,18 +519,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.cyanMuted,
-    backgroundColor: colors.primaryDark,
-    ...shadows.md,
-  },
-  levelGlow: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    right: -54,
-    top: -88,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(69, 220, 203, 0.12)',
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+    ...shadows.sm,
   },
   levelBadge: {
     width: 92,
@@ -523,16 +530,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   levelBadgeInner: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
+    width: 76,
+    height: 76,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.secondaryContainer,
-    borderWidth: 3,
-    borderColor: colors.actionAmber,
-    transform: [{ rotate: '45deg' }],
-    ...shadows.glow,
+    borderWidth: 1,
+    borderColor: colors.amberStrong,
+    ...shadows.sm,
   },
   levelLabelPill: {
     position: 'absolute',
@@ -544,13 +550,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.actionAmber,
-    borderWidth: 2,
-    borderColor: colors.primaryDark,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   levelBadgeContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    transform: [{ rotate: '-45deg' }],
   },
   levelLabel: { color: colors.textOnAccent, fontFamily: 'Quicksand-Bold' },
   levelNumber: {
@@ -561,7 +566,7 @@ const styles = StyleSheet.create({
   levelCopy: { flex: 1, gap: spacing.xs, zIndex: 1 },
   rankEyebrow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   rankEyebrowText: { color: colors.actionAmber },
-  totalXp: { color: '#FFFFFF', fontSize: 21, lineHeight: 27 },
+  totalXp: { color: colors.textPrimary, fontSize: 21, lineHeight: 27 },
   levelTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -569,27 +574,24 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
-  levelProgressLabel: { color: '#C9E9E4', flexShrink: 1 },
-  levelProgressValue: { color: '#FFFFFF', fontFamily: 'Quicksand-SemiBold' },
-  nextUnlock: { color: '#C9E9E4', marginTop: spacing.xs },
+  levelProgressLabel: { color: colors.textMuted, flexShrink: 1 },
+  levelProgressValue: { color: colors.textPrimary, fontFamily: 'Quicksand-SemiBold' },
+  nextUnlock: { color: colors.textMuted, marginTop: spacing.xs },
   progressTrack: {
     width: '100%',
-    height: 8,
+    height: 7,
     borderRadius: radius.pill,
     overflow: 'hidden',
-    backgroundColor: colors.surfaceDark,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceMuted,
   },
   progressFill: {
     height: '100%',
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
   },
-  progressTrackOnDark: {
-    height: 10,
-    backgroundColor: 'rgba(8, 48, 43, 0.68)',
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+  progressTrackAmber: {
+    height: 7,
+    backgroundColor: colors.surfaceMuted,
   },
   progressFillAmber: { backgroundColor: colors.actionAmber },
   sectionHeader: {
@@ -604,11 +606,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
+    ...shadows.sm,
   },
+  questCopy: { flex: 1, minWidth: 0, gap: spacing.sm },
+  questMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  questProgressLabel: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  questReward: {
+    minHeight: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.secondaryContainer,
+  },
+  questRewardText: { color: colors.amberMuted, fontFamily: 'Quicksand-SemiBold' },
   flex: { flex: 1, gap: spacing.xs },
   cardTitle: { fontFamily: 'Quicksand-SemiBold' },
   claimButton: {
@@ -620,9 +641,13 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     borderRadius: radius.lg,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.actionAmber,
   },
-  disabled: { opacity: 0.45 },
+  claimUnavailable: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.borderSubtle },
+  claimedButton: { backgroundColor: colors.primaryContainer, borderWidth: 1, borderColor: colors.borderSubtle },
+  claimLabel: { color: colors.textMuted },
+  claimLabelActive: { color: colors.textOnAccent, fontFamily: 'Quicksand-Bold' },
+  claimedLabel: { color: colors.primaryDark, fontFamily: 'Quicksand-SemiBold' },
   masteryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -650,7 +675,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    backgroundColor: colors.surface,
   },
   cosmeticGroupHeader: {
     flexDirection: 'row',
@@ -716,7 +741,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceDark,
+    backgroundColor: colors.surface,
   },
   statusCopy: { textAlign: 'center' },
   retry: {
@@ -727,6 +752,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
 });

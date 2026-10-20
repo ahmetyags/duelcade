@@ -37,6 +37,9 @@ import { generateGuestDisplayName } from '@/services/GuestIdentity';
 
 const AUTH_KEY = 'duelcade_auth';
 const LEGACY_AUTH_KEYS = ['duo_arcade_auth', 'asymmetric_escape_auth'] as const;
+const FIREBASE_PROVIDER_CACHE_MS = 5 * 60_000;
+let firebaseProviderCache: { enabled: boolean; expiresAt: number } | null = null;
+let firebaseProviderRequest: Promise<boolean> | null = null;
 
 export interface AuthUser {
   readonly id: string;
@@ -129,11 +132,23 @@ async function persistFirebaseSession(identity: FirebaseIdentityToken) {
 
 async function firebaseModeEnabled(): Promise<boolean> {
   if (!isFirebaseConfigured) return false;
-  try {
-    return (await fetchAuthProviders()).providers.firebase === true;
-  } catch {
-    return false;
+  if (firebaseProviderCache && firebaseProviderCache.expiresAt > Date.now()) {
+    return firebaseProviderCache.enabled;
   }
+  if (firebaseProviderRequest) return firebaseProviderRequest;
+
+  firebaseProviderRequest = (async () => {
+    try {
+      const enabled = (await fetchAuthProviders()).providers.firebase === true;
+      firebaseProviderCache = { enabled, expiresAt: Date.now() + FIREBASE_PROVIDER_CACHE_MS };
+      return enabled;
+    } catch {
+      return false;
+    } finally {
+      firebaseProviderRequest = null;
+    }
+  })();
+  return firebaseProviderRequest;
 }
 
 function parseSavedUser(raw: string | null): AuthUser | null {

@@ -327,6 +327,7 @@ export function NeonTrailBoard({ match, disabled, onMove, reduceMotion }: BoardP
               head && styles.headCell,
             ]}
           >
+            {legal.has(index) && owner === null && <View style={styles.legalTarget} />}
             {head && (
               <AnimatedTurnPiece
                 identity={`${owner}-${index}`}
@@ -626,7 +627,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  legalCell: { backgroundColor: '#D6FAF4', borderColor: colors.actionCyan },
+  legalCell: {
+    borderWidth: 1.5,
+    borderColor: colors.borderFocused,
+    backgroundColor: '#FAF6ED',
+  },
+  legalTarget: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.textSecondary,
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
   headCell: { borderWidth: 3 },
   gatewayWrap: { flex: 1, gap: 15 },
   gatewayTools: { flexDirection: 'row', gap: spacing.sm },

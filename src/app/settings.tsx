@@ -430,13 +430,13 @@ const styles = StyleSheet.create({
   diagnosticsButton: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: radius.sm,
+    borderColor: colors.borderSubtle,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
-    backgroundColor: colors.primaryContainer,
+    backgroundColor: colors.surface,
   },
   crashButton: {
     borderColor: colors.error,
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.primaryContainer,
     borderWidth: 1,
-    borderColor: 'rgba(34,200,184,0.48)',
+    borderColor: colors.borderSubtle,
   },
   languageCopy: {
     flex: 1,
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   languageOptionSelected: {
-    borderColor: colors.primary,
+    borderColor: colors.borderFocused,
     backgroundColor: colors.primaryContainer,
   },
   toggleGroup: {

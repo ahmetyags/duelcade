@@ -30,8 +30,6 @@ export default function MatchHistoryScreen() {
   const history = useQuery({
     queryKey: ['match-history', user?.id],
     enabled: user?.serverBacked === true,
-    staleTime: 0,
-    refetchOnMount: 'always',
     queryFn: async () => {
       const accessToken = await getValidAccessToken();
       if (!accessToken) throw new Error('AUTH_UNAVAILABLE');
@@ -153,7 +151,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceDark,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
@@ -168,7 +166,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
   card: {
     padding: spacing.lg,
@@ -177,7 +176,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    ...shadows.md,
+    ...shadows.sm,
   },
   cardTop: {
     flexDirection: 'row',

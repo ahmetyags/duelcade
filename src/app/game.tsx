@@ -413,50 +413,64 @@ function FallingConnectPiece({
   const [translateY] = useState(() => new Animated.Value(reduceMotion ? 0 : -dropDistance));
   const [opacity] = useState(() => new Animated.Value(reduceMotion ? 1 : 0.72));
   const [scale] = useState(() => new Animated.Value(reduceMotion ? 1 : 0.9));
+  const [impact] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (reduceMotion) {
       translateY.setValue(0);
       opacity.setValue(1);
       scale.setValue(1);
+      impact.setValue(0);
       return;
     }
 
     const useNativeDriver = Platform.OS !== 'web';
-    const fallDuration = Math.min(440, 125 + dropDistance * 2.15);
+    const fallDuration = Math.min(560, 170 + dropDistance * 2.35);
     translateY.setValue(-dropDistance);
     opacity.setValue(0.72);
-    scale.setValue(0.9);
+    scale.setValue(0.88);
+    impact.setValue(0);
 
     Animated.parallel([
       Animated.sequence([
         Animated.timing(translateY, {
-          toValue: 4,
+          toValue: 8,
           duration: fallDuration,
-          easing: Easing.in(Easing.quad),
+          easing: Easing.in(Easing.cubic),
           useNativeDriver,
         }),
         Animated.spring(translateY, {
           toValue: 0,
-          damping: 9,
-          stiffness: 360,
-          mass: 0.45,
+          damping: 7,
+          stiffness: 340,
+          mass: 0.48,
           useNativeDriver,
         }),
       ]),
       Animated.timing(opacity, { toValue: 1, duration: 90, useNativeDriver }),
       Animated.sequence([
-        Animated.timing(scale, { toValue: 1.04, duration: fallDuration, useNativeDriver }),
+        Animated.timing(scale, { toValue: 1.06, duration: fallDuration, useNativeDriver }),
         Animated.spring(scale, {
           toValue: 1,
-          damping: 10,
-          stiffness: 300,
-          mass: 0.42,
+          damping: 8,
+          stiffness: 320,
+          mass: 0.4,
+          useNativeDriver,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.delay(fallDuration),
+        Animated.timing(impact, { toValue: 1, duration: 52, useNativeDriver }),
+        Animated.spring(impact, {
+          toValue: 0,
+          damping: 7,
+          stiffness: 340,
+          mass: 0.38,
           useNativeDriver,
         }),
       ]),
     ]).start();
-  }, [dropDistance, opacity, reduceMotion, scale, translateY]);
+  }, [dropDistance, impact, opacity, reduceMotion, scale, translateY]);
 
   return (
     <Animated.View
@@ -466,7 +480,12 @@ function FallingConnectPiece({
         {
           backgroundColor: color,
           opacity,
-          transform: [{ translateY }, { scale }],
+          transform: [
+            { translateY },
+            { scale },
+            { scaleX: impact.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) },
+            { scaleY: impact.interpolate({ inputRange: [0, 1], outputRange: [1, 0.88] }) },
+          ],
         },
       ]}
     >
@@ -785,7 +804,9 @@ export default function GameScreen() {
     ) {
       void audioService.playGameMove(match.mode);
       const movedPlayerId = previous.playerIds[previous.activePlayerIndex];
-      if (movedPlayerId !== localPlayerId) triggerHaptic('light');
+      if (movedPlayerId !== localPlayerId) {
+        triggerHaptic(match.mode === 'connect_four' ? 'medium' : 'light');
+      }
     }
   }, [localPlayerId, match]);
 
@@ -858,7 +879,7 @@ export default function GameScreen() {
         ) ? match.mode : undefined,
       });
     }
-    triggerHaptic('light');
+    triggerHaptic(match?.mode === 'connect_four' ? 'medium' : 'light');
     if (singlePlayer) {
       playSinglePlayerTurn(cell);
     } else {
@@ -884,6 +905,7 @@ export default function GameScreen() {
 
   const modeCopy = getTurnModeCopy(language, match.mode);
   const compact = height < 900;
+  const veryCompact = height < 600;
   const latestCipherGuess = match.cipherHistory?.[match.cipherHistory.length - 1];
   const boardFeedbackColor = match.status === 'round_complete'
     ? colors.success
@@ -899,8 +921,12 @@ export default function GameScreen() {
       <MagicBackdrop />
       <ScrollView
         ref={pageRef}
-        contentContainerStyle={[styles.page, compact && styles.pageCompact]}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.page,
+          compact && styles.pageCompact,
+          veryCompact && styles.pageVeryCompact,
+        ]}
+        showsVerticalScrollIndicator={height < 700}
       >
         <View style={[styles.topbar, styles.topbarRefined]}>
           <View>
@@ -1328,6 +1354,7 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.backgroundDeep },
   page: { flexGrow: 1, width: '100%', maxWidth: 680, alignSelf: 'center', justifyContent: 'center', padding: spacing.xl, gap: 15 },
   pageCompact: { paddingVertical: spacing.sm, gap: 15 },
+  pageVeryCompact: { gap: 7 },
   topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   topbarRefined: { minHeight: 52 },
   gameTitleRefined: { color: colors.textPrimary, fontFamily: 'Quicksand-Bold', fontSize: 25, lineHeight: 30, letterSpacing: -0.35 },
@@ -1358,7 +1385,7 @@ const styles = StyleSheet.create({
   boardShellCompact: { maxWidth: 430 },
   boardShellGateway: { aspectRatio: 0.86, maxHeight: 620 },
   boardShellCipher: { aspectRatio: 0.8, maxHeight: 620 },
-  boardShellResonance: { aspectRatio: 0.6, maxHeight: 620 },
+  boardShellResonance: { aspectRatio: 0.55, maxHeight: 620 },
   waitOverlay: { position: 'absolute', inset: 0, zIndex: 8, backgroundColor: 'rgba(247,244,238,0.62)' },
   runeBoard: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: TURN_BOARD_GRID_GAP, alignContent: 'center', justifyContent: 'center' },
   runeCell: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: '#F8FFFD', alignItems: 'center', justifyContent: 'center' },

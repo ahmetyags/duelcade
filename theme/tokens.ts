@@ -1,4 +1,4 @@
-/** Duelcade's shared modern-neon-arcade design language. */
+/** Duelcade's shared warm, minimal interface palette. */
 
 export const colors = {
   // Layered warm-neutral surfaces. These deliberately avoid an all-white card stack.

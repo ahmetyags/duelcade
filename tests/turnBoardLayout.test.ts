@@ -19,6 +19,12 @@ for (const device of [
       const maxBoardWidth = Math.min(device.width - 48, device.height < 900 ? 430 : 560);
       const innerWidth = maxBoardWidth - 26;
       assert.ok(usedWidth <= innerWidth, `${columns} columns overflow by ${usedWidth - innerWidth}px`);
+      const roundedCellWidth = Math.ceil(cell);
+      const roundedUsedWidth = roundedCellWidth * columns + TURN_BOARD_GRID_GAP * (columns - 1);
+      assert.ok(
+        roundedUsedWidth <= innerWidth,
+        `${columns} rounded columns overflow by ${roundedUsedWidth - innerWidth}px`,
+      );
       assert.ok(cell > 0);
     }
   });

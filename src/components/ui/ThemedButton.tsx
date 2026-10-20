@@ -15,7 +15,7 @@ import { audioService } from '@/services/AudioService';
 import { ThemedText } from './ThemedText';
 import { useSettingsStore } from '@/store/settingsStore';
 
-type ButtonVariant = 'primary' | 'secondary' | 'wood' | 'danger' | 'ghost' | 'operator' | 'explorer';
+type ButtonVariant = 'primary' | 'action' | 'secondary' | 'wood' | 'danger' | 'ghost' | 'operator' | 'explorer';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ThemedButtonProps extends Omit<PressableProps, 'style'> {
@@ -33,6 +33,7 @@ interface ThemedButtonProps extends Omit<PressableProps, 'style'> {
 
 const VARIANT_COLORS: Record<ButtonVariant, { bg: string; border: string; base: string; text: string }> = {
   primary: { bg: colors.primary, border: colors.primary, base: colors.primary, text: colors.textOnPrimary },
+  action: { bg: colors.actionAmber, border: colors.amberStrong, base: colors.amberMuted, text: colors.textOnAccent },
   secondary: { bg: colors.surface, border: colors.border, base: colors.border, text: colors.textPrimary },
   wood: { bg: colors.primaryContainer, border: colors.actionCyan, base: colors.primaryDark, text: colors.actionCyan },
   danger: { bg: colors.surfaceDark, border: colors.error, base: colors.borderDark, text: colors.error },
@@ -63,7 +64,7 @@ export const ThemedButton = React.memo<ThemedButtonProps>(function ThemedButton(
   const variantColors = VARIANT_COLORS[variant];
   const sizeStyles = SIZE_STYLES[size];
   const { highContrast, reduceMotion } = useSettingsStore();
-  const primaryAction = variant === 'primary';
+  const primaryAction = variant === 'primary' || variant === 'action';
 
   const handlePress = useCallback(() => {
     if (disabled || loading) return;

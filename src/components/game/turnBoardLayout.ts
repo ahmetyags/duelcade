@@ -7,6 +7,7 @@ const COMPACT_BOARD_MAX_WIDTH = 430;
 const REGULAR_BOARD_MAX_WIDTH = 560;
 const PAGE_HORIZONTAL_PADDING = spacing.xl * 2;
 const BOARD_CHROME = spacing.md * 2 + 2;
+const CELL_ROUNDING_GUARD = 1;
 
 /**
  * Returns a pixel cell size instead of relying on percentage widths mixed with
@@ -27,5 +28,11 @@ export function turnBoardCellSize(
   );
   const innerWidth = Math.max(0, boardWidth - BOARD_CHROME);
   const gaps = TURN_BOARD_GRID_GAP * Math.max(0, columns - 1);
-  return Math.max(1, Math.floor(((innerWidth - gaps) / columns) * 10) / 10);
+  // Leave a pixel of slack per cell. Native and browser layout engines can
+  // round fractional widths independently, which otherwise wraps the last
+  // cell onto another row inside the board's clipped shell.
+  return Math.max(
+    1,
+    Math.floor((((innerWidth - gaps) / columns) - CELL_ROUNDING_GUARD) * 10) / 10,
+  );
 }

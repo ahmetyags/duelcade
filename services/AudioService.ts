@@ -74,7 +74,12 @@ class AudioServiceClass {
   }
 
   async playGameMove(mode?: string): Promise<void> {
-    await this.playSound(mode === 'pipe_circuit' ? 'puzzle_rotate' : 'ui_tap');
+    const sound = mode === 'pipe_circuit'
+      ? 'puzzle_rotate'
+      : mode === 'connect_four'
+        ? 'ui_confirm'
+        : 'ui_tap';
+    await this.playSound(sound);
   }
 
   async playGameRoundResult(won: boolean | null): Promise<void> {

@@ -150,7 +150,7 @@ export default function LobbyScreen() {
 
       {/* Room code card */}
       <View style={styles.content}>
-        <Panel variant="elevated" style={styles.codeCard}>
+        <Panel variant="surface" style={styles.codeCard}>
           <ThemedText variant="label" color="muted" style={{ textAlign: 'center', letterSpacing: 2 }}>
             {t('lobby.roomCode')}
           </ThemedText>
@@ -259,7 +259,7 @@ export default function LobbyScreen() {
               : localPlayer?.isReady
                 ? t('lobby.notReadyAction')
                 : t('lobby.readyAction')}
-            variant={localPlayer?.isReady ? 'secondary' : 'primary'}
+            variant={localPlayer?.isReady ? 'secondary' : 'action'}
             size="lg"
             fullWidth
             disabled={!bothPlayersPresent || waitingForRematch}

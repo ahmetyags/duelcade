@@ -122,7 +122,7 @@ export default function JoinRoomScreen() {
 
         <ThemedButton
           label={t('join.action')}
-          variant="primary"
+          variant="action"
           size="lg"
           fullWidth
           loading={isLoading}
@@ -182,6 +182,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.md,
-    borderWidth: 2,
+    borderWidth: 1,
   },
 });

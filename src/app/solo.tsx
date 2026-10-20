@@ -122,7 +122,7 @@ export default function SoloSetupScreen() {
 
         <ThemedButton
           label={t('solo.action')}
-          variant="primary"
+          variant="action"
           size="lg"
           fullWidth
           icon={<Bot size={21} color={colors.textOnPrimary} />}
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     borderRadius: radius.lg,
-    backgroundColor: colors.surfaceDark,
+    backgroundColor: colors.surface,
   },
   botMark: {
     width: 48,

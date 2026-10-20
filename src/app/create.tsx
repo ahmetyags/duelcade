@@ -221,7 +221,7 @@ export default function CreateRoomScreen() {
 
           <ThemedButton
             label={t('create.action')}
-            variant="primary"
+            variant="action"
             size="lg"
             fullWidth
             loading={isLoading}

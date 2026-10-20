@@ -113,7 +113,6 @@ function RootLayout() {
       isReturningSession: returning,
     });
     useSettingsStore.getState().markSessionStarted(sessionAt);
-    void flushAnalyticsEvents();
   }, [authLoading, lastSessionAt, settingsLoaded, usageAnalyticsEnabled]);
 
   const onLayout = useCallback(() => {

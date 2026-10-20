@@ -24,7 +24,7 @@ export default function NotFoundScreen() {
       </ThemedText>
       <ThemedButton
         label={t('notFound.home')}
-        variant="primary"
+        variant="action"
         size="md"
         onPress={() => router.replace('/')}
         style={{ marginTop: spacing.xl }}

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Home, MessageSquareText, RotateCw, Trophy } from 'lucide-react-native';
@@ -28,6 +28,7 @@ import {
 } from '@/services/AnalyticsService';
 
 export default function ResultsScreen() {
+  const { height } = useWindowDimensions();
   const { language, t } = useTranslation();
   const copy = TURN_RESULTS[language];
   const turnUi = TURN_UI[language];
@@ -43,6 +44,12 @@ export default function ResultsScreen() {
   const localRequestedRematch = !!localPlayerId && rematchVotes.includes(localPlayerId);
   const opponentRequestedRematch = rematchVotes.some((playerId) => playerId !== localPlayerId);
   const resultTracked = useRef(false);
+
+  useEffect(() => {
+    if (!result || !room) {
+      router.replace('/');
+    }
+  }, [result, room, router]);
 
   useEffect(() => {
     if (result && firstDuel && result.forfeitedPlayerId !== localPlayerId) {
@@ -96,8 +103,8 @@ export default function ResultsScreen() {
   }, [queryClient, result, singlePlayer, user]);
 
   useEffect(() => {
-    if (!singlePlayer && room?.status === 'waiting') router.replace('/lobby');
-  }, [room?.status, router, singlePlayer]);
+    if (result && !singlePlayer && room?.status === 'waiting') router.replace('/lobby');
+  }, [result, room?.status, router, singlePlayer]);
 
   const handleHome = useCallback(() => {
     if (singlePlayer) {
@@ -110,13 +117,7 @@ export default function ResultsScreen() {
     router.replace('/');
   }, [router, singlePlayer]);
 
-  if (!result || !room) {
-    return (
-      <View style={styles.loading}>
-        <ThemedText color="muted">{copy.loading}</ThemedText>
-      </View>
-    );
-  }
+  if (!result || !room) return null;
 
   const winner = result.winnerPlayerId
     ? room.players.find((player) => player.id === result.winnerPlayerId)
@@ -149,7 +150,10 @@ export default function ResultsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <MagicBackdrop />
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={height < 700}
+      >
         <View style={[styles.trophy, localWon && styles.trophyWon]}>
           <Trophy size={46} color={winner ? colors.amber : colors.cyan} />
         </View>
@@ -205,7 +209,7 @@ export default function ResultsScreen() {
             ]}
           >
             <RotateCw size={21} color={colors.textOnPrimary} />
-            <ThemedText variant="label" color="onPrimary">
+            <ThemedText variant="label" style={{ color: colors.textOnAccent }}>
               {rematchLabel}
             </ThemedText>
           </Pressable>
@@ -231,23 +235,22 @@ export default function ResultsScreen() {
             <ThemedText variant="label">{copy.home}</ThemedText>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.backgroundDeep },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.backgroundDeep },
-  content: { flex: 1, width: '100%', maxWidth: 680, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  trophy: { width: 94, height: 94, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.lg },
+  content: { flexGrow: 1, width: '100%', maxWidth: 680, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
+  trophy: { width: 94, height: 94, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.sm },
   trophyWon: { borderColor: colors.amber, backgroundColor: colors.secondaryContainer },
   title: { textAlign: 'center', fontSize: 34 },
   summary: { textAlign: 'center' },
   scoreboard: { width: '100%', flexDirection: 'row', gap: spacing.md, marginVertical: spacing.xl },
-  playerResult: { flex: 1, minWidth: 0, padding: spacing.lg, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surfaceDark, alignItems: 'center', gap: spacing.sm },
+  playerResult: { flex: 1, minWidth: 0, padding: spacing.lg, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderSubtle, backgroundColor: colors.surface, alignItems: 'center', gap: spacing.sm },
   actions: { width: '100%', gap: spacing.sm },
   action: { minHeight: 52, paddingHorizontal: spacing.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  primaryAction: { backgroundColor: colors.primary, borderColor: colors.primary },
+  primaryAction: { backgroundColor: colors.actionAmber, borderColor: colors.amberStrong },
   disabled: { opacity: 0.55 },
 });

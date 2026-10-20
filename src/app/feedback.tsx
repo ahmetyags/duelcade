@@ -250,6 +250,7 @@ export default function FeedbackScreen() {
               )}
               <ThemedButton
                 label={sending ? t('feedback.sending') : t('feedback.submit')}
+                variant="action"
                 loading={sending}
                 disabled={!valid || sending}
                 fullWidth
@@ -292,8 +293,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipSelected: {
-    borderColor: colors.primaryDark,
-    backgroundColor: colors.primary,
+    borderColor: colors.borderFocused,
+    backgroundColor: colors.primaryContainer,
   },
   chipTextSelected: {
     color: colors.textOnPrimary,

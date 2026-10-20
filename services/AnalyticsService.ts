@@ -49,6 +49,15 @@ interface QueuedAnalyticsEvent {
 }
 
 let queueOperation: Promise<void> = Promise.resolve();
+let analyticsFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleAnalyticsFlush(): void {
+  if (analyticsFlushTimer) clearTimeout(analyticsFlushTimer);
+  analyticsFlushTimer = setTimeout(() => {
+    analyticsFlushTimer = null;
+    void flushAnalyticsEvents();
+  }, 400);
+}
 
 function randomUuid(): string {
   const bytes = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256));
@@ -116,10 +125,14 @@ export function trackAnalyticsEvent(
   void enqueue(async () => {
     const queue = await readQueue();
     await saveQueue([...queue, event]);
-  }).then(() => flushAnalyticsEvents());
+  }).then(scheduleAnalyticsFlush);
 }
 
 export async function flushAnalyticsEvents(): Promise<void> {
+  if (analyticsFlushTimer) {
+    clearTimeout(analyticsFlushTimer);
+    analyticsFlushTimer = null;
+  }
   if (!useSettingsStore.getState().usageAnalyticsEnabled) return;
   return enqueue(async () => {
     const user = useAuthStore.getState().user;
